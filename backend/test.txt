@@ -1,0 +1,3 @@
+Hello from PrintHub
+Patient: Test User
+Location: Dental Clinic
