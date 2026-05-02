@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 from datetime import datetime
 from services.barcode_service import build_print_payload, generate_patient_id
-from services.routing_service import print_with_failover
+from services.routing_service import print_with_failover, mark_job, log_print_event
 
 print_queue = Queue()
 try:
@@ -64,25 +64,27 @@ def print_barcode(
     try:
         zpl = f"""
 ^XA
-^PW600
-^LL280
+^PW812
+^LL230
 ^CI28
 
-^CF0,28
+^CF0,24
 
-^FO20,20^FD{patient_name} / {age}Y / {gender}^FS
-^FO580,20^FB200,1,0,R^FD{visit_id}^FS
+^FO20,10^FD{age}Y / {gender}^FS
 
 ^BY2,2,60
-^FO20,70
-^BCN,70,Y,N,N
+^FO20,50
+^BCN,60,Y,N,N
 ^FD{patient_id}^FS
 
-^CF0,24
-^FO20,160^FD{datetime_str}^FS
+^CF0,22
 
-^CF0,26
-^FO20,200^FD{tube_type}^FS
+^FO20,130^FD{patient_id}^FS
+
+^CF0,20
+
+^FO20,170^FD{datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S").strftime("%d/%m")}^FS
+^FO140,170^FD{datetime_str.split(" ")[1]}^FS
 
 ^XZ
 """
@@ -116,16 +118,65 @@ def print_barcode(
         conn.commit()
         conn.close()
 
-def send_to_printer(ip, data):
+def send_to_printer(ip, data, printer_name=None):
+    # -------------------------------
+    # STEP 1: TRY IP PRINT
+    # -------------------------------
+    if ip:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(1)
+            s.connect((ip, 9100))
+            s.sendall(data)
+            s.close()
+
+            print("✅ Printed via IP:", ip)
+            return True
+
+        except Exception as e:
+            print("❌ IP print failed:", e)
+
+    # -------------------------------
+    # STEP 2: TRY USB PRINT
+    # -------------------------------
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        
-        s.connect((ip, 9100))
-        s.sendall(data)
-        s.close()
+        if win32print is None:
+            raise Exception("win32print not available")
+
+        # If printer name given → use it
+        if printer_name:
+            target_printer = printer_name
+        else:
+            target_printer = win32print.GetDefaultPrinter()
+
+        printers = [p[2] for p in win32print.EnumPrinters(2)]
+
+        if target_printer not in printers:
+            raise Exception("USB printer not found")
+
+        hPrinter = win32print.OpenPrinter(target_printer)
+
+        hJob = win32print.StartDocPrinter(
+            hPrinter, 1, ("Barcode Job", None, "RAW")
+        )
+
+        win32print.StartPagePrinter(hPrinter)
+        win32print.WritePrinter(hPrinter, data)
+        win32print.EndPagePrinter(hPrinter)
+
+        win32print.EndDocPrinter(hPrinter)
+        win32print.ClosePrinter(hPrinter)
+
+        print("✅ Printed via USB:", target_printer)
+        return True
+
     except Exception as e:
-        print("IP Print Error:", e)
-        raise e
+        print("❌ USB print failed:", e)
+
+    # -------------------------------
+    # STEP 3: TOTAL FAILURE
+    # -------------------------------
+    return False
 
 
 def print_a4_ip(printer_ip, patient_name, location):
@@ -187,111 +238,131 @@ def print_a4_file(file_path, printer_name, job_id):
         conn.commit()
         conn.close()
 def process_queue():
+    """Background worker to process queued print jobs."""
     while True:
-        job = print_queue.get()
+        try:
+            job = print_queue.get(timeout=1)
+        except:
+            continue
 
         if not job:
             continue
 
         try:
-            printer_ip = job["printer_ip"]
-            category = job["category"]
-            patient_name = job["patient_name"]
-            age = job["age"]
-            gender = job["gender"]
-            patient_id = job["patient_id"]
-            tube_type = job["tube_type"]
-            visit_id = job.get("visit_id")
-            datetime_str = job.get("datetime")
-            location = job["location"]
             job_id = job["job_id"]
-            file_path = job.get("file_path")
-            printer_name = job["printer_name"]
+            location = job["location"]
+            category = job["category"]
+            payload = job["payload"]
 
-            print(f"Processing job {job_id}")
+            print(f"[QUEUE] Processing job {job_id} - {category} at {location}")
 
-            if category == "Barcode":
-                print_barcode(
-                    printer_ip,
-                    patient_name,
-                    age,
-                    gender,
-                    patient_id,
-                    tube_type,
-                    location,
+            # Use routing service to handle failover
+            try:
+                final_printer, final_type = print_with_failover(
                     job_id,
-                    visit_id,
-                    datetime_str
+                    location,
+                    category,
+                    payload
                 )
-
-            elif category == "A4":
-                if file_path:
-                    print_a4_file(file_path, printer_name, job_id)
-                else:
-                    print("No file provided for A4 job")
-
-                    conn = get_connection()
-                    cur = conn.cursor()
-
-                    cur.execute(
-                        "UPDATE print_jobs SET status=? WHERE id=?",
-                        ("Failed", job_id)
-                    )
-
-                    conn.commit()
-                    conn.close()
-
+                print(f"[QUEUE] Job {job_id} completed on {final_printer['name']} ({final_type})")
+            except Exception as routing_err:
+                print(f"[QUEUE] Job {job_id} failed: {routing_err}")
+                mark_job(job_id, "Failed")
+                log_print_event(job_id, "Queue", "Failed", str(routing_err))
 
         except Exception as e:
-            print("Queue Error:", e)
+            print(f"[QUEUE] Unexpected error: {e}")
 
-        print_queue.task_done()
-def check_printer(ip):
-    if not ip:
-        return False
+        finally:
+            print_queue.task_done()
+def check_printer(ip, printer_name=None):
+    """Check if printer is accessible via IP or USB."""
+    # 🔹 1. Try IP check
+    if ip and ip.strip():
+        try:
+            with socket.create_connection((ip, 9100), timeout=0.75):
+                print(f"[CHECK] Printer {ip} - Live (IP)")
+                return True
+        except socket.timeout:
+            pass  # fallback to USB
+        except socket.error:
+            pass  # fallback to USB
+        except Exception as e:
+            print(f"[CHECK] IP check error for {ip}: {e}")
+            pass  # fallback to USB
 
+    # 🔹 2. USB / Windows Printer Check
     try:
-        with socket.create_connection((ip, 9100), timeout=0.75):
-            return True
-    except Exception:
-        return False
+        if win32print is None:
+            return False
+
+        printers = win32print.EnumPrinters(2)
+
+        for p in printers:
+            system_name = p[2]
+
+            # match printer name from DB with Windows printer
+            if printer_name and printer_name.lower() in system_name.lower():
+                print(f"[CHECK] Printer {printer_name} - Live (USB)")
+                return True
+
+    except Exception as e:
+        print(f"[CHECK] USB check error: {e}")
+
+    return False
 
 @app.get("/check-printers")
 def check_printers():
-    conn = get_connection()
-    cur = conn.cursor()
+    """Check status of all printers with optimized worker pool."""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
 
-    cur.execute("SELECT id, ip FROM printers")
-    printers = [dict(row) for row in cur.fetchall()]
-    conn.close()
+        cur.execute("SELECT id, ip, name FROM printers")
+        printers = [dict(row) for row in cur.fetchall()]
+        conn.close()
 
-    def status_for_printer(printer):
-        is_live = check_printer(printer["ip"])
-        status = "Live" if is_live else "Offline"
-        return (status, printer["id"])
+        if not printers:
+            return {"message": "No printers to check", "printers": []}
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
-        updates = list(executor.map(status_for_printer, printers))
+        def status_for_printer(printer):
+            try:
+                is_live = check_printer(printer["ip"], printer.get("name"))
+                status = "Live" if is_live else "Offline"
+                return (status, printer["id"])
+            except Exception as e:
+                print(f"[CHECK] Error checking printer {printer['id']}: {e}")
+                return ("Offline", printer["id"])
 
-    conn = get_connection()
-    cur = conn.cursor()
+        # Use fewer workers to reduce database lock contention
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            updates = list(executor.map(status_for_printer, printers))
 
-    if updates:
-        cur.executemany(
-            "UPDATE printers SET status=? WHERE id=?",
-            updates
-        )
+        # Batch update with transaction
+        if updates:
+            try:
+                conn = get_connection()
+                cur = conn.cursor()
+                cur.executemany(
+                    "UPDATE printers SET status=? WHERE id=?",
+                    updates
+                )
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f"[CHECK] Database update error: {e}")
 
-    conn.commit()
-    conn.close()
+        return {
+            "message": "Printer status updated",
+            "printers": [
+                {"id": printer["id"], "status": status}
+                for printer, (status, _) in zip(printers, updates)
+            ]
+        }
+    except Exception as e:
+        print(f"[CHECK] Unexpected error: {e}")
+        return {"error": str(e), "printers": []}
 
-    return {
-        "message": "Printer status updated",
-        "printers": [
-            {"id": printer["id"], "status": status}
-            for printer, (status, _) in zip(printers, updates)
-        ]
-    }
 
 @app.get("/")
 def home():
@@ -303,74 +374,160 @@ def get_mapping():
     conn = get_connection()
     cur = conn.cursor()
 
+    # 🔹 Get mapping
     cur.execute("SELECT * FROM mapping")
-    rows = cur.fetchall()
+    mappings = [dict(row) for row in cur.fetchall()]
+
+    # 🔹 Get printers status
+    cur.execute("SELECT name, status FROM printers")
+    printers = {row["name"]: row["status"] for row in cur.fetchall()}
 
     conn.close()
 
-    return [dict(row) for row in rows]
+    result = []
+
+    for m in mappings:
+
+        # ---------- A4 ----------
+        a4_primary_status = printers.get(m["a4Primary"], "Offline")
+        a4_secondary_status = printers.get(m["a4Secondary"], "Offline")
+
+        if a4_primary_status == "Live":
+            m["a4Active"] = m["a4Primary"]
+            m["a4Type"] = "Primary"
+        else:
+            m["a4Active"] = m["a4Secondary"]
+            m["a4Type"] = "Failover"
+
+        # ---------- BARCODE ----------
+        bar_primary_status = printers.get(m["barPrimary"], "Offline")
+        bar_secondary_status = printers.get(m["barSecondary"], "Offline")
+
+        if bar_primary_status == "Live":
+            m["barActive"] = m["barPrimary"]
+            m["barType"] = "Primary"
+        else:
+            m["barActive"] = m["barSecondary"]
+            m["barType"] = "Failover"
+
+        result.append(m)
+
+    return result
 
 
-@app.post("/mapping")
-def add_mapping(data: dict):
-    conn = get_connection()
-    cur = conn.cursor()
+@app.get("/mapping-validate")
+def validate_mapping():
+    """Validate all mappings for missing or offline printers."""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
 
-    cur.execute(
-        """
-        INSERT INTO mapping
-        (location, a4Primary, a4Secondary, barPrimary, barSecondary)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (
-            data["location"],
-            data["a4Primary"],
-            data["a4Secondary"],
-            data["barPrimary"],
-            data["barSecondary"],
-        )
-    )
+        # Get all mappings
+        cur.execute("SELECT * FROM mapping")
+        mappings = [dict(row) for row in cur.fetchall()]
 
-    conn.commit()
-    conn.close()
+        # Get all printers
+        cur.execute("SELECT name, status FROM printers")
+        printers = {row["name"]: row["status"] for row in cur.fetchall()}
 
-    return {"message": "Mapping Added"}
+        conn.close()
+
+        issues = []
+
+        for mapping in mappings:
+            location = mapping["location"]
+
+            # Check each printer reference
+            for field, printer_name in [
+                ("a4Primary", mapping["a4Primary"]),
+                ("a4Secondary", mapping["a4Secondary"]),
+                ("barPrimary", mapping["barPrimary"]),
+                ("barSecondary", mapping["barSecondary"]),
+            ]:
+                if printer_name and printer_name != "None":
+                    if printer_name not in printers:
+                        issues.append({
+                            "location": location,
+                            "field": field,
+                            "printer": printer_name,
+                            "issue": "Printer does not exist"
+                        })
+                    elif printers[printer_name] != "Live":
+                        issues.append({
+                            "location": location,
+                            "field": field,
+                            "printer": printer_name,
+                            "status": printers[printer_name],
+                            "issue": "Printer is offline"
+                        })
+
+        return {
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "total_mappings": len(mappings),
+            "issues_count": len(issues)
+        }
+
+    except Exception as e:
+        return {"error": str(e), "valid": False}
+
+
+
 
 @app.put("/mapping/{mapping_id}")
 def update_mapping(mapping_id: int, data: dict):
-    conn = get_connection()
-    cur = conn.cursor()
+    """Update an existing printer mapping."""
+    try:
+        a4_primary = data.get("a4Primary", "None")
+        a4_secondary = data.get("a4Secondary", "None")
+        bar_primary = data.get("barPrimary", "None")
+        bar_secondary = data.get("barSecondary", "None")
 
-    cur.execute("""
-        UPDATE mapping
-        SET location=?, a4Primary=?, a4Secondary=?, barPrimary=?, barSecondary=?
-        WHERE id=?
-    """, (
-        data["location"],
-        data["a4Primary"],
-        data["a4Secondary"],
-        data["barPrimary"],
-        data["barSecondary"],
-        mapping_id
-    ))
+       
 
-    conn.commit()
-    conn.close()
+        conn = get_connection()
+        cur = conn.cursor()
 
-    return {"message": "Mapping Updated"}
+        # Check mapping exists
+        cur.execute("SELECT * FROM mapping WHERE id=?", (mapping_id,))
+        if not cur.fetchone():
+            conn.close()
+            return {"error": "Mapping not found"}
 
+        # Validate printers exist (if not "None")
+        def validate_printer(name):
+            if name and name != "None":
+                cur.execute("SELECT * FROM printers WHERE name=?", (name,))
+                return cur.fetchone() is not None
+            return True
 
-@app.delete("/mapping/{mapping_id}")
-def delete_mapping(mapping_id: int):
-    conn = get_connection()
-    cur = conn.cursor()
+        for printer_name in [a4_primary, a4_secondary, bar_primary, bar_secondary]:
+            if not validate_printer(printer_name):
+                conn.close()
+                return {"error": f"Printer '{printer_name}' does not exist"}
 
-    cur.execute("DELETE FROM mapping WHERE id=?", (mapping_id,))
+        # Validate no duplicates for Primary/Secondary
+        if a4_primary != "None" and a4_primary == a4_secondary:
+            conn.close()
+            return {"error": "A4 Primary and Secondary cannot be the same"}
 
-    conn.commit()
-    conn.close()
+        if bar_primary != "None" and bar_primary == bar_secondary:
+            conn.close()
+            return {"error": "Barcode Primary and Secondary cannot be the same"}
 
-    return {"message": "Mapping Deleted"}
+        # Update mapping
+        cur.execute("""
+            UPDATE mapping
+            SET a4Primary=?, a4Secondary=?, barPrimary=?, barSecondary=?
+            WHERE id=?
+        """, (a4_primary, a4_secondary, bar_primary, bar_secondary, mapping_id))
+
+        conn.commit()
+        conn.close()
+
+        return {"message": "Mapping updated successfully"}
+    except Exception as e:
+        return {"error": str(e)}
 
 # ---------------- PRINTERS
 @app.get("/printers")
@@ -382,7 +539,19 @@ def get_printers():
     rows = cur.fetchall()
 
     conn.close()
-    return [dict(row) for row in rows]
+    result = []
+
+    for row in rows:
+        printer = dict(row)
+
+        # 🔹 Check live status (IP + USB)
+        is_live = check_printer(printer["ip"], printer["name"])
+
+        printer["status"] = "Live" if is_live else "Offline"
+
+        result.append(printer)
+
+    return result
 
 
 @app.post("/printers")
@@ -422,68 +591,79 @@ def add_printer(data: Printer):
     return {"message": "Printer Added", "id": printer_id}
 @app.put("/printers/{printer_id}")
 def update_printer_status(printer_id: int, data: Printer):
+    """Update printer details with transactional cascading updates."""
     name = data.name.strip()
     ip = data.ip.strip()
 
     if not name or not ip:
         return {"error": "Printer name and IP are required"}
 
-    conn = get_connection()
-    cur = conn.cursor()
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
 
-    cur.execute("SELECT * FROM printers WHERE id=?", (printer_id,))
-    existing = cur.fetchone()
-    if not existing:
-        conn.close()
-        return {"error": "Printer not found"}
+        cur.execute("SELECT * FROM printers WHERE id=?", (printer_id,))
+        existing = cur.fetchone()
+        if not existing:
+            conn.close()
+            return {"error": "Printer not found"}
 
-    cur.execute(
-        "SELECT * FROM printers WHERE ip=? AND id<>?",
-        (ip, printer_id)
-    )
-    if cur.fetchone():
-        conn.close()
-        return {"error": "Printer already exists with this IP"}
-
-    cur.execute(
-        "SELECT * FROM printers WHERE name=? AND id<>?",
-        (name, printer_id)
-    )
-    if cur.fetchone():
-        conn.close()
-        return {"error": "Printer already exists with this name"}
-
-    if data.category not in ["A4", "Barcode"]:
-        conn.close()
-        return {"error": "Invalid category"}
-
-    cur.execute(
-        """
-        UPDATE printers
-        SET name=?, ip=?, category=?, status=?, language=?
-        WHERE id=?
-        """,
-        (
-            name,
-            ip,
-            data.category,
-            data.status,
-            data.language,
-            printer_id
+        cur.execute(
+            "SELECT * FROM printers WHERE ip=? AND id<>?",
+            (ip, printer_id)
         )
-    )
+        if cur.fetchone():
+            conn.close()
+            return {"error": "Printer already exists with this IP"}
 
-    old_name = existing["name"]
-    if old_name != name:
-        cur.execute("UPDATE mapping SET a4Primary=? WHERE a4Primary=?", (name, old_name))
-        cur.execute("UPDATE mapping SET a4Secondary=? WHERE a4Secondary=?", (name, old_name))
-        cur.execute("UPDATE mapping SET barPrimary=? WHERE barPrimary=?", (name, old_name))
-        cur.execute("UPDATE mapping SET barSecondary=? WHERE barSecondary=?", (name, old_name))
+        cur.execute(
+            "SELECT * FROM printers WHERE name=? AND id<>?",
+            (name, printer_id)
+        )
+        if cur.fetchone():
+            conn.close()
+            return {"error": "Printer already exists with this name"}
 
-    conn.commit()
-    conn.close()
+        if data.category not in ["A4", "Barcode"]:
+            conn.close()
+            return {"error": "Invalid category"}
 
-    return {"message": "Printer Updated"}
+        # Update printer
+        cur.execute(
+            """
+            UPDATE printers
+            SET name=?, ip=?, category=?, status=?, language=?
+            WHERE id=?
+            """,
+            (
+                name,
+                ip,
+                data.category,
+                data.status,
+                data.language,
+                printer_id
+            )
+        )
+
+        # Cascade name change to mappings (atomic transaction)
+        old_name = existing["name"]
+        if old_name != name:
+            cur.execute("UPDATE mapping SET a4Primary=? WHERE a4Primary=?", (name, old_name))
+            cur.execute("UPDATE mapping SET a4Secondary=? WHERE a4Secondary=?", (name, old_name))
+            cur.execute("UPDATE mapping SET barPrimary=? WHERE barPrimary=?", (name, old_name))
+            cur.execute("UPDATE mapping SET barSecondary=? WHERE barSecondary=?", (name, old_name))
+
+        conn.commit()
+        conn.close()
+
+        return {"message": "Printer updated successfully"}
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+            conn.close()
+        print(f"[PRINTER UPDATE] Error: {e}")
+        return {"error": str(e)}
 
 @app.delete("/printers/{printer_id}")
 def delete_printer(printer_id: int):
@@ -771,6 +951,7 @@ def dashboard():
 
 @app.post("/print-job")
 def print_job(data: dict):
+    """Queue a print job for async processing."""
     try:
         location = data.get("location")
         category = data.get("category")
@@ -809,49 +990,28 @@ def print_job(data: dict):
         conn = get_connection()
         cur = conn.cursor()
 
+        # Check for duplicate patient_id (if barcode job)
+        if category == "Barcode" and patient_id:
+            cur.execute(
+                "SELECT id FROM print_jobs WHERE patient_id=? AND status NOT IN ('Failed', 'Cancelled')",
+                (patient_id,)
+            )
+            if cur.fetchone():
+                conn.close()
+                return {
+                    "error": f"Patient ID {patient_id} already has an active print job",
+                    "patient_id": patient_id
+                }
+
         # 1. Get mapping
         cur.execute("SELECT * FROM mapping WHERE location=?", (location,))
         mapping = cur.fetchone()
 
         if not mapping:
             conn.close()
-            return {"error": "No mapping found"}
+            return {"error": "No mapping found for location"}
 
-        # 2. Select printers
-        if category == "A4":
-            primary = mapping["a4Primary"]
-            secondary = mapping["a4Secondary"]
-        else:
-            primary = mapping["barPrimary"]
-            secondary = mapping["barSecondary"]
-
-        # 3. Failover logic
-        if not primary or primary == "None":
-            selected = secondary
-            used = "Failover"
-        else:
-            cur.execute("SELECT * FROM printers WHERE name=?", (primary,))
-            p1 = cur.fetchone()
-
-            if p1 and p1["status"] == "Live":
-                selected = primary
-                used = "Primary"
-            else:
-                selected = secondary
-                used = "Failover"
-
-        # 4. Final safety
-        
-        if not selected or selected == "None":
-            selected = "No Printer Available"
-            used = "None"
-        if selected == "No Printer Available":
-            conn.close()
-            return {"error": "No printer available"}
-
-        status = "Queued"
-
-        # 6. Save job
+        # 2. Save job with initial status
         now = datetime.now().strftime("%I:%M %p")
 
         cur.execute("""
@@ -861,9 +1021,9 @@ def print_job(data: dict):
         """, (
             location,
             category,
-            selected,
-            status,
-            used,
+            "Pending",
+            "Queued",
+            "None",
             now,
             patient_name,
             age,
@@ -876,6 +1036,7 @@ def print_job(data: dict):
         job_id = cur.lastrowid  
         conn.close()
 
+        # 3. Build payload
         payload = build_print_payload({
             "location": location,
             "category": category,
@@ -888,31 +1049,27 @@ def print_job(data: dict):
             "datetime": datetime_str,
         })
 
-        try:
-            final_printer, final_type = print_with_failover(
-                job_id,
-                location,
-                category,
-                payload
-            )
-            selected = final_printer["name"]
-            used = final_type
-            status = "Completed"
-        except Exception as e:
-            print("Print Error:", e)
-            status = "Failed"
+        # 4. Queue for background processing
+        print_queue.put({
+            "job_id": job_id,
+            "location": location,
+            "category": category,
+            "payload": payload,
+        })
+
+        print(f"[API] Job {job_id} queued for printing")
 
         return {
             "job_id": job_id,
             "location": location,
             "category": category,
-            "printer_used": selected,
-            "type": used,
-            "status": status,
             "patient_id": patient_id,
+            "status": "Queued",
+            "message": "Job queued for processing"
         }
 
     except Exception as e:
+        print(f"[API] Print job error: {e}")
         return {"error": str(e)}
 
 
@@ -993,12 +1150,20 @@ def get_active_printer(location: str, category: str):
 import time
 
 def auto_check():
+    """Background worker to periodically check printer status."""
+    last_check = 0
+    check_interval = 10  # Check every 10 seconds (reduced from 5)
+    
     while True:
         try:
-            check_printers()
-        except:
-            pass
-        time.sleep(5)   # every 5 seconds
+            current_time = time.time()
+            if current_time - last_check >= check_interval:
+                check_printers()
+                last_check = current_time
+        except Exception as e:
+            print(f"[AUTO_CHECK] Error: {e}")
+        
+        time.sleep(1)  # Small sleep to prevent busy-waiting
 
 threading.Thread(target=auto_check, daemon=True).start()
 threading.Thread(target=process_queue, daemon=True).start()

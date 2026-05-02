@@ -107,15 +107,21 @@ def print_with_failover(job_id, location, category, payload):
             continue
 
         try:
-            if printer.get("status") != "Live" or not check_printer(printer.get("ip")):
-                raise RuntimeError("Printer is offline")
-
             mark_job(job_id, "Printing", printer["name"], route_type)
-            log_print_event(job_id, printer["name"], "Printing", "Sending job to printer")
-            send_to_printer(printer["ip"], payload)
-            mark_job(job_id, "Completed", printer["name"], route_type)
-            log_print_event(job_id, printer["name"], "Completed", "Print job completed")
-            return printer, route_type
+            log_print_event(job_id, printer["name"], "Printing", "Trying printer")
+
+            success = send_to_printer(
+                printer.get("ip"),
+                payload,
+                printer.get("name")
+            )
+
+            if success:
+                mark_job(job_id, "Completed", printer["name"], route_type)
+                log_print_event(job_id, printer["name"], "Completed", "Print success")
+                return printer, route_type
+            else:
+                raise RuntimeError("Print failed (IP + USB)")
         except Exception as exc:
             last_error = exc
             log_print_event(job_id, printer.get("name"), "Failed", str(exc))
