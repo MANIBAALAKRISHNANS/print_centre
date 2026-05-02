@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useState, useEffect } from "react";
 
 export const AppData = createContext();
@@ -8,17 +9,21 @@ function AppDataProvider({ children }) {
   const [categories, setCategories] = useState([]);
 
   const loadAll = async () => {
-    try {
-      const p = await fetch("http://127.0.0.1:8000/printers").then(r => r.json());
-      const l = await fetch("http://127.0.0.1:8000/locations").then(r => r.json());
-      const c = await fetch("http://127.0.0.1:8000/categories").then(r => r.json());
+    const loadResource = async (url, setter, label) => {
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        setter(data);
+      } catch (err) {
+        console.log(`${label} API error`, err);
+      }
+    };
 
-      setPrinters(p);
-      setLocations(l);
-      setCategories(c);
-    } catch (err) {
-      console.log("Error loading data", err);
-    }
+    await Promise.all([
+      loadResource("http://127.0.0.1:8000/printers", setPrinters, "Printers"),
+      loadResource("http://127.0.0.1:8000/locations", setLocations, "Locations"),
+      loadResource("http://127.0.0.1:8000/categories", setCategories, "Categories"),
+    ]);
   };
 
   useEffect(() => {
@@ -26,12 +31,17 @@ function AppDataProvider({ children }) {
   }, []);
 
   return (
-    <AppData.Provider value={{
-      printers,
-      locations,
-      categories,
-      loadAll
-    }}>
+    <AppData.Provider
+      value={{
+        printers,
+        setPrinters,
+        locations,
+        setLocations,
+        categories,
+        setCategories,
+        loadAll
+      }}
+    >
       {children}
     </AppData.Provider>
   );

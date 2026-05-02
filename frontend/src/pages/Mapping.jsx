@@ -1,8 +1,10 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect, useCallback } from "react";
 import { AppData } from "../context/AppData";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 function Mapping() {
-  const { printers } = useContext(AppData);
+  const { printers, loadAll } = useContext(AppData);
 
   const [activeMap, setActiveMap] = useState({});
   const [rows, setRows] = useState([]);
@@ -19,7 +21,7 @@ function Mapping() {
   });
 
   /* ---------------- LOAD ACTIVE PRINTERS ---------------- */
-  const loadActivePrinters = async (rowsData) => {
+  const loadActivePrinters = useCallback(async (rowsData) => {
   const result = {};
 
   await Promise.all(
@@ -37,10 +39,10 @@ function Mapping() {
   );
 
   setActiveMap(result);
-};
+}, []);
 
   /* ---------------- LOAD DATA ---------------- */
-  const loadMappings = async () => {
+  const loadMappings = useCallback(async () => {
     const res = await fetch("http://127.0.0.1:8000/mapping");
     const data = await res.json();
 
@@ -48,11 +50,11 @@ function Mapping() {
 
     // 👇 load failover results
     await loadActivePrinters(data);
-  };
+  }, [loadActivePrinters]);
 
   useEffect(() => {
     loadMappings();
-  }, []);
+  }, [printers, loadMappings]);
 
   /* ---------------- FILTER PRINTERS ---------------- */
   const printersA4 = [
@@ -71,6 +73,22 @@ function Mapping() {
 
   /* ---------------- SAVE ---------------- */
   const saveMapping = async () => {
+
+    // 🔴 STEP 6 VALIDATION START
+ 
+    if (newRow.a4Primary === newRow.a4Secondary) {
+      alert("A4 Primary and Secondary cannot be the same");
+      return;
+    }
+
+    if (newRow.barPrimary === newRow.barSecondary) {
+      alert("Barcode Primary and Secondary cannot be the same");
+      return;
+    }
+
+    // 🔴 STEP 6 VALIDATION END
+
+
     const url = `http://127.0.0.1:8000/mapping/${editId}`;
 
     await fetch(url, {
@@ -80,9 +98,17 @@ function Mapping() {
     });
 
     await loadMappings();
+    await loadAll();
 
     setEditId(null);
     setOpen(false);
+  };
+
+  const submitMappingOnEnter = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveMapping();
+    }
   };
 
   /* ---------------- EDIT ---------------- */
@@ -201,83 +227,126 @@ function Mapping() {
               <button onClick={() => setOpen(false)}>✕</button>
             </div>
 
-            <div className="modalBody">
+            <form
+              className="modalBody"
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveMapping();
+              }}
+            >
 
               <input
-                value={newRow.location}
-                readOnly
-                style={{
-                  background: "#f5f5f5",
-                  cursor: "not-allowed",
-                }}
-              />
+              value={newRow.location}
+              readOnly
+              onKeyDown={submitMappingOnEnter}
+              style={{
+                background: "#f5f5f5",
+                cursor: "not-allowed",
+              }}
+            />
 
-              <select
-                value={newRow.a4Primary}
-                onChange={(e) =>
-                  setNewRow({
-                    ...newRow,
-                    a4Primary: e.target.value,
-                  })
+            {/* A4 PRIMARY */}
+            <select
+              value={newRow.a4Primary}
+              onKeyDown={submitMappingOnEnter}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                if (value === newRow.a4Secondary) {
+                  alert("Primary and Secondary cannot be same");
+                  return;
                 }
-              >
-                {printersA4.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </select>
 
-              <select
-                value={newRow.a4Secondary}
-                onChange={(e) =>
-                  setNewRow({
-                    ...newRow,
-                    a4Secondary: e.target.value,
-                  })
+                setNewRow({
+                  ...newRow,
+                  a4Primary: value,
+                });
+              }}
+            >
+              {printersA4.map((p) => (
+                <option key={p}>{p}</option>
+              ))}
+            </select>
+
+            {/* A4 SECONDARY */}
+            <select
+              value={newRow.a4Secondary}
+              onKeyDown={submitMappingOnEnter}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                if (value === newRow.a4Primary) {
+                  alert("Primary and Secondary cannot be same");
+                  return;
                 }
-              >
-                {printersA4.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </select>
 
-              <select
-                value={newRow.barPrimary}
-                onChange={(e) =>
-                  setNewRow({
-                    ...newRow,
-                    barPrimary: e.target.value,
-                  })
+                setNewRow({
+                  ...newRow,
+                  a4Secondary: value,
+                });
+              }}
+            >
+              {printersA4.map((p) => (
+                <option key={p}>{p}</option>
+              ))}
+            </select>
+
+            {/* BARCODE PRIMARY */}
+            <select
+              value={newRow.barPrimary}
+              onKeyDown={submitMappingOnEnter}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                if (value === newRow.barSecondary) {
+                  alert("Primary and Secondary cannot be same");
+                  return;
                 }
-              >
-                {printersBar.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </select>
 
-              <select
-                value={newRow.barSecondary}
-                onChange={(e) =>
-                  setNewRow({
-                    ...newRow,
-                    barSecondary: e.target.value,
-                  })
-                }
-              >
-                {printersBar.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </select>
+                setNewRow({
+                  ...newRow,
+                  barPrimary: value,
+                });
+              }}
+            >
+              {printersBar.map((p) => (
+                <option key={p}>{p}</option>
+              ))}
+            </select>
 
-              <button
-                className="btn full"
-                onClick={saveMapping}
-              >
-                Update Mapping
-              </button>
+            {/* BARCODE SECONDARY */}
+            <select
+              value={newRow.barSecondary}
+              onKeyDown={submitMappingOnEnter}
+              onChange={(e) => {
+                const value = e.target.value;
 
-            </div>
+              if (value === newRow.barPrimary) {
+                alert("Primary and Secondary cannot be same");
+                return;
+              }
 
-          </div>
+              setNewRow({
+                ...newRow,
+                barSecondary: value,
+              });
+            }}
+          >
+            {printersBar.map((p) => (
+              <option key={p}>{p}</option>
+            ))}
+          </select>
+
+          <button
+            type="submit"
+            className="btn full"
+          >
+            Update Mapping
+          </button>
+
+        </form>
+
+        </div>
         </div>
       )}
 

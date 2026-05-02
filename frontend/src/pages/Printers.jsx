@@ -2,7 +2,7 @@ import { useState, useContext, useEffect } from "react";
 import { AppData } from "../context/AppData";
 
 function Printers() {
-  const { printers, setPrinters } = useContext(AppData);
+  const { printers, setPrinters, loadAll } = useContext(AppData);
 
   const [categories, setCategories] = useState([]);
 
@@ -17,20 +17,8 @@ function Printers() {
     language: "ZPL", 
   });
 
-  /* load printers */
-  const loadPrinters = () => {
-    fetch("http://127.0.0.1:8000/printers")
-      .then((res) => res.json())
-      .then((data) => setPrinters(data));
-  };
 
-  useEffect(() => {
-    const init = async () => {
-      await loadPrinters();
-    };
 
-    init();
-  }, []);
 
   /* load categories */
   useEffect(() => {
@@ -48,6 +36,24 @@ function Printers() {
       });
   }, []);
 
+  useEffect(() => {
+    const refreshPrinterStatus = async () => {
+      try {
+        await fetch("http://127.0.0.1:8000/check-printers");
+        const res = await fetch("http://127.0.0.1:8000/printers");
+        const data = await res.json();
+        setPrinters(data);
+      } catch (err) {
+        console.log("Printer status refresh error", err);
+      }
+    };
+
+    refreshPrinterStatus();
+    const interval = setInterval(refreshPrinterStatus, 3000);
+
+    return () => clearInterval(interval);
+  }, [setPrinters]);
+
   const badge = (status) => {
     if (status === "Live") return "live";
     if (status === "Maintenance") return "warn";
@@ -58,7 +64,13 @@ function Printers() {
 
   /* add / edit save */
   const savePrinter = async () => {
-    if (newPrinter.name.trim() === "") return;
+    const printerData = {
+      ...newPrinter,
+      name: newPrinter.name.trim(),
+      ip: newPrinter.ip.trim(),
+    };
+
+    if (printerData.name === "" || printerData.ip === "") return;
 
     const url = editId
       ? `http://127.0.0.1:8000/printers/${editId}`
@@ -66,15 +78,33 @@ function Printers() {
 
     const method = editId ? "PUT" : "POST";
 
-    await fetch(url, {
+    const res = await fetch(url, {
       method: method,
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(newPrinter),
+      body: JSON.stringify(printerData),
     });
 
-    await loadPrinters();
+    const result = await res.json();
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    if (editId) {
+      setPrinters((current) =>
+        current.map((printer) =>
+          printer.id === editId ? { ...printer, ...printerData, id: editId } : printer
+        )
+      );
+    } else {
+      setPrinters((current) => [
+        ...current,
+        { ...printerData, id: result.id },
+      ]);
+    }
 
     setNewPrinter({
       name: "",
@@ -86,6 +116,7 @@ function Printers() {
 
     setEditId(null);
     setOpen(false);
+    loadAll();
   };
 
   /* open edit */
@@ -106,14 +137,22 @@ function Printers() {
   const deletePrinter = async (id) => {
     if (!window.confirm("Delete printer?")) return;
 
-    await fetch(
+    const res = await fetch(
       `http://127.0.0.1:8000/printers/${id}`,
       {
         method: "DELETE",
       }
     );
 
-    await loadPrinters();
+    const result = await res.json();
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    setPrinters((current) => current.filter((printer) => printer.id !== id));
+    loadAll();
   };
 
   /* add mode */
@@ -219,7 +258,13 @@ function Printers() {
               </button>
             </div>
 
-            <div className="modalBody">
+            <form
+              className="modalBody"
+              onSubmit={(e) => {
+                e.preventDefault();
+                savePrinter();
+              }}
+            >
 
               <input
                 placeholder="Printer Name"
@@ -272,13 +317,13 @@ function Printers() {
               </select>
 
               <button
+                type="submit"
                 className="btn full"
-                onClick={savePrinter}
               >
                 {editId ? "Update Printer" : "Save Printer"}
               </button>
 
-            </div>
+            </form>
 
           </div>
 

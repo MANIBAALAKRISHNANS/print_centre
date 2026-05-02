@@ -1,32 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useContext } from "react";
+import { AppData } from "../context/AppData";
 
 function Categories() {
-  const [categories, setCategories] = useState([]);
+  const { categories, setCategories, loadAll } = useContext(AppData);
 
   const [open, setOpen] = useState(false);
   const [editName, setEditName] = useState("");
 
   const [newCategory, setNewCategory] = useState("");
 
-  const loadCategories = () => {
-    fetch("http://127.0.0.1:8000/categories")
-      .then((res) => res.json())
-      .then((data) => setCategories(data))
-      .catch((err) =>
-        console.log("Category API error", err)
-      );
-  };
 
-  useEffect(() => {
-    const init = async () => {
-      await loadCategories();
-    };
 
-    init();
-  }, []);
 
   const saveCategory = async () => {
-    if (newCategory.trim() === "") return;
+    const trimmedCategory = newCategory.trim();
+    if (trimmedCategory === "") return;
 
     const url = editName
       ? `http://127.0.0.1:8000/categories/${encodeURIComponent(editName)}`
@@ -34,21 +22,37 @@ function Categories() {
 
     const method = editName ? "PUT" : "POST";
 
-    await fetch(url, {
+    const res = await fetch(url, {
       method: method,
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        name: newCategory,
+        name: trimmedCategory,
       }),
     });
 
-    await loadCategories();
+    const result = await res.json();
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    if (editName) {
+      setCategories((current) =>
+        current.map((item) => (item === editName ? trimmedCategory : item))
+      );
+    } else {
+      setCategories((current) =>
+        current.includes(trimmedCategory) ? current : [...current, trimmedCategory]
+      );
+    }
 
     setNewCategory("");
     setEditName("");
     setOpen(false);
+    loadAll();
   };
 
   const editCategory = (name) => {
@@ -60,14 +64,22 @@ function Categories() {
   const deleteCategory = async (name) => {
     if (!window.confirm("Delete category?")) return;
 
-    await fetch(
+    const res = await fetch(
       `http://127.0.0.1:8000/categories/${encodeURIComponent(name)}`,
       {
         method: "DELETE",
       }
     );
 
-    await loadCategories();
+    const result = await res.json();
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    setCategories((current) => current.filter((item) => item !== name));
+    loadAll();
   };
 
   const openAdd = () => {
@@ -158,7 +170,13 @@ function Categories() {
 
             </div>
 
-            <div className="modalBody">
+            <form
+              className="modalBody"
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveCategory();
+              }}
+            >
 
               <input
                 placeholder="Category Name"
@@ -171,15 +189,15 @@ function Categories() {
               />
 
               <button
+                type="submit"
                 className="btn full"
-                onClick={saveCategory}
               >
                 {editName
                   ? "Update Category"
                   : "Save Category"}
               </button>
 
-            </div>
+            </form>
 
           </div>
 

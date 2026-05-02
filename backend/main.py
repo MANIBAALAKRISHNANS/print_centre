@@ -2,15 +2,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from database import init_db, get_connection
-import subprocess
 import socket
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 from datetime import datetime
+from services.barcode_service import build_print_payload, generate_patient_id
+from services.routing_service import print_with_failover
 
 print_queue = Queue()
-import win32api
-import win32print
+try:
+    import win32api
+    import win32print
+except ImportError:
+    win32api = None
+    win32print = None
 
 app = FastAPI()
 
@@ -37,34 +43,46 @@ class Location(BaseModel):
 
 class Category(BaseModel):
     name: str
-def print_barcode(printer_ip, patient_name, age, gender, patient_id, tube_type, location, job_id):
+def print_barcode(
+    printer_ip,
+    patient_name,
+    age,
+    gender,
+    patient_id,
+    tube_type,
+    location,
+    job_id,
+    visit_id,
+    datetime_str
+):
+    # 🔹 Limit long name (prevents overlap on label)
+    patient_name = (patient_name or "")[:20]
+
+    # 🔹 Handle empty visit_id safely
+    visit_id = visit_id if visit_id else ""
+    tube_type = (tube_type or "")[:30]
     try:
         zpl = f"""
 ^XA
-^PW400
-^LH0,0
+^PW600
+^LL280
+^CI28
 
 ^CF0,28
 
-^FO20,20^FDName:^FS
-^FO150,20^FD{patient_name}^FS
+^FO20,20^FD{patient_name} / {age}Y / {gender}^FS
+^FO580,20^FB200,1,0,R^FD{visit_id}^FS
 
-^FO20,60^FDAge/Gender:^FS
-^FO150,60^FD{age}/{gender}^FS
-
-^FO20,100^FDPatient ID:^FS
-^FO150,100^FD{patient_id}^FS
-
-^FO20,140^FDTube:^FS
-^FO150,140^FD{tube_type}^FS
-
-^FO20,180^FDDate:^FS
-^FO150,180^FD{datetime.now().strftime('%d/%m/%Y %H:%M')}^FS
-
-^FO20,230
-^BY2,2,80
-^BCN,80,Y,N,N
+^BY2,2,60
+^FO20,70
+^BCN,70,Y,N,N
 ^FD{patient_id}^FS
+
+^CF0,24
+^FO20,160^FD{datetime_str}^FS
+
+^CF0,26
+^FO20,200^FD{tube_type}^FS
 
 ^XZ
 """
@@ -124,6 +142,9 @@ Location: {location}
 
 def print_a4_file(file_path, printer_name, job_id):
     try:
+        if win32api is None or win32print is None:
+            raise RuntimeError("pywin32 is required for Windows spooler printing")
+
         win32print.SetDefaultPrinter(printer_name)
 
         win32api.ShellExecute(
@@ -180,6 +201,8 @@ def process_queue():
             gender = job["gender"]
             patient_id = job["patient_id"]
             tube_type = job["tube_type"]
+            visit_id = job.get("visit_id")
+            datetime_str = job.get("datetime")
             location = job["location"]
             job_id = job["job_id"]
             file_path = job.get("file_path")
@@ -196,7 +219,9 @@ def process_queue():
                     patient_id,
                     tube_type,
                     location,
-                    job_id
+                    job_id,
+                    visit_id,
+                    datetime_str
                 )
 
             elif category == "A4":
@@ -222,38 +247,51 @@ def process_queue():
 
         print_queue.task_done()
 def check_printer(ip):
-    try:
-        result = subprocess.run(
-            ["ping", "-n", "1", ip],
-            stdout=subprocess.DEVNULL
-        )
-        return result.returncode == 0
-    except:
+    if not ip:
         return False
+
+    try:
+        with socket.create_connection((ip, 9100), timeout=0.75):
+            return True
+    except Exception:
+        return False
+
 @app.get("/check-printers")
 def check_printers():
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT * FROM printers")
-    printers = cur.fetchall()
+    cur.execute("SELECT id, ip FROM printers")
+    printers = [dict(row) for row in cur.fetchall()]
+    conn.close()
 
-    for p in printers:
-        ip = p["ip"]
-
-        is_live = check_printer(ip)
-
+    def status_for_printer(printer):
+        is_live = check_printer(printer["ip"])
         status = "Live" if is_live else "Offline"
+        return (status, printer["id"])
 
-        cur.execute(
+    with ThreadPoolExecutor(max_workers=16) as executor:
+        updates = list(executor.map(status_for_printer, printers))
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    if updates:
+        cur.executemany(
             "UPDATE printers SET status=? WHERE id=?",
-            (status, p["id"])
+            updates
         )
 
     conn.commit()
     conn.close()
 
-    return {"message": "Printer status updated"}
+    return {
+        "message": "Printer status updated",
+        "printers": [
+            {"id": printer["id"], "status": status}
+            for printer, (status, _) in zip(printers, updates)
+        ]
+    }
 
 @app.get("/")
 def home():
@@ -349,30 +387,75 @@ def get_printers():
 
 @app.post("/printers")
 def add_printer(data: Printer):
+    name = data.name.strip()
+    ip = data.ip.strip()
+
+    if not name or not ip:
+        return {"error": "Printer name and IP are required"}
+
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT * FROM printers WHERE ip=?", (data.ip,))
+    cur.execute("SELECT * FROM printers WHERE ip=?", (ip,))
     if cur.fetchone():
         conn.close()
         return {"error": "Printer already exists with this IP"}
 
+    cur.execute("SELECT * FROM printers WHERE name=?", (name,))
+    if cur.fetchone():
+        conn.close()
+        return {"error": "Printer already exists with this name"}
+
     if data.category not in ["A4", "Barcode"]:
+        conn.close()
         return {"error": "Invalid category"}
 
     cur.execute(
         "INSERT INTO printers (name, ip, category, status, language) VALUES (?, ?, ?, ?, ?)",
-        (data.name, data.ip, data.category, data.status, data.language)
+        (name, ip, data.category, data.status, data.language)
     )
 
     conn.commit()
+    printer_id = cur.lastrowid
     conn.close()
 
-    return {"message": "Printer Added"}
+    return {"message": "Printer Added", "id": printer_id}
 @app.put("/printers/{printer_id}")
 def update_printer_status(printer_id: int, data: Printer):
+    name = data.name.strip()
+    ip = data.ip.strip()
+
+    if not name or not ip:
+        return {"error": "Printer name and IP are required"}
+
     conn = get_connection()
     cur = conn.cursor()
+
+    cur.execute("SELECT * FROM printers WHERE id=?", (printer_id,))
+    existing = cur.fetchone()
+    if not existing:
+        conn.close()
+        return {"error": "Printer not found"}
+
+    cur.execute(
+        "SELECT * FROM printers WHERE ip=? AND id<>?",
+        (ip, printer_id)
+    )
+    if cur.fetchone():
+        conn.close()
+        return {"error": "Printer already exists with this IP"}
+
+    cur.execute(
+        "SELECT * FROM printers WHERE name=? AND id<>?",
+        (name, printer_id)
+    )
+    if cur.fetchone():
+        conn.close()
+        return {"error": "Printer already exists with this name"}
+
+    if data.category not in ["A4", "Barcode"]:
+        conn.close()
+        return {"error": "Invalid category"}
 
     cur.execute(
         """
@@ -381,14 +464,21 @@ def update_printer_status(printer_id: int, data: Printer):
         WHERE id=?
         """,
         (
-            data.name,
-            data.ip,
+            name,
+            ip,
             data.category,
             data.status,
             data.language,
             printer_id
         )
     )
+
+    old_name = existing["name"]
+    if old_name != name:
+        cur.execute("UPDATE mapping SET a4Primary=? WHERE a4Primary=?", (name, old_name))
+        cur.execute("UPDATE mapping SET a4Secondary=? WHERE a4Secondary=?", (name, old_name))
+        cur.execute("UPDATE mapping SET barPrimary=? WHERE barPrimary=?", (name, old_name))
+        cur.execute("UPDATE mapping SET barSecondary=? WHERE barSecondary=?", (name, old_name))
 
     conn.commit()
     conn.close()
@@ -400,10 +490,22 @@ def delete_printer(printer_id: int):
     conn = get_connection()
     cur = conn.cursor()
 
+    cur.execute("SELECT * FROM printers WHERE id=?", (printer_id,))
+    existing = cur.fetchone()
+    if not existing:
+        conn.close()
+        return {"error": "Printer not found"}
+
     cur.execute(
         "DELETE FROM printers WHERE id=?",
         (printer_id,)
     )
+
+    printer_name = existing["name"]
+    cur.execute("UPDATE mapping SET a4Primary='None' WHERE a4Primary=?", (printer_name,))
+    cur.execute("UPDATE mapping SET a4Secondary='None' WHERE a4Secondary=?", (printer_name,))
+    cur.execute("UPDATE mapping SET barPrimary='None' WHERE barPrimary=?", (printer_name,))
+    cur.execute("UPDATE mapping SET barSecondary='None' WHERE barSecondary=?", (printer_name,))
 
     conn.commit()
     conn.close()
@@ -426,25 +528,29 @@ def get_locations():
 
 @app.post("/locations")
 def add_location(data: Location):
+    name = data.name.strip()
+    if not name:
+        return {"error": "Location name is required"}
+
     conn = get_connection()
     cur = conn.cursor()
 
     # Prevent duplicate location
-    cur.execute("SELECT * FROM locations WHERE name=?", (data.name,))
+    cur.execute("SELECT * FROM locations WHERE name=?", (name,))
     if cur.fetchone():
         conn.close()
-        return {"message": "Location already exists"}
+        return {"error": "Location already exists"}
 
     # Insert location
     cur.execute(
         "INSERT INTO locations (name) VALUES (?)",
-        (data.name,)
+        (name,)
     )
 
     # Prevent duplicate mapping
     cur.execute(
         "SELECT * FROM mapping WHERE location=?",
-        (data.name,)
+        (name,)
     )
     if not cur.fetchone():
         cur.execute(
@@ -457,7 +563,7 @@ def add_location(data: Location):
                 barSecondary
             ) VALUES (?, ?, ?, ?, ?)
             """,
-            (data.name, "None", "None", "None", "None")
+            (name, "None", "None", "None", "None")
         )
 
     conn.commit()
@@ -467,19 +573,38 @@ def add_location(data: Location):
 
 @app.put("/locations/{old_name}")
 def update_location(old_name: str, data: Location):
+    old_name = old_name.strip()
+    new_name = data.name.strip()
+
+    if not new_name:
+        return {"error": "Location name is required"}
+
     conn = get_connection()
     cur = conn.cursor()
+
+    cur.execute("SELECT * FROM locations WHERE name=?", (old_name,))
+    if not cur.fetchone():
+        conn.close()
+        return {"error": "Location not found"}
+
+    cur.execute(
+        "SELECT * FROM locations WHERE name=? AND name<>?",
+        (new_name, old_name)
+    )
+    if cur.fetchone():
+        conn.close()
+        return {"error": "Location already exists"}
 
     # Update locations table
     cur.execute(
         "UPDATE locations SET name=? WHERE name=?",
-        (data.name, old_name)
+        (new_name, old_name)
     )
 
     # ALSO update mapping table
     cur.execute(
         "UPDATE mapping SET location=? WHERE location=?",
-        (data.name, old_name)
+        (new_name, old_name)
     )
 
     conn.commit()
@@ -490,8 +615,15 @@ def update_location(old_name: str, data: Location):
 
 @app.delete("/locations/{name}")
 def delete_location(name: str):
+    name = name.strip()
+
     conn = get_connection()
     cur = conn.cursor()
+
+    cur.execute("SELECT * FROM locations WHERE name=?", (name,))
+    if not cur.fetchone():
+        conn.close()
+        return {"error": "Location not found"}
 
     # Delete mapping FIRST
     cur.execute("DELETE FROM mapping WHERE location=?", (name,))
@@ -520,12 +652,21 @@ def get_categories():
 
 @app.post("/categories")
 def add_category(data: Category):
+    name = data.name.strip()
+    if not name:
+        return {"error": "Category name is required"}
+
     conn = get_connection()
     cur = conn.cursor()
 
+    cur.execute("SELECT * FROM categories WHERE name=?", (name,))
+    if cur.fetchone():
+        conn.close()
+        return {"error": "Category already exists"}
+
     cur.execute(
         "INSERT INTO categories (name) VALUES (?)",
-        (data.name,)
+        (name,)
     )
 
     conn.commit()
@@ -535,12 +676,36 @@ def add_category(data: Category):
 
 @app.put("/categories/{old_name}")
 def update_category(old_name: str, data: Category):
+    old_name = old_name.strip()
+    new_name = data.name.strip()
+
+    if not new_name:
+        return {"error": "Category name is required"}
+
     conn = get_connection()
     cur = conn.cursor()
 
+    cur.execute("SELECT * FROM categories WHERE name=?", (old_name,))
+    if not cur.fetchone():
+        conn.close()
+        return {"error": "Category not found"}
+
+    cur.execute(
+        "SELECT * FROM categories WHERE name=? AND name<>?",
+        (new_name, old_name)
+    )
+    if cur.fetchone():
+        conn.close()
+        return {"error": "Category already exists"}
+
     cur.execute(
         "UPDATE categories SET name=? WHERE name=?",
-        (data.name, old_name)
+        (new_name, old_name)
+    )
+
+    cur.execute(
+        "UPDATE printers SET category=? WHERE category=?",
+        (new_name, old_name)
     )
 
     conn.commit()
@@ -551,8 +716,20 @@ def update_category(old_name: str, data: Category):
 
 @app.delete("/categories/{name}")
 def delete_category(name: str):
+    name = name.strip()
+
     conn = get_connection()
     cur = conn.cursor()
+
+    cur.execute("SELECT * FROM categories WHERE name=?", (name,))
+    if not cur.fetchone():
+        conn.close()
+        return {"error": "Category not found"}
+
+    cur.execute("SELECT COUNT(*) FROM printers WHERE category=?", (name,))
+    if cur.fetchone()[0] > 0:
+        conn.close()
+        return {"error": "Cannot delete category while printers are using it"}
 
     cur.execute(
         "DELETE FROM categories WHERE name=?",
@@ -602,9 +779,33 @@ def print_job(data: dict):
         gender = data.get("gender")
         patient_id = data.get("patient_id")
         tube_type = data.get("tube_type")
+        visit_id = data.get("visit_id")
+        datetime_str = data.get("datetime")
+
+        if category not in ["A4", "Barcode"]:
+            return {"error": "Invalid category"}
+
+        if not location:
+            return {"error": "Location is required"}
+
+        if not datetime_str:
+            datetime_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         if category == "Barcode":
-            if not patient_name or not patient_id:
-                return {"error": "Patient name and ID required"}
+            required_fields = [
+                patient_name,
+                age,
+                gender,
+                tube_type,
+                datetime_str
+            ]
+
+            if not all(required_fields):
+                return {"error": "All barcode fields are required"}
+
+            if not patient_id:
+                patient_id = generate_patient_id()
+
         conn = get_connection()
         cur = conn.cursor()
 
@@ -627,7 +828,7 @@ def print_job(data: dict):
         # 3. Failover logic
         if not primary or primary == "None":
             selected = secondary
-            used = "Secondary"
+            used = "Failover"
         else:
             cur.execute("SELECT * FROM printers WHERE name=?", (primary,))
             p1 = cur.fetchone()
@@ -645,12 +846,10 @@ def print_job(data: dict):
             selected = "No Printer Available"
             used = "None"
         if selected == "No Printer Available":
+            conn.close()
             return {"error": "No printer available"}
 
-        status = "Printing"
-        
-
-
+        status = "Queued"
 
         # 6. Save job
         now = datetime.now().strftime("%I:%M %p")
@@ -676,75 +875,41 @@ def print_job(data: dict):
         conn.commit()
         job_id = cur.lastrowid  
         conn.close()
-     # 5. Printing logic (FIXED)
+
+        payload = build_print_payload({
+            "location": location,
+            "category": category,
+            "patient_name": patient_name,
+            "age": age,
+            "gender": gender,
+            "patient_id": patient_id,
+            "tube_type": tube_type,
+            "visit_id": visit_id,
+            "datetime": datetime_str,
+        })
+
         try:
-            conn = get_connection()     # ⭐ ADD
-            cur = conn.cursor() 
-            cur.execute("SELECT * FROM printers WHERE name=?", (selected,))
-            p = cur.fetchone()
-            conn.close()
-
-            printer_ip = None
-            if p:
-                printer_ip = p["ip"]
-
-            if printer_ip and check_printer(printer_ip):
-
-                job_data = {
-                    "printer_ip": printer_ip,
-                    "category": category,
-                    "patient_name": patient_name,
-                    "age": age,
-                    "gender": gender,
-                    "patient_id": patient_id,
-                    "tube_type": tube_type,
-                    "location": location,
-                    "job_id": job_id,
-                    "printer_name": selected
-                }
-
-                
-                if category == "A4":
-                    job_data["file_path"] = data.get("file_path")
-
-                print_queue.put(job_data)
-
-                print(f"Job {job_id} added to queue")
-
-                status = "Printing"
-            else:
-                status = "Failed"
-                conn = get_connection()
-                cur = conn.cursor()
-
-                cur.execute(
-                    "UPDATE print_jobs SET status=? WHERE id=?",
-                    ("Failed", job_id)
-                )
-
-                conn.commit()
-                conn.close()
-
+            final_printer, final_type = print_with_failover(
+                job_id,
+                location,
+                category,
+                payload
+            )
+            selected = final_printer["name"]
+            used = final_type
+            status = "Completed"
         except Exception as e:
             print("Print Error:", e)
             status = "Failed"
-            conn = get_connection()
-            cur = conn.cursor()
-
-            cur.execute(
-                "UPDATE print_jobs SET status=? WHERE id=?",
-                ("Failed", job_id)
-            )
-
-            conn.commit()
-            conn.close()
 
         return {
+            "job_id": job_id,
             "location": location,
             "category": category,
             "printer_used": selected,
             "type": used,
-            "status": status   
+            "status": status,
+            "patient_id": patient_id,
         }
 
     except Exception as e:
@@ -757,6 +922,18 @@ def get_print_jobs():
     cur = conn.cursor()
 
     cur.execute("SELECT * FROM print_jobs ORDER BY id DESC")
+    rows = cur.fetchall()
+
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+@app.get("/print-logs")
+def get_print_logs():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM print_logs ORDER BY id DESC")
     rows = cur.fetchall()
 
     conn.close()

@@ -4,7 +4,7 @@ import App from "./App";
 import "./index.css";
 import "./App.css";
 
-/* global shared data */
+// Global shared data provider.
 import AppDataProvider from "./context/AppData";
 
 ReactDOM.createRoot(document.getElementById("root")).render(

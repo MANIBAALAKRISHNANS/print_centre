@@ -14,7 +14,13 @@ function Dashboard() {
 
   /* load dashboard stats + printers from backend */
  useEffect(() => {
-  const loadData = () => {
+  const loadData = async () => {
+    try {
+      await fetch("http://127.0.0.1:8000/check-printers");
+    } catch (err) {
+      console.log("Printer status check error", err);
+    }
+
     fetch("http://127.0.0.1:8000/dashboard")
       .then((res) => res.json())
       .then((data) => setStats(data))
@@ -38,7 +44,7 @@ function Dashboard() {
   const interval = setInterval(loadData, 3000);
 
   return () => clearInterval(interval);
-}, []);
+}, [setPrinters]);
 
   const badge = (status) => {
     if (status === "Live") return "live";

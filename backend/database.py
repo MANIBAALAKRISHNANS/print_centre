@@ -1,7 +1,9 @@
 import sqlite3
+import os
 
 def get_connection():
-    conn = sqlite3.connect("printcenter.db")
+    db_path = os.environ.get("PRINTCENTER_DB_PATH", "printcenter.db")
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -25,6 +27,17 @@ def init_db():
         gender TEXT,
         patient_id TEXT,
         tube_type TEXT
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS print_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id INTEGER,
+        printer TEXT,
+        status TEXT,
+        message TEXT,
+        time TEXT
     )
     """)
 

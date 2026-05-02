@@ -1,32 +1,16 @@
-import { useState, useEffect } from "react";
-
+import { useState, useContext } from "react";
+import { AppData } from "../context/AppData";
 function Locations() {
-  const [locations, setLocations] = useState([]);
-
+  const { locations, setLocations, loadAll } = useContext(AppData);
+  
   const [open, setOpen] = useState(false);
   const [editName, setEditName] = useState("");
 
   const [newLocation, setNewLocation] = useState("");
 
-  const loadLocations = () => {
-    fetch("http://127.0.0.1:8000/locations")
-      .then((res) => res.json())
-      .then((data) => setLocations(data))
-      .catch((err) =>
-        console.log("Locations API error", err)
-      );
-  };
-
-  useEffect(() => {
-    const init = async () => {
-      await loadLocations();
-    };
-
-    init();
-  }, []);
-
   const saveLocation = async () => {
-    if (newLocation.trim() === "") return;
+    const trimmedLocation = newLocation.trim();
+    if (trimmedLocation === "") return;
 
     const url = editName
       ? `http://127.0.0.1:8000/locations/${encodeURIComponent(editName)}`
@@ -34,23 +18,35 @@ function Locations() {
 
     const method = editName ? "PUT" : "POST";
 
-    const body = JSON.stringify({
-      name: newLocation,
-    });
-
-    await fetch(url, {
+    const res = await fetch(url, {
       method: method,
       headers: {
         "Content-Type": "application/json",
       },
-      body: body,
+      body: JSON.stringify({ name: trimmedLocation }),
     });
 
-    await loadLocations();
+    const result = await res.json();
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    if (editName) {
+      setLocations((current) =>
+        current.map((item) => (item === editName ? trimmedLocation : item))
+      );
+    } else {
+      setLocations((current) =>
+        current.includes(trimmedLocation) ? current : [...current, trimmedLocation]
+      );
+    }
 
     setNewLocation("");
     setEditName("");
     setOpen(false);
+    loadAll();
   };
 
   const editLocation = (name) => {
@@ -62,18 +58,24 @@ function Locations() {
   const deleteLocation = async (name) => {
     if (!window.confirm("Delete location?")) return;
 
-    await fetch(
+    const res = await fetch(
       `http://127.0.0.1:8000/locations/${encodeURIComponent(name)}`,
-      {
-        method: "DELETE",
-      }
+      { method: "DELETE" }
     );
 
-    await loadLocations();
+    const result = await res.json();
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    setLocations((current) => current.filter((item) => item !== name));
+    loadAll();
   };
 
   const syncLocations = async () => {
-    await loadLocations();
+    await loadAll();
     alert("Locations synchronized successfully");
   };
 
@@ -173,7 +175,13 @@ function Locations() {
 
             </div>
 
-            <div className="modalBody">
+            <form
+              className="modalBody"
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveLocation();
+              }}
+            >
 
               <input
                 placeholder="Location Name"
@@ -186,15 +194,15 @@ function Locations() {
               />
 
               <button
+                type="submit"
                 className="btn full"
-                onClick={saveLocation}
               >
                 {editName
                   ? "Update Location"
                   : "Save Location"}
               </button>
 
-            </div>
+            </form>
 
           </div>
 
