@@ -14,7 +14,7 @@ function Printers() {
     ip: "",
     category: "",
     status: "Live",
-    language: "ZPL", 
+    language: "PS", 
   });
 
 
@@ -39,7 +39,6 @@ function Printers() {
   useEffect(() => {
     const refreshPrinterStatus = async () => {
       try {
-        await fetch("http://127.0.0.1:8000/check-printers");
         const res = await fetch("http://127.0.0.1:8000/printers");
         const data = await res.json();
         setPrinters(data);
@@ -111,7 +110,7 @@ function Printers() {
       ip: "",
       category: categories[0] || "",
       status: "Live",
-      language: "ZPL",
+      language: "PS",
     });
 
     setEditId(null);
@@ -126,7 +125,7 @@ function Printers() {
       ip: printer.ip,
       category: printer.category,
       status: printer.status,
-      language: printer.language || "ZPL",
+      language: printer.language || "PS",
     });
 
     setEditId(printer.id);
@@ -164,7 +163,7 @@ function Printers() {
       ip: "",
       category: categories[0] || "",
       status: "Live",
-      language: "ZPL",
+      language: "PS",
     });
 
     setOpen(true);

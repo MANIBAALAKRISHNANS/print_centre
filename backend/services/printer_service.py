@@ -51,7 +51,7 @@ def send_to_printer(printer_ip, data, printer_name=None, port=9100, timeout=5):
                 handle = win32print.OpenPrinter(system_name)
 
                 job = win32print.StartDocPrinter(
-                    handle, 1, ("ZPL Job", None, "RAW")
+                    handle, 1, ("Print Job", None, "RAW")
                 )
 
                 win32print.StartPagePrinter(handle)

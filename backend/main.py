@@ -1,14 +1,19 @@
-from fastapi import FastAPI
+import os
+import uuid
+import shutil
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from database import init_db, get_connection
+from database import init_db, get_connection, utcnow, JobStatus, VALID_STATUSES
 import socket
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
-from datetime import datetime
+from datetime import datetime, timezone
+
 from services.barcode_service import build_print_payload, generate_patient_id
 from services.routing_service import print_with_failover, mark_job, log_print_event
+from services.printer_service import send_to_printer
 
 print_queue = Queue()
 try:
@@ -43,6 +48,7 @@ class Location(BaseModel):
 
 class Category(BaseModel):
     name: str
+
 def print_barcode(
     printer_ip,
     patient_name,
@@ -118,125 +124,67 @@ def print_barcode(
         conn.commit()
         conn.close()
 
-def send_to_printer(ip, data, printer_name=None):
-    # -------------------------------
-    # STEP 1: TRY IP PRINT
-    # -------------------------------
-    if ip:
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(1)
-            s.connect((ip, 9100))
-            s.sendall(data)
-            s.close()
 
-            print("✅ Printed via IP:", ip)
-            return True
 
-        except Exception as e:
-            print("❌ IP print failed:", e)
+@app.post("/print-a4-file")
+async def print_a4_file_api(
+    location: str = Form(...),
+    file: UploadFile = File(...)
+):
+    """API for uploading and printing A4 documents with validation."""
+    if not file.filename.lower().endswith((".pdf", ".doc", ".docx", ".txt")):
+        raise HTTPException(status_code=400, detail="Invalid file type. Only PDF, DOC, DOCX, TXT allowed.")
 
-    # -------------------------------
-    # STEP 2: TRY USB PRINT
-    # -------------------------------
+    os.makedirs("uploads", exist_ok=True)
+    unique_name = f"{uuid.uuid4()}_{file.filename}"
+    file_path = os.path.join("uploads", unique_name)
+    file_type = file.filename.split(".")[-1].lower()
+    
+    file_size = 0
     try:
-        if win32print is None:
-            raise Exception("win32print not available")
-
-        # If printer name given → use it
-        if printer_name:
-            target_printer = printer_name
-        else:
-            target_printer = win32print.GetDefaultPrinter()
-
-        printers = [p[2] for p in win32print.EnumPrinters(2)]
-
-        if target_printer not in printers:
-            raise Exception("USB printer not found")
-
-        hPrinter = win32print.OpenPrinter(target_printer)
-
-        hJob = win32print.StartDocPrinter(
-            hPrinter, 1, ("Barcode Job", None, "RAW")
-        )
-
-        win32print.StartPagePrinter(hPrinter)
-        win32print.WritePrinter(hPrinter, data)
-        win32print.EndPagePrinter(hPrinter)
-
-        win32print.EndDocPrinter(hPrinter)
-        win32print.ClosePrinter(hPrinter)
-
-        print("✅ Printed via USB:", target_printer)
-        return True
-
+        with open(file_path, "wb") as buffer:
+            while chunk := await file.read(1024 * 1024):
+                file_size += len(chunk)
+                if file_size > 10 * 1024 * 1024:
+                    raise Exception("File too large. Limit is 10MB.")
+                buffer.write(chunk)
     except Exception as e:
-        print("❌ USB print failed:", e)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(status_code=400, detail=str(e))
 
-    # -------------------------------
-    # STEP 3: TOTAL FAILURE
-    # -------------------------------
-    return False
-
-
-def print_a4_ip(printer_ip, patient_name, location):
-  
-    text = f"""
-Patient: {patient_name}
-Location: {location}
-"""
-
-    # Basic PCL format (works for most printers)
-    pcl = f"\x1B%-12345X@PJL JOB\n{text}\n\x1B%-12345X"
-
-    send_to_printer(printer_ip, pcl.encode("utf-8"))
-
-def print_a4_file(file_path, printer_name, job_id):
-    try:
-        if win32api is None or win32print is None:
-            raise RuntimeError("pywin32 is required for Windows spooler printing")
-
-        win32print.SetDefaultPrinter(printer_name)
-
-        win32api.ShellExecute(
-            0,
-            "print",
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO print_jobs 
+        (location, category, printer, status, type, time, file_path, file_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            location,
+            "A4",
+            "Pending",
+            "Queued",
+            "File",
+            utcnow(),
             file_path,
-            None,
-            ".",
-            0
+            file_type
         )
+    )
+    conn.commit()
+    job_id = cur.lastrowid
+    conn.close()
 
-        print("A4 File Sent")
+    print_queue.put({
+        "job_id": job_id,
+        "location": location,
+        "category": "A4",
+        "file_path": file_path
+    })
 
-        # ✅ WAIT LITTLE (simulate print time)
-        import time
-        time.sleep(3)
+    return {"message": "A4 Print Job Queued", "job_id": job_id}
 
-        # ✅ UPDATE STATUS → Completed
-        conn = get_connection()
-        cur = conn.cursor()
-
-        cur.execute(
-            "UPDATE print_jobs SET status=? WHERE id=?",
-            ("Completed", job_id)
-        )
-
-        conn.commit()
-        conn.close()
-
-    except Exception as e:
-        print("A4 Print Error:", e)
-        conn = get_connection()
-        cur = conn.cursor()
-
-        cur.execute(
-            "UPDATE print_jobs SET status=? WHERE id=?",
-            ("Failed", job_id)
-        )
-
-        conn.commit()
-        conn.close()
 def process_queue():
     """Background worker to process queued print jobs."""
     while True:
@@ -252,7 +200,10 @@ def process_queue():
             job_id = job["job_id"]
             location = job["location"]
             category = job["category"]
-            payload = job["payload"]
+            if category == "A4":
+                payload = job.get("file_path", "")
+            else:
+                payload = job.get("payload", "")
 
             print(f"[QUEUE] Processing job {job_id} - {category} at {location}")
 
@@ -266,9 +217,16 @@ def process_queue():
                 )
                 print(f"[QUEUE] Job {job_id} completed on {final_printer['name']} ({final_type})")
             except Exception as routing_err:
-                print(f"[QUEUE] Job {job_id} failed: {routing_err}")
-                mark_job(job_id, "Failed")
-                log_print_event(job_id, "Queue", "Failed", str(routing_err))
+                err_msg = str(routing_err)
+                if "RETRY" in err_msg:
+                    print(f"[QUEUE] Retrying job {job_id}: {err_msg}")
+                    import time
+                    time.sleep(2)  # Wait briefly before putting back
+                    print_queue.put(job)
+                else:
+                    print(f"[QUEUE] Job {job_id} failed: {err_msg}")
+                    mark_job(job_id, "Failed")
+                    log_print_event(job_id, "Queue", "Failed", err_msg)
 
         except Exception as e:
             print(f"[QUEUE] Unexpected error: {e}")
@@ -277,39 +235,70 @@ def process_queue():
             print_queue.task_done()
 def check_printer(ip, printer_name=None):
     """Check if printer is accessible via IP or USB."""
+    ip_live = False
+    usb_live = False
+
     # 🔹 1. Try IP check
     if ip and ip.strip():
+        is_valid_ip = False
         try:
-            with socket.create_connection((ip, 9100), timeout=0.75):
-                print(f"[CHECK] Printer {ip} - Live (IP)")
-                return True
-        except socket.timeout:
-            pass  # fallback to USB
-        except socket.error:
-            pass  # fallback to USB
+            # Simple validation to ensure it's not a weird string like '192.168.0.37_1'
+            socket.inet_aton(ip.split(':')[0]) # Handle IP or IP:port
+            is_valid_ip = True
+        except:
+            pass
+
+        if is_valid_ip:
+            try:
+                with socket.create_connection((ip, 9100), timeout=0.75):
+                    print(f"[CHECK] Printer {printer_name or ip} - Live (IP: {ip})")
+                    ip_live = True
+            except (socket.timeout, socket.error):
+                pass
+            except Exception as e:
+                print(f"[CHECK] IP check error for {ip}: {e}")
+
+    # 🔹 2. USB / Windows Printer Check (if not already live via IP)
+    if not ip_live:
+        try:
+            if win32print is not None:
+                # Enum local and network printers
+                printers = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)
+
+                for p in printers:
+                    system_name = p[2]
+
+                    # Match printer name EXACTLY (case-insensitive)
+                    # This prevents "Printer" from matching "Printer-1"
+                    if printer_name and printer_name.strip().lower() == system_name.strip().lower():
+                        try:
+                            handle = win32print.OpenPrinter(system_name)
+                            # GetPrinter level 2 includes Attributes and Status
+                            info = win32print.GetPrinter(handle, 2)
+                            win32print.ClosePrinter(handle)
+                            
+                            status = info.get("Status", 0)
+                            attr = info.get("Attributes", 0)
+                            
+                            # Check for Offline status or Work Offline attribute
+                            # PRINTER_STATUS_OFFLINE = 0x80
+                            # PRINTER_ATTRIBUTE_WORK_OFFLINE = 0x400
+                            is_offline = (status & 0x80) or (attr & 0x400)
+                            
+                            if is_offline:
+                                print(f"[CHECK] Printer {printer_name} - Offline (Windows reported Offline)")
+                                continue
+                                
+                            print(f"[CHECK] Printer {printer_name} - Live (USB/Windows)")
+                            usb_live = True
+                            break # Found our exact match and it's live
+                        except Exception as e:
+                            print(f"[CHECK] Error getting printer details for {system_name}: {e}")
+                            continue
         except Exception as e:
-            print(f"[CHECK] IP check error for {ip}: {e}")
-            pass  # fallback to USB
+            print(f"[CHECK] USB check error: {e}")
 
-    # 🔹 2. USB / Windows Printer Check
-    try:
-        if win32print is None:
-            return False
-
-        printers = win32print.EnumPrinters(2)
-
-        for p in printers:
-            system_name = p[2]
-
-            # match printer name from DB with Windows printer
-            if printer_name and printer_name.lower() in system_name.lower():
-                print(f"[CHECK] Printer {printer_name} - Live (USB)")
-                return True
-
-    except Exception as e:
-        print(f"[CHECK] USB check error: {e}")
-
-    return False
+    return ip_live or usb_live
 
 @app.get("/check-printers")
 def check_printers():
@@ -941,11 +930,59 @@ def dashboard():
 
     conn.close()
 
+    # Job stats
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT COUNT(*) FROM print_jobs")
+    total_jobs = cur.fetchone()[0]
+
+    cur.execute("SELECT COUNT(*) FROM print_jobs WHERE status='Completed'")
+    completed_jobs = cur.fetchone()[0]
+
+    cur.execute("SELECT COUNT(*) FROM print_jobs WHERE status='Failed'")
+    failed_jobs = cur.fetchone()[0]
+
+    cur.execute("SELECT COUNT(*) FROM print_jobs WHERE COALESCE(retry_count, 0) > 0")
+    retried_jobs = cur.fetchone()[0]
+
+    # Printer-level analytics: jobs per printer
+    # COALESCE(retry_count,0) handles NULLs; TRIM() guards whitespace-only names
+    cur.execute("""
+        SELECT
+            printer,
+            COUNT(*) as job_count,
+            SUM(CASE WHEN status='Completed' THEN 1 ELSE 0 END) as completed,
+            SUM(CASE WHEN status='Failed' THEN 1 ELSE 0 END) as failed,
+            SUM(CASE WHEN COALESCE(retry_count, 0) > 0 THEN 1 ELSE 0 END) as retried,
+            ROUND(
+                100.0 * SUM(CASE WHEN status='Completed' THEN 1 ELSE 0 END)
+                / NULLIF(COUNT(*), 0)
+            , 1) as success_rate
+        FROM print_jobs
+        WHERE
+            printer IS NOT NULL
+            AND TRIM(printer) != ''
+            AND printer NOT IN ('Pending', 'None')
+        GROUP BY printer
+        ORDER BY job_count DESC
+    """)
+    printer_stats = [dict(row) for row in cur.fetchall()]
+
+    conn.close()
+
     return {
         "total": total,
         "live": live,
         "offline": offline,
-        "maintenance": maintenance
+        "maintenance": maintenance,
+        "jobs": {
+            "total": total_jobs,
+            "completed": completed_jobs,
+            "failed": failed_jobs,
+            "retried": retried_jobs
+        },
+        "printer_stats": printer_stats
     }
 
 
@@ -970,7 +1007,7 @@ def print_job(data: dict):
             return {"error": "Location is required"}
 
         if not datetime_str:
-            datetime_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            datetime_str = utcnow()
 
         if category == "Barcode":
             required_fields = [
@@ -1012,7 +1049,7 @@ def print_job(data: dict):
             return {"error": "No mapping found for location"}
 
         # 2. Save job with initial status
-        now = datetime.now().strftime("%I:%M %p")
+        now = utcnow()
 
         cur.execute("""
             INSERT INTO print_jobs 
@@ -1074,27 +1111,81 @@ def print_job(data: dict):
 
 
 @app.get("/print-jobs")
-def get_print_jobs():
+def get_print_jobs(
+    status: str = None,
+    retried: bool = False,
+    limit: int = 200,
+    offset: int = 0
+):
+    """
+    Backend-level filtering with pagination.
+    ?status=Completed|Failed|Queued|Printing|Retrying
+    ?retried=true  — only jobs that had retries
+    ?limit=N       — page size (default 200, max 1000)
+    ?offset=N      — skip first N rows for pagination
+    Returns: { jobs: [...], total: N, limit: N, offset: N }
+    """
+    limit = min(max(limit, 1), 1000)
+    offset = max(offset, 0)
+
+    # Validate status value if provided
+    if status and status not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status '{status}'. Valid values: {sorted(VALID_STATUSES)}")
+
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT * FROM print_jobs ORDER BY id DESC")
-    rows = cur.fetchall()
+    conditions = []
+    params = []
 
+    if status:
+        conditions.append("status = ?")
+        params.append(status)
+
+    if retried:
+        conditions.append("COALESCE(retry_count, 0) > 0")
+
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    # Total count for pagination metadata
+    cur.execute(f"SELECT COUNT(*) FROM print_jobs {where}", params)
+    total = cur.fetchone()[0]
+
+    params_page = params + [limit, offset]
+    cur.execute(f"SELECT * FROM print_jobs {where} ORDER BY id DESC LIMIT ? OFFSET ?", params_page)
+    rows = cur.fetchall()
     conn.close()
 
-    return [dict(row) for row in rows]
+    return {
+        "jobs": [dict(row) for row in rows],
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
 
 @app.get("/print-logs")
-def get_print_logs():
+def get_print_logs(limit: int = 200, offset: int = 0):
+    limit = min(max(limit, 1), 1000)
+    offset = max(offset, 0)
     conn = get_connection()
     cur = conn.cursor()
-
-    cur.execute("SELECT * FROM print_logs ORDER BY id DESC")
+    cur.execute("SELECT COUNT(*) FROM print_logs")
+    total = cur.fetchone()[0]
+    cur.execute("SELECT * FROM print_logs ORDER BY id DESC LIMIT ? OFFSET ?", (limit, offset))
     rows = cur.fetchall()
-
     conn.close()
+    return {"logs": [dict(row) for row in rows], "total": total, "limit": limit, "offset": offset}
 
+@app.get("/print-logs/{job_id}")
+def get_job_logs(job_id: int):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM print_logs WHERE job_id=? ORDER BY id ASC",
+        (job_id,)
+    )
+    rows = cur.fetchall()
+    conn.close()
     return [dict(row) for row in rows]
 
 @app.delete("/print-jobs")
