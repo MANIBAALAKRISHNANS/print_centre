@@ -1,5 +1,6 @@
 import { useState, useContext, useEffect } from "react";
 import { AppData } from "../context/AppData";
+import { API_BASE_URL } from "../config";
 
 function Printers() {
   const { printers, setPrinters, loadAll } = useContext(AppData);
@@ -13,8 +14,9 @@ function Printers() {
     name: "",
     ip: "",
     category: "",
-    status: "Live",
+    status: "Online",
     language: "PS", 
+    connection_type: "IP",
   });
 
 
@@ -22,7 +24,7 @@ function Printers() {
 
   /* load categories */
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/categories")
+    fetch(`${API_BASE_URL}/categories`)
       .then((res) => res.json())
       .then((data) => {
         setCategories(data);
@@ -31,6 +33,7 @@ function Printers() {
           setNewPrinter((old) => ({
             ...old,
             category: data[0],
+            language: data[0] === "Barcode" ? "ZPL" : "PS",
           }));
         }
       });
@@ -39,7 +42,7 @@ function Printers() {
   useEffect(() => {
     const refreshPrinterStatus = async () => {
       try {
-        const res = await fetch("http://127.0.0.1:8000/printers");
+        const res = await fetch(`${API_BASE_URL}/printers`);
         const data = await res.json();
         setPrinters(data);
       } catch (err) {
@@ -48,32 +51,41 @@ function Printers() {
     };
 
     refreshPrinterStatus();
-    const interval = setInterval(refreshPrinterStatus, 3000);
+    const interval = setInterval(refreshPrinterStatus, 10000); // 10s polling
 
     return () => clearInterval(interval);
   }, [setPrinters]);
 
-  const badge = (status) => {
-    if (status === "Live") return "live";
-    if (status === "Maintenance") return "warn";
-    return "offline";
+  const getStatusColor = (status) => {
+    const s = (status || "").toLowerCase();
+    if (s === "online") return "green";
+    if (s === "error") return "orange";
+    if (s === "offline") return "red";
+    return "gray"; 
   };
 
-  
+  const isStale = (last_updated) => {
+    if (!last_updated) return true;
+    // Backend format: "YYYY-MM-DD HH:MM:SS UTC"
+    const cleanStr = last_updated.replace(" UTC", "Z").replace(" ", "T");
+    const diff = Date.now() - new Date(cleanStr).getTime();
+    return diff > 45000;
+  };
 
   /* add / edit save */
   const savePrinter = async () => {
     const printerData = {
       ...newPrinter,
       name: newPrinter.name.trim(),
-      ip: newPrinter.ip.trim(),
+      ip: newPrinter.connection_type === "USB" ? "" : newPrinter.ip.trim(),
     };
 
-    if (printerData.name === "" || printerData.ip === "") return;
+    if (printerData.name === "") return;
+    if (printerData.connection_type === "IP" && printerData.ip === "") return;
 
     const url = editId
-      ? `http://127.0.0.1:8000/printers/${editId}`
-      : "http://127.0.0.1:8000/printers";
+      ? `${API_BASE_URL}/printers/${editId}`
+      : `${API_BASE_URL}/printers`;
 
     const method = editId ? "PUT" : "POST";
 
@@ -109,8 +121,9 @@ function Printers() {
       name: "",
       ip: "",
       category: categories[0] || "",
-      status: "Live",
+      status: "Online",
       language: "PS",
+      connection_type: "IP",
     });
 
     setEditId(null);
@@ -122,10 +135,11 @@ function Printers() {
   const editPrinter = (printer) => {
     setNewPrinter({
       name: printer.name,
-      ip: printer.ip,
+      ip: printer.ip || "",
       category: printer.category,
       status: printer.status,
       language: printer.language || "PS",
+      connection_type: printer.connection_type || "IP",
     });
 
     setEditId(printer.id);
@@ -137,7 +151,7 @@ function Printers() {
     if (!window.confirm("Delete printer?")) return;
 
     const res = await fetch(
-      `http://127.0.0.1:8000/printers/${id}`,
+      `${API_BASE_URL}/printers/${id}`,
       {
         method: "DELETE",
       }
@@ -162,8 +176,9 @@ function Printers() {
       name: "",
       ip: "",
       category: categories[0] || "",
-      status: "Live",
+      status: "Online",
       language: "PS",
+      connection_type: "IP",
     });
 
     setOpen(true);
@@ -190,6 +205,7 @@ function Printers() {
           <thead>
             <tr>
               <th>Name</th>
+              <th>Type</th>
               <th>IP</th>
               <th>Category</th>
               <th>Language</th>
@@ -200,42 +216,61 @@ function Printers() {
           </thead>
 
           <tbody>
-            {printers.map((p, i) => (
-              <tr key={i}>
-                <td>{p.name}</td>
-                <td>{p.ip}</td>
-                <td>{p.category}</td>
-                <td>{p.language}</td>
+            {printers.map((p, i) => {
+              const normalizedStatus = (p.status || "").toLowerCase();
+              let displayStatus = normalizedStatus;
 
-                <td>
-                  <span className={`badge ${badge(p.status)}`}>
-                    {p.status}
-                  </span>
-                </td>
+              if (p.connection_type === "USB" && isStale(p.last_updated)) {
+                displayStatus = "offline";
+              }
 
-                
+              console.log({
+                name: p.name,
+                backendStatus: p.status,
+                displayStatus,
+                last_updated: p.last_updated
+              });
 
-                <td>
-                  <button
-                    className="btn"
-                    onClick={() => editPrinter(p)}
-                  >
-                    Edit
-                  </button>
+              return (
+                <tr key={i}>
+                  <td>{p.name}</td>
+                  <td>
+                    <span style={{ fontSize: '0.8em', opacity: 0.7 }}>
+                      {p.connection_type || 'IP'}
+                    </span>
+                  </td>
+                  <td>{p.ip || '-'}</td>
+                  <td>{p.category}</td>
+                  <td>{p.language}</td>
 
-                  <button
-                    className="btn"
-                    style={{ marginLeft: "8px" }}
-                    onClick={() =>
-                      deletePrinter(p.id)
-                    }
-                  >
-                    Delete
-                  </button>
-                </td>
+                  <td>
+                    <span className={`badge ${getStatusColor(displayStatus)}`}>
+                      {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
+                    </span>
+                  </td>
 
-              </tr>
-            ))}
+                  <td>
+                    <button
+                      className="btn"
+                      onClick={() => editPrinter(p)}
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      className="btn"
+                      style={{ marginLeft: "8px" }}
+                      onClick={() =>
+                        deletePrinter(p.id)
+                      }
+                    >
+                      Delete
+                    </button>
+                  </td>
+
+                </tr>
+              );
+            })}
           </tbody>
 
         </table>
@@ -276,9 +311,24 @@ function Printers() {
                 }
               />
 
+              <select
+                value={newPrinter.connection_type}
+                onChange={(e) =>
+                  setNewPrinter({
+                    ...newPrinter,
+                    connection_type: e.target.value,
+                    ip: e.target.value === "USB" ? "" : newPrinter.ip
+                  })
+                }
+              >
+                <option value="IP">Network Printer (IP)</option>
+                <option value="USB">Local Printer (USB Agent)</option>
+              </select>
+
               <input
-                placeholder="IP Address"
+                placeholder={newPrinter.connection_type === "USB" ? "No IP required for USB" : "IP Address"}
                 value={newPrinter.ip}
+                disabled={newPrinter.connection_type === "USB"}
                 onChange={(e) =>
                   setNewPrinter({
                     ...newPrinter,
@@ -293,11 +343,12 @@ function Printers() {
                   setNewPrinter({
                     ...newPrinter,
                     category: e.target.value,
+                    language: e.target.value === "Barcode" ? "ZPL" : "PS"
                   })
                 }
               >
                 {categories.map((cat, i) => (
-                  <option key={i}>{cat}</option>
+                  <option key={i} value={cat}>{cat}</option>
                 ))}
               </select>
 
@@ -310,9 +361,14 @@ function Printers() {
                   })
                 }
               >
-                <option value="ZPL">ZPL (Barcode)</option>
-                <option value="PCL">PCL (A4)</option>
-                <option value="PS">PostScript (A4)</option>
+                {newPrinter.category === "Barcode" ? (
+                  <option value="ZPL">ZPL (Barcode)</option>
+                ) : (
+                  <>
+                    <option value="PS">PostScript (A4)</option>
+                    <option value="PCL">PCL (A4)</option>
+                  </>
+                )}
               </select>
 
               <button

@@ -1,410 +1,157 @@
-import { useState, useContext, useEffect, useCallback } from "react";
+import { useState, useEffect, useContext } from "react";
 import { AppData } from "../context/AppData";
-
-/* eslint-disable react-hooks/set-state-in-effect */
+import { API_BASE_URL } from "../config";
 
 function Mapping() {
-  const { printers, loadAll } = useContext(AppData);
-
+  const { printers } = useContext(AppData);
   const [rows, setRows] = useState([]);
-
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState(null);
-
-
-  const [newRow, setNewRow] = useState({
+  const [formData, setFormData] = useState({
     location: "",
+    external_id: "",
     a4Primary: "None",
     a4Secondary: "None",
     barPrimary: "None",
     barSecondary: "None",
   });
 
-  /* ---------------- LOAD ACTIVE PRINTERS ---------------- */
-  const loadActivePrinters = async (mappingData) => {
-    // Already calculated by backend in /mapping endpoint
-    // This function ensures data is loaded (no-op, kept for clarity)
-    return mappingData;
-  };
-
-  /* ---------------- LOAD DATA WITH AUTO-REFRESH ---------------- */
-  const loadMappings = useCallback(async () => {
+  const loadMappings = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/mapping");
+      const res = await fetch(`${API_BASE_URL}/mapping`);
+      if (!res.ok) throw new Error("Failed to load mappings");
       const data = await res.json();
-
       setRows(data);
-
-      // 👇 load failover results
-      await loadActivePrinters(data);
+      setError(null);
     } catch (err) {
-      console.log("Mapping load error", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     loadMappings();
-
-    // Auto-refresh every 5 seconds to show real-time printer status changes
-    const interval = setInterval(loadMappings, 5000);
-
+    const interval = setInterval(loadMappings, 10000); // 10s refresh for mapping
     return () => clearInterval(interval);
-  }, [loadMappings]);
+  }, []);
 
-  /* ---------------- FILTER PRINTERS ---------------- */
-  const printersA4 = [
-    "None",
-    ...printers
-      .filter((p) => p.category === "A4")
-      .map((p) => p.name),
-  ];
-
-  const printersBar = [
-    "None",
-    ...printers
-      .filter((p) => p.category === "Barcode")
-      .map((p) => p.name),
-  ];
-
-  /* ---------------- SAVE MAPPING (NEW OR EDIT) ---------------- */
-  const saveMapping = async () => {
-    // 🔴 VALIDATION START
- 
-    if (newRow.a4Primary !== "None" && newRow.a4Primary === newRow.a4Secondary) {
-      alert("A4 Primary and Secondary cannot be the same");
-      return;
-    }
-
-    if (newRow.barPrimary !== "None" && newRow.barPrimary === newRow.barSecondary) {
-      alert("Barcode Primary and Secondary cannot be the same");
-      return;
-    }
-
-
-    // 🔴 VALIDATION END
-
+  const testPrint = async (locationId, category) => {
     try {
-      const method = "PUT";
-      const url = `http://127.0.0.1:8000/mapping/${editId}`;
-
-      const res = await fetch(url, {
-        method: method,
+      const res = await fetch(`${API_BASE_URL}/print-job`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newRow),
+        body: JSON.stringify({
+          location_id: locationId, category: category,
+          patient_name: "TEST PATIENT", age: "30", gender: "M", tube_type: "EDTA",
+        }),
       });
-
-      const result = await res.json();
-
-      if (result.error) {
-        alert(`Error: ${result.error}`);
-        return;
-      }
-
-      await Promise.all([
-        loadMappings(),
-        loadAll()
-      ]);
-
-      setEditId(null);
-      setOpen(false);
-    } catch (err) {
-      alert(`Save error: ${err.message}`);
-    }
+      const data = await res.json();
+      if (data.error) alert("Print Error: " + data.error);
+      else alert("✅ Print job queued: " + data.job_id);
+    } catch (err) { alert("Print failed: " + err.message); }
   };
 
-  const submitMappingOnEnter = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      saveMapping();
-    }
-  };
-
-  /* ---------------- EDIT MAPPING ---------------- */
-  const editMapping = (row) => {
-    setNewRow({
-      location: row.location,
-      a4Primary: row.a4Primary || "None",
-      a4Secondary: row.a4Secondary || "None",
-      barPrimary: row.barPrimary || "None",
-      barSecondary: row.barSecondary || "None",
-    });
-
-    setEditId(row.id);
-    setOpen(true);
-  };
-
-
-  
-
-  /* ------- VALIDATE ALL MAPPINGS ------- */
   const validateMappings = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/mapping-validate");
+      const res = await fetch(`${API_BASE_URL}/mapping-validate`);
       const result = await res.json();
-
-      if (result.valid) {
-        alert("✅ All mappings are valid! No issues detected.");
-      } else {
-        alert(
-          `⚠️ Found ${result.issues_count} issue(s):\n\n` +
-          result.issues.map(i => `${i.location} - ${i.field}: ${i.issue}`).join("\n")
-        );
-      }
-    } catch (err) {
-      alert(`Validation error: ${err.message}`);
-    }
+      if (result.valid) alert("✅ All mappings are valid!");
+      else alert(`⚠️ Issues:\n\n${result.issues.map(i => `${i.location}: ${i.issue}`).join("\n")}`);
+    } catch (err) { alert(`Error: ${err.message}`); }
   };
- 
-  /* ---------------- EDIT MAPPING (OLD) - REMOVE THIS DUPLICATE ----------------
-  const editMapping = (row) => {
-    setNewRow({
-      location: row.location,
-      a4Primary: row.a4Primary || "None",
-      a4Secondary: row.a4Secondary || "None",
-      barPrimary: row.barPrimary || "None",
-      barSecondary: row.barSecondary || "None",
-    });
 
+  const editMapping = (row) => {
     setEditId(row.id);
+    setFormData({ ...row });
     setOpen(true);
   };
-  ---- END DUPLICATE ---- */
 
- 
-  /* ---------------- UI COLOR ---------------- */
-  const getColor = (type) => {
-    if (type === "Primary") return "green";
-    if (type === "Failover") return "orange";
-    return "gray";
+  const saveMapping = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/mapping/${editId}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      setOpen(false);
+      loadMappings();
+    } catch (err) { alert(err.message); }
   };
 
   return (
     <div className="page">
-
       <h1>Printer Mapping</h1>
-
-      <p className="sub">
-        Assign primary and secondary printers by location (auto-refresh every 5s)
-      </p>
-
-
-      <button
-        className="btn"
-        style={{ marginLeft: "10px" }}
-        onClick={validateMappings}
-      >
-        Validate All
-      </button>
-
-      <br /><br />
-
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th rowSpan="2">Location</th>
-              <th colSpan="2">A4</th>
-              <th colSpan="2">Barcode</th>
-              <th rowSpan="2">Actions</th>
-            </tr>
-            <tr>
-              <th>Primary (Active)</th>
-              <th>Secondary</th>
-              <th>Primary (Active)</th>
-              <th>Secondary</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan="6" style={{ textAlign: "center" }}>
-                  No mappings found.
-                </td>
-              </tr>
-            ) : (
-              rows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.location}</td>
-
-                  {/* A4 ACTIVE */}
-                  <td>
-                    {row.a4Active || "None"}
-                    <br />
-                    <small style={{ color: getColor(row.a4Type) }}>
-                      ({row.a4Type || "-"})
-                    </small>
-                  </td>
-
-                  {/* A4 SECONDARY */}
-                  <td>{row.a4Secondary}</td>
-
-                  {/* BARCODE ACTIVE */}
-                  <td>
-                    {row.barActive || "None"}
-                    <br />
-                    <small style={{ color: getColor(row.barType) }}>
-                      ({row.barType || "-"})
-                    </small>
-                  </td>
-
-                  {/* BARCODE SECONDARY */}
-                  <td>{row.barSecondary}</td>
-
-                  <td>
-                    <button
-                      className="btn"
-                      onClick={() => editMapping(row)}
-                    >
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-
-        </table>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <p className="sub">Assign primary and secondary printers by location</p>
+        <button className="btn" onClick={validateMappings}>Validate All</button>
       </div>
 
-      {/* MODAL */}
+      <br />
+      <div className="card">
+        {loading && rows.length === 0 ? (
+          <p className="loadingText pulse">Loading mappings...</p>
+        ) : error ? (
+          <p className="errorText">{error}. <button onClick={loadMappings}>Retry</button></p>
+        ) : (
+          <table>
+            <thead>
+              <tr><th rowSpan="2">Location</th><th rowSpan="2">ID</th><th colSpan="2">A4</th><th colSpan="2">Barcode</th><th rowSpan="2">Actions</th></tr>
+              <tr><th>Primary</th><th>Secondary</th><th>Primary</th><th>Secondary</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.location}</td>
+                  <td><code style={{ fontSize: "0.75rem" }}>{row.external_id}</code></td>
+                  <td>{row.a4Primary}</td><td>{row.a4Secondary}</td>
+                  <td>{row.barPrimary}</td><td>{row.barSecondary}</td>
+                  <td>
+                    <button className="btn" onClick={() => editMapping(row)}>Edit</button>
+                    <div style={{ marginTop: "5px", display: "flex", gap: "5px" }}>
+                       <button className="btn mini blue" onClick={() => testPrint(row.external_id, "A4")}>A4</button>
+                       <button className="btn mini green" onClick={() => testPrint(row.external_id, "Barcode")}>Bar</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
       {open && (
         <div className="modalOverlay">
           <div className="modalBox">
-
-            <div className="modalHead">
-              <h3>Edit Mapping</h3>
-              <button onClick={() => {
-                setOpen(false);
-                setEditId(null);
-              }}>✕</button>
-            </div>
-
-            <form
-              className="modalBody"
-              onSubmit={(e) => {
-                e.preventDefault();
-                saveMapping();
-              }}
-            >
-
-              <input
-                placeholder="Location"
-                value={newRow.location}
-                onChange={(e) => setNewRow({ ...newRow, location: e.target.value })}
-                onKeyDown={submitMappingOnEnter}
-                readOnly={true}
-                style={{
-                  background: "#f5f5f5",
-                  cursor: "not-allowed",
-                }}
-              />
-
-              {/* A4 PRIMARY */}
+            <div className="modalHead"><h3>Edit Mapping</h3><button onClick={() => setOpen(false)}>✕</button></div>
+            <div className="modalBody">
               <label>A4 Primary</label>
-              <select
-                value={newRow.a4Primary}
-                onKeyDown={submitMappingOnEnter}
-                onChange={(e) => {
-                  const value = e.target.value;
-
-                  if (value !== "None" && value === newRow.a4Secondary) {
-                    alert("Primary and Secondary cannot be same");
-                    return;
-                  }
-
-                  setNewRow({
-                    ...newRow,
-                    a4Primary: value,
-                  });
-                }}
-              >
-                {printersA4.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
+              <select value={formData.a4Primary} onChange={e => setFormData({ ...formData, a4Primary: e.target.value })}>
+                <option>None</option>
+                {printers.filter(p => p.category === "A4").map(p => <option key={p.id}>{p.name}</option>)}
               </select>
-
-              {/* A4 SECONDARY */}
-              <label>A4 Secondary (Failover)</label>
-              <select
-                value={newRow.a4Secondary}
-                onKeyDown={submitMappingOnEnter}
-                onChange={(e) => {
-                  const value = e.target.value;
-
-                  if (value !== "None" && value === newRow.a4Primary) {
-                    alert("Primary and Secondary cannot be same");
-                    return;
-                  }
-
-                  setNewRow({
-                    ...newRow,
-                    a4Secondary: value,
-                  });
-                }}
-              >
-                {printersA4.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
+              <label>A4 Secondary</label>
+              <select value={formData.a4Secondary} onChange={e => setFormData({ ...formData, a4Secondary: e.target.value })}>
+                <option>None</option>
+                {printers.filter(p => p.category === "A4").map(p => <option key={p.id}>{p.name}</option>)}
               </select>
-
-              {/* BARCODE PRIMARY */}
               <label>Barcode Primary</label>
-              <select
-                value={newRow.barPrimary}
-                onKeyDown={submitMappingOnEnter}
-                onChange={(e) => {
-                  const value = e.target.value;
-
-                  if (value !== "None" && value === newRow.barSecondary) {
-                    alert("Primary and Secondary cannot be same");
-                    return;
-                  }
-
-                  setNewRow({
-                    ...newRow,
-                    barPrimary: value,
-                  });
-                }}
-              >
-                {printersBar.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
+              <select value={formData.barPrimary} onChange={e => setFormData({ ...formData, barPrimary: e.target.value })}>
+                <option>None</option>
+                {printers.filter(p => p.category === "Barcode").map(p => <option key={p.id}>{p.name}</option>)}
               </select>
-
-              {/* BARCODE SECONDARY */}
-              <label>Barcode Secondary (Failover)</label>
-              <select
-                value={newRow.barSecondary}
-                onKeyDown={submitMappingOnEnter}
-                onChange={(e) => {
-                  const value = e.target.value;
-
-                  if (value !== "None" && value === newRow.barPrimary) {
-                    alert("Primary and Secondary cannot be same");
-                    return;
-                  }
-
-                  setNewRow({
-                    ...newRow,
-                    barSecondary: value,
-                  });
-                }}
-              >
-                {printersBar.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
+              <label>Barcode Secondary</label>
+              <select value={formData.barSecondary} onChange={e => setFormData({ ...formData, barSecondary: e.target.value })}>
+                <option>None</option>
+                {printers.filter(p => p.category === "Barcode").map(p => <option key={p.id}>{p.name}</option>)}
               </select>
-
-              <button type="submit" className="btn full">
-                Update Mapping
-              </button>
-            </form>
-
+              <button className="btn full" onClick={saveMapping}>Update Mapping</button>
+            </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

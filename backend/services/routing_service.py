@@ -1,25 +1,36 @@
-from database import get_connection, utcnow, JobStatus
+from database import get_connection, utcnow, JobStatus, safe_delete
 from services.printer_service import check_printer, send_to_printer
 from services.document_service import process_document
+import os
+import logging
+from datetime import datetime, timezone
 
-def fetch_mapping(location):
+logger = logging.getLogger("RoutingService")
+
+def fetch_mapping(location_id):
+    """STRICT: Fetch mapping only by external_id."""
+    if not location_id:
+        return None
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM mapping WHERE location=?", (location,))
-    row = cur.fetchone()
-    conn.close()
-    return dict(row) if row else None
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM mapping WHERE external_id=?", (str(location_id),))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
 
 def fetch_printer(name):
     if not name or name == "None":
         return None
-
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM printers WHERE name=?", (name,))
-    row = cur.fetchone()
-    conn.close()
-    return dict(row) if row else None
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM printers WHERE name=?", (name,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
 
 def mapping_candidates(mapping, category):
     if category == "A4":
@@ -27,153 +38,136 @@ def mapping_candidates(mapping, category):
             (mapping.get("a4Primary"), "Primary"),
             (mapping.get("a4Secondary"), "Failover"),
         ]
-
     return [
         (mapping.get("barPrimary"), "Primary"),
         (mapping.get("barSecondary"), "Failover"),
     ]
 
-def select_printer(location, category):
-    mapping = fetch_mapping(location)
-    if not mapping:
-        raise ValueError("No mapping found for this location")
-
-    for printer_name, route_type in mapping_candidates(mapping, category):
-        printer = fetch_printer(printer_name)
-        if not printer:
-            continue
-        if printer.get("status") == "Live" and check_printer(printer.get("ip")):
-            return printer, route_type
-
-    raise ValueError("No live printer available")
-
 def log_print_event(job_id, printer, status, message):
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT INTO print_logs (job_id, printer, status, message, time)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (
-            job_id,
-            printer,
-            status,
-            message,
-            utcnow(),
-        ),
-    )
-    conn.commit()
-    conn.close()
+    try:
+        cur = conn.cursor()
+        cur.execute("INSERT INTO print_logs (job_id, printer, status, message, time) VALUES (?, ?, ?, ?, ?)",
+                    (job_id, printer, status, message, utcnow()))
+        conn.commit()
+    finally:
+        conn.close()
 
 def mark_job(job_id, status, printer=None, route_type=None):
     conn = get_connection()
-    cur = conn.cursor()
-
-    fields = ["status=?"]
-    params = [status]
-
-    if printer is not None:
-        fields.append("printer=?")
-        params.append(printer)
-
-    if route_type is not None:
-        fields.append("type=?")
-        params.append(route_type)
-
-    params.append(job_id)
-    cur.execute(f"UPDATE print_jobs SET {', '.join(fields)} WHERE id=?", params)
-    conn.commit()
-    conn.close()
+    try:
+        cur = conn.cursor()
+        fields = ["status=?"]
+        params = [status]
+        if printer is not None:
+            fields.append("printer=?")
+            params.append(printer)
+        if route_type is not None:
+            fields.append("type=?")
+            params.append(route_type)
+        params.append(job_id)
+        cur.execute(f"UPDATE print_jobs SET {', '.join(fields)} WHERE id=?", params)
+        conn.commit()
+    finally:
+        conn.close()
 
 def get_job_retry(job_id):
     conn = get_connection()
-    cur = conn.cursor()
-    # Check if retry_count column exists safely
     try:
+        cur = conn.cursor()
         cur.execute("SELECT retry_count FROM print_jobs WHERE id=?", (job_id,))
         row = cur.fetchone()
-        count = row["retry_count"] if row and "retry_count" in row.keys() else 0
-    except Exception:
-        count = 0
+        return row["retry_count"] if row else 0
     finally:
         conn.close()
-    return count
 
 def mark_job_retry(job_id, retry_count):
     conn = get_connection()
-    cur = conn.cursor()
     try:
+        cur = conn.cursor()
         cur.execute("UPDATE print_jobs SET retry_count=? WHERE id=?", (retry_count, job_id))
         conn.commit()
-    except Exception:
-        pass
     finally:
         conn.close()
 
-def print_with_failover(job_id, location, category, payload):
-    mapping = fetch_mapping(location)
+def print_with_failover(job_id, location_id, category, payload):
+    """
+    STRICT: Identity-First routing.
+    payload is bytes (barcode) or file_path (A4, to be converted to bytes).
+    """
+    mapping = fetch_mapping(location_id)
     if not mapping:
-        raise ValueError("No mapping found for this location")
+        raise ValueError("No printer mapping configured")
 
-    last_error = None
+    is_terminal = False
+    is_assigned_to_agent = False
+    
+    try:
+        for printer_name, route_type in mapping_candidates(mapping, category):
+            printer = fetch_printer(printer_name)
+            if not printer: continue
 
-    for printer_name, route_type in mapping_candidates(mapping, category):
-        printer = fetch_printer(printer_name)
-        if not printer:
-            continue
-
-        converted_file_path = None
-        try:
-            mark_job(job_id, "Printing", printer["name"], route_type)
-            log_print_event(job_id, printer["name"], "Printing", "Trying printer")
-            
-            print(f"[PRINT] Job {job_id} -> {printer['name']} -> {category}")
-            print(f"[FORMAT] Using {printer.get('language', 'AUTO')}")
-
-            final_payload = payload
-            if category == "A4":
-                file_path = payload
-                if os.path.exists(file_path):
-                    final_payload = process_document(file_path, printer)
-
-            success = send_to_printer(
-                printer.get("ip"),
-                final_payload,
-                printer.get("name")
-            )
-
-            if success:
-                mark_job(job_id, "Completed", printer["name"], route_type)
-                log_print_event(job_id, printer["name"], "Completed", "Print success")
+            try:
+                mark_job(job_id, "Printing", printer["name"], route_type)
+                log_print_event(job_id, printer["name"], "Printing", "Attempting print")
                 
-                # Cleanup on success (MANDATORY)
-                if category == "A4" and payload and os.path.exists(payload):
-                    try: os.remove(payload)
+                # Unified binary payload
+                binary_payload = payload
+                if category == "A4":
+                    # Convert file path to bytes
+                    binary_payload = process_document(payload, printer)
+
+                # 🔹 HYBRID ROUTING: IP vs AGENT (USB)
+                if printer.get("ip"):
+                    success = send_to_printer(printer["ip"], binary_payload, printer["name"])
+                    if success:
+                        mark_job(job_id, "Completed", printer["name"], route_type)
+                        log_print_event(job_id, printer["name"], "Completed", "Success")
+                        is_terminal = True
+                        return printer, route_type
+                    else:
+                        raise RuntimeError("Printer unreachable via IP")
+                else:
+                    # 🔹 USB Printer: Assign to Agent
+                    STALE_THRESHOLD = 45
+                    is_valid = False
+                    try:
+                        last_updated_dt = datetime.strptime(printer["last_updated"], "%Y-%m-%d %H:%M:%S UTC").replace(tzinfo=timezone.utc)
+                        age = (datetime.now(timezone.utc) - last_updated_dt).total_seconds()
+                        source = str(printer.get("last_update_source", ""))
+                        if printer.get("status") == "Online" and age < STALE_THRESHOLD and source.startswith("Agent"):
+                            is_valid = True
                     except: pass
-                    
-                return printer, route_type
-            else:
-                raise RuntimeError("Print failed (IP + USB)")
-                
-        except Exception as exc:
-            last_error = exc
-            print(f"[ERROR] Printer {printer['name']} failed at IP {printer.get('ip')}")
-            log_print_event(job_id, printer.get("name"), "Failed", str(exc))
-            
-            # Cleanup intermediate on failure, leave original for next failover/retry
-            pass
 
-    # If all failovers failed, handle retry logic
-    retry_count = get_job_retry(job_id)
-    if retry_count < 3:
-        mark_job_retry(job_id, retry_count + 1)
-        log_print_event(job_id, "System", "Retrying", f"Retry attempt {retry_count + 1}")
-        raise Exception("RETRY")
-    else:
-        mark_job(job_id, "Failed")
-        # Final cleanup on complete failure (MANDATORY)
-        if category == "A4" and payload and os.path.exists(payload):
-            try: os.remove(payload)
-            except: pass
-        raise Exception("FINAL_FAIL")
+                    if not is_valid:
+                        log_print_event(job_id, printer["name"], "Failed", "Printer Offline or Stale")
+                        raise RuntimeError(f"Printer '{printer['name']}' is Offline or Stale")
+
+                    mark_job(job_id, JobStatus.PENDING_AGENT, printer["name"], route_type)
+                    log_print_event(job_id, printer["name"], "Assigned to Agent", "Waiting for local agent pickup")
+                    is_assigned_to_agent = True
+                    return printer, route_type 
+                    
+            except Exception as exc:
+                log_print_event(job_id, printer["name"], "Failed", str(exc))
+
+        # Retry/Fail logic
+        retry_count = get_job_retry(job_id)
+        if retry_count < 3:
+            mark_job_retry(job_id, retry_count + 1)
+            mark_job(job_id, JobStatus.RETRYING)
+            log_print_event(job_id, "System", "Retrying", f"Retry attempt {retry_count + 1}")
+            raise Exception("RETRY")
+        else:
+            mark_job(job_id, "Failed")
+            is_terminal = True
+            raise Exception("FINAL_FAIL")
+            
+    except Exception as e:
+        if "RETRY" not in str(e):
+            is_terminal = True
+        raise
+    finally:
+        # 🔹 CLEANUP: Only if terminal (Success via IP or Final Failure)
+        if is_terminal and not is_assigned_to_agent:
+            safe_delete(payload)

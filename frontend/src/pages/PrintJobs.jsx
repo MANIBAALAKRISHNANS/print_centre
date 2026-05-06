@@ -52,7 +52,7 @@ function PrintJobs() {
   }, [page]); // eslint-disable-line
 
   useEffect(() => {
-    const interval = setInterval(() => loadJobs(page, filter), 3000);
+    const interval = setInterval(() => loadJobs(page, filter), 10000); // 10s polling
     return () => clearInterval(interval);
   }, [page, filter]); // eslint-disable-line
 
@@ -210,7 +210,23 @@ function PrintJobs() {
                     )}
                   </td>
                   <td style={{ fontSize: "0.8rem", color: "#666", whiteSpace: "nowrap" }}>
-                    {job.time?.replace(" UTC", "") || "—"}
+                    {job.time ? (() => {
+                      // Standardize: If it's just a time like "01:15 PM", we assume it was today UTC
+                      let timeStr = job.time;
+                      if (!timeStr.includes("-") && (timeStr.includes("AM") || timeStr.includes("PM"))) {
+                        const todayPrefix = new Date().toISOString().split("T")[0];
+                        timeStr = `${todayPrefix} ${timeStr}`;
+                      }
+                      
+                      const d = new Date(timeStr.includes("UTC") ? timeStr : timeStr + " UTC");
+                      if (isNaN(d.getTime())) return job.time;
+                      
+                      const today = new Date();
+                      const isToday = d.toDateString() === today.toDateString();
+                      return isToday 
+                        ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+                        : d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                    })() : "—"}
                   </td>
                 </tr>
               ))

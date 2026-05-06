@@ -1,0 +1,2165 @@
+2026-05-05 15:14:00,028 - Main - ERROR - Missing critical system dependencies: soffice, gswin64c
+2026-05-05 15:15:25,909 - Main - ERROR - Missing critical system dependencies: soffice, gswin64c
+2026-05-05 15:15:55,461 - Main - ERROR - Missing critical system dependencies: soffice, gswin64c
+2026-05-05 15:19:40,707 - Main - ERROR - Missing critical system dependencies: soffice, gswin64c
+2026-05-05 15:20:18,592 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 15:20:18,673 - Main - INFO - Worker-0 started
+2026-05-05 15:20:18,674 - Main - INFO - Worker-1 started
+2026-05-05 15:20:18,674 - Main - INFO - Worker-2 started
+2026-05-05 15:25:50,333 - Main - INFO - Worker-0 processing job 11 (Prio: 2)
+2026-05-05 15:25:50,356 - Main - WARNING - Worker-0 retrying job 11 in 2s
+2026-05-05 15:25:52,357 - Main - INFO - Worker-0 processing job 11 (Prio: 2)
+2026-05-05 15:25:52,377 - Main - WARNING - Worker-0 retrying job 11 in 2s
+2026-05-05 15:25:54,378 - Main - INFO - Worker-0 processing job 11 (Prio: 2)
+2026-05-05 15:25:54,397 - Main - WARNING - Worker-0 retrying job 11 in 2s
+2026-05-05 15:25:56,399 - Main - INFO - Worker-0 processing job 11 (Prio: 2)
+2026-05-05 15:25:56,407 - Main - ERROR - Worker-0 error: FINAL_FAIL
+2026-05-05 15:33:24,463 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 15:33:24,522 - Main - INFO - Worker-0 started
+2026-05-05 15:33:24,523 - Main - INFO - Worker-1 started
+2026-05-05 15:33:24,523 - Main - INFO - Worker-2 started
+2026-05-05 15:39:41,591 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 15:39:41,638 - Main - INFO - Worker-0 started
+2026-05-05 15:39:41,638 - Main - INFO - Worker-1 started
+2026-05-05 15:39:41,638 - Main - INFO - Worker-2 started
+2026-05-05 15:39:41,639 - Main - INFO - Background Monitoring Thread started
+2026-05-05 15:40:23,496 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 15:40:23,542 - Main - INFO - Worker-0 started
+2026-05-05 15:40:23,543 - Main - INFO - Worker-1 started
+2026-05-05 15:40:23,543 - Main - INFO - Worker-2 started
+2026-05-05 15:40:23,543 - Main - INFO - Background Monitoring Thread started
+2026-05-05 15:40:30,606 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 15:40:30,651 - Main - INFO - Worker-0 started
+2026-05-05 15:40:30,652 - Main - INFO - Worker-1 started
+2026-05-05 15:40:30,652 - Main - INFO - Worker-2 started
+2026-05-05 15:40:30,653 - Main - INFO - Background Monitoring Thread started
+2026-05-05 15:40:46,449 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 15:40:46,508 - Main - INFO - Worker-0 started
+2026-05-05 15:40:46,508 - Main - INFO - Worker-1 started
+2026-05-05 15:40:46,510 - Main - INFO - Worker-2 started
+2026-05-05 15:40:46,510 - Main - INFO - Background Monitoring Thread started
+2026-05-05 15:41:45,832 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 15:41:45,885 - Main - INFO - Worker-0 started
+2026-05-05 15:41:45,885 - Main - INFO - Worker-1 started
+2026-05-05 15:41:45,886 - Main - INFO - Worker-2 started
+2026-05-05 15:41:45,886 - Main - INFO - Background Monitoring Thread started
+2026-05-05 15:44:27,825 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 15:44:27,872 - Main - INFO - Worker-0 started
+2026-05-05 15:44:27,872 - Main - INFO - Worker-1 started
+2026-05-05 15:44:27,873 - Main - INFO - Worker-2 started
+2026-05-05 15:44:27,873 - Main - INFO - Background Monitoring Thread started
+2026-05-05 15:51:14,346 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 15:51:14,396 - Main - INFO - Worker-0 started
+2026-05-05 15:51:14,397 - Main - INFO - Worker-1 started
+2026-05-05 15:51:14,397 - Main - INFO - Worker-2 started
+2026-05-05 15:51:14,397 - Main - INFO - Background Monitoring Thread started
+2026-05-05 15:52:52,207 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 15:52:52,257 - Main - INFO - Worker-0 started
+2026-05-05 15:52:52,257 - Main - INFO - Worker-1 started
+2026-05-05 15:52:52,258 - Main - INFO - Worker-2 started
+2026-05-05 15:52:52,258 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:03:01,259 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:03:01,327 - Main - INFO - Worker-0 started
+2026-05-05 16:03:01,327 - Main - INFO - Worker-1 started
+2026-05-05 16:03:01,327 - Main - INFO - Worker-2 started
+2026-05-05 16:03:01,327 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:03:29,461 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:03:29,461 - Main - INFO - Running printer self-healing...
+2026-05-05 16:03:29,507 - Main - INFO - Worker-0 started
+2026-05-05 16:03:29,507 - Main - INFO - Worker-1 started
+2026-05-05 16:03:29,507 - Main - INFO - Worker-2 started
+2026-05-05 16:03:29,508 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:03:37,639 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:03:37,639 - Main - INFO - Running printer self-healing...
+2026-05-05 16:03:37,685 - Main - INFO - Worker-0 started
+2026-05-05 16:03:37,685 - Main - INFO - Worker-1 started
+2026-05-05 16:03:37,686 - Main - INFO - Worker-2 started
+2026-05-05 16:03:37,686 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:10:45,767 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:10:45,767 - Main - INFO - Running printer self-healing...
+2026-05-05 16:10:45,824 - Main - INFO - Worker-0 started
+2026-05-05 16:10:45,825 - Main - INFO - Worker-1 started
+2026-05-05 16:10:45,825 - Main - INFO - Worker-2 started
+2026-05-05 16:10:45,825 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:10:58,673 - Main - INFO - Worker-0 processing job 12 (Prio: 2)
+2026-05-05 16:11:03,702 - PrinterService - ERROR - IP print failed on 192.168.12.31: timed out
+2026-05-05 16:11:03,820 - PrinterService - INFO - Printed via USB: ZDesigner ZD230-203dpi ZPL
+2026-05-05 16:13:45,645 - Main - INFO - Worker-1 processing job 13 (Prio: 2)
+2026-05-05 16:13:50,671 - PrinterService - ERROR - IP print failed on 192.168.12.31: timed out
+2026-05-05 16:13:50,710 - PrinterService - INFO - Printed via USB: ZDesigner ZD230-203dpi ZPL
+2026-05-05 16:21:15,081 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:21:15,081 - Main - INFO - Running printer self-healing...
+2026-05-05 16:21:15,129 - Main - INFO - Worker-0 started
+2026-05-05 16:21:15,129 - Main - INFO - Worker-1 started
+2026-05-05 16:21:15,129 - Main - INFO - Worker-2 started
+2026-05-05 16:21:15,129 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:21:50,869 - Main - INFO - Worker-0 processing job 14 (Prio: 2)
+2026-05-05 16:22:27,673 - Main - INFO - Worker-1 processing job 15 (Prio: 2)
+2026-05-05 16:27:16,776 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:27:16,776 - Main - INFO - Running printer self-healing...
+2026-05-05 16:27:16,825 - Main - INFO - Worker-0 started
+2026-05-05 16:27:16,825 - Main - INFO - Worker-1 started
+2026-05-05 16:27:16,825 - Main - INFO - Worker-2 started
+2026-05-05 16:27:16,826 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:28:44,375 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:28:44,376 - Main - INFO - Running printer self-healing...
+2026-05-05 16:28:44,424 - Main - INFO - Worker-0 started
+2026-05-05 16:28:44,424 - Main - INFO - Worker-1 started
+2026-05-05 16:28:44,424 - Main - INFO - Worker-2 started
+2026-05-05 16:28:44,424 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:30:00,361 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:30:00,363 - Main - INFO - Running printer self-healing...
+2026-05-05 16:30:00,412 - Main - INFO - Worker-0 started
+2026-05-05 16:30:00,413 - Main - INFO - Worker-1 started
+2026-05-05 16:30:00,413 - Main - INFO - Worker-2 started
+2026-05-05 16:30:00,413 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:31:45,617 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:31:45,618 - Main - INFO - Running printer self-healing...
+2026-05-05 16:31:45,665 - Main - INFO - Worker-0 started
+2026-05-05 16:31:45,665 - Main - INFO - Worker-1 started
+2026-05-05 16:31:45,666 - Main - INFO - Worker-2 started
+2026-05-05 16:31:45,666 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:32:47,708 - Main - WARNING - Agent local_pc_1 TIMED OUT. Marking Offline.
+2026-05-05 16:33:04,416 - Main - INFO - STATUS UPDATE: 'ZDesigner ZD230-203dpi-1' [USB] | Source: Agent | Live -> Offline
+2026-05-05 16:33:04,428 - Main - INFO - STATUS UPDATE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Source: Agent | Live -> Online
+2026-05-05 16:33:52,552 - Main - INFO - Worker-0 processing job 16 (Prio: 2)
+2026-05-05 16:35:57,136 - Main - INFO - Worker-1 processing job 17 (Prio: 2)
+2026-05-05 16:36:09,252 - Main - INFO - Worker-2 processing job 18 (Prio: 2)
+2026-05-05 16:36:10,831 - Main - INFO - Worker-0 processing job 19 (Prio: 2)
+2026-05-05 16:46:44,717 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:46:44,717 - Main - INFO - Running printer self-healing...
+2026-05-05 16:46:44,763 - Main - INFO - Worker-0 started
+2026-05-05 16:46:44,763 - Main - INFO - Worker-1 started
+2026-05-05 16:46:44,764 - Main - INFO - Worker-2 started
+2026-05-05 16:46:44,764 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:47:05,061 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:47:05,061 - Main - INFO - Running printer self-healing...
+2026-05-05 16:47:05,109 - Main - INFO - Worker-0 started
+2026-05-05 16:47:05,109 - Main - INFO - Worker-1 started
+2026-05-05 16:47:05,109 - Main - INFO - Worker-2 started
+2026-05-05 16:47:05,109 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:47:51,405 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:47:51,405 - Main - INFO - Running printer self-healing...
+2026-05-05 16:47:51,450 - Main - INFO - Worker-0 started
+2026-05-05 16:47:51,450 - Main - INFO - Worker-1 started
+2026-05-05 16:47:51,451 - Main - INFO - Worker-2 started
+2026-05-05 16:47:51,451 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:48:43,711 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:48:43,711 - Main - INFO - Running printer self-healing...
+2026-05-05 16:48:43,760 - Main - INFO - Worker-0 started
+2026-05-05 16:48:43,760 - Main - INFO - Worker-1 started
+2026-05-05 16:48:43,760 - Main - INFO - Worker-2 started
+2026-05-05 16:48:43,762 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:48:57,421 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:48:57,422 - Main - INFO - Running printer self-healing...
+2026-05-05 16:48:57,471 - Main - INFO - Worker-0 started
+2026-05-05 16:48:57,471 - Main - INFO - Worker-1 started
+2026-05-05 16:48:57,471 - Main - INFO - Worker-2 started
+2026-05-05 16:48:57,471 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:49:08,028 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:49:08,028 - Main - INFO - Running printer self-healing...
+2026-05-05 16:49:08,074 - Main - INFO - Worker-0 started
+2026-05-05 16:49:08,075 - Main - INFO - Worker-1 started
+2026-05-05 16:49:08,075 - Main - INFO - Worker-2 started
+2026-05-05 16:49:08,075 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:50:36,939 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:50:36,939 - Main - INFO - Running printer self-healing...
+2026-05-05 16:50:36,989 - Main - INFO - Worker-0 started
+2026-05-05 16:50:36,990 - Main - INFO - Worker-1 started
+2026-05-05 16:50:36,990 - Main - INFO - Worker-2 started
+2026-05-05 16:50:36,990 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:52:24,058 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:52:24,058 - Main - INFO - Running printer self-healing...
+2026-05-05 16:52:24,114 - Main - INFO - Worker-0 started
+2026-05-05 16:52:24,114 - Main - INFO - Worker-1 started
+2026-05-05 16:52:24,115 - Main - INFO - Worker-2 started
+2026-05-05 16:52:24,115 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:53:05,208 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 16:53:05,208 - Main - INFO - Running printer self-healing...
+2026-05-05 16:53:05,257 - Main - INFO - Worker-0 started
+2026-05-05 16:53:05,258 - Main - INFO - Worker-1 started
+2026-05-05 16:53:05,258 - Main - INFO - Worker-2 started
+2026-05-05 16:53:05,259 - Main - INFO - Background Monitoring Thread started
+2026-05-05 16:53:25,946 - Main - INFO - Worker-0 processing job 20 (Prio: 2)
+2026-05-05 16:54:13,348 - Main - INFO - Worker-1 processing job 21 (Prio: 2)
+2026-05-05 17:03:04,159 - Main - INFO - Worker-2 processing job 22 (Prio: 2)
+2026-05-05 17:03:31,903 - Main - INFO - Worker-0 processing job 23 (Prio: 2)
+2026-05-05 17:23:24,615 - Main - WARNING - Agent local_pc_1 TIMED OUT. Marking Offline.
+2026-05-05 17:23:24,917 - Main - INFO - STATUS UPDATE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Source: Agent | Offline -> Online
+2026-05-05 18:49:27,964 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 18:49:27,964 - Main - INFO - Running startup cleanup for 'uploads/'
+2026-05-05 18:49:27,965 - Main - INFO - Running printer self-healing...
+2026-05-05 18:49:28,027 - Main - INFO - Worker-0 started
+2026-05-05 18:49:28,029 - Main - INFO - Worker-1 started
+2026-05-05 18:49:28,029 - Main - INFO - Worker-2 started
+2026-05-05 18:49:28,030 - Main - INFO - Background Monitoring Thread started
+2026-05-05 18:49:28,031 - Main - WARNING - Agent local_pc_1 TIMED OUT. Marking Offline.
+2026-05-05 18:49:41,743 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:49:41,773 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:49:45,769 - Main - INFO - Worker-0 processing job 24 (Prio: 2)
+2026-05-05 18:49:45,791 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 18:49:45,791 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 18:49:45,792 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 18:49:45,823 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 18:49:45,825 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 18:49:45,825 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 18:49:45,869 - Main - WARNING - Worker-0 retrying job 24 in 2s
+2026-05-05 18:49:47,871 - Main - INFO - Worker-0 processing job 24 (Prio: 2)
+2026-05-05 18:49:47,891 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 18:49:47,891 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 18:49:47,891 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 18:49:47,917 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 18:49:47,917 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 18:49:47,917 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 18:49:47,951 - Main - WARNING - Worker-0 retrying job 24 in 2s
+2026-05-05 18:49:48,949 - Main - INFO - Worker-2 processing job 25 (Prio: 2)
+2026-05-05 18:49:49,952 - Main - INFO - Worker-0 processing job 24 (Prio: 2)
+2026-05-05 18:49:49,977 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 18:49:49,977 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 18:49:49,978 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 18:49:50,009 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 18:49:50,011 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 18:49:50,011 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 18:49:50,054 - Main - WARNING - Worker-0 retrying job 24 in 2s
+2026-05-05 18:49:52,055 - Main - INFO - Worker-0 processing job 24 (Prio: 2)
+2026-05-05 18:49:52,072 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 18:49:52,072 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 18:49:52,072 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 18:49:52,097 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 18:49:52,097 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 18:49:52,098 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 18:49:52,116 - Main - ERROR - Worker-0 error: FINAL_FAIL
+2026-05-05 18:49:56,811 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:49:56,826 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:50:11,867 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:50:11,897 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:50:26,932 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:50:26,965 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:50:41,999 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:50:42,031 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:50:57,068 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:50:57,099 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:51:12,129 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:51:12,158 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:51:27,200 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:51:27,218 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:51:42,249 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:51:42,281 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:51:57,315 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:51:57,329 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:52:12,370 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:52:12,402 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:52:27,432 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:52:27,464 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:52:42,499 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:52:42,513 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:52:57,542 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:52:57,573 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:53:12,606 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:53:12,620 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:53:27,650 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:53:27,681 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:53:42,719 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:53:42,730 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:53:57,759 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:53:57,791 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:54:12,831 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:54:12,863 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:54:27,901 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:54:27,919 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:54:42,944 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:54:42,962 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:54:58,005 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:54:58,036 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:55:13,054 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:55:13,080 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:55:28,122 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:55:28,152 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:55:43,168 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:55:43,200 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:55:58,237 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi ZPL' [USB] | Status: Online
+2026-05-05 18:55:58,255 - Main - INFO - STATUS HEARTBEAT: 'ZDesigner ZD230-203dpi-1' [USB] | Status: Offline
+2026-05-05 18:56:12,001 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 18:56:12,001 - Main - INFO - Running startup cleanup for 'uploads/'
+2026-05-05 18:56:12,001 - Main - INFO - Running printer self-healing...
+2026-05-05 18:56:12,054 - Main - INFO - Worker-0 started
+2026-05-05 18:56:12,054 - Main - INFO - Worker-1 started
+2026-05-05 18:56:12,054 - Main - INFO - Worker-2 started
+2026-05-05 18:56:12,055 - Main - INFO - Background Monitoring Thread started
+2026-05-05 18:57:53,581 - Main - INFO - Worker-0 processing job 26 (Prio: 2)
+2026-05-05 19:00:33,438 - Main - INFO - Worker-1 processing job 27 (Prio: 2)
+2026-05-05 19:00:33,461 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 19:00:33,461 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 19:00:33,461 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 19:00:33,491 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 19:00:33,491 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 19:00:33,492 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 19:00:33,534 - Main - WARNING - Worker-1 retrying job 27 in 2s
+2026-05-05 19:00:35,536 - Main - INFO - Worker-1 processing job 27 (Prio: 2)
+2026-05-05 19:00:35,562 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 19:00:35,563 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 19:00:35,563 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 19:00:35,596 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 19:00:35,596 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 19:00:35,596 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 19:00:35,640 - Main - WARNING - Worker-1 retrying job 27 in 2s
+2026-05-05 19:00:37,641 - Main - INFO - Worker-1 processing job 27 (Prio: 2)
+2026-05-05 19:00:37,661 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 19:00:37,661 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 19:00:37,661 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 19:00:37,686 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 19:00:37,687 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 19:00:37,687 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 19:00:37,719 - Main - WARNING - Worker-1 retrying job 27 in 2s
+2026-05-05 19:00:39,720 - Main - INFO - Worker-1 processing job 27 (Prio: 2)
+2026-05-05 19:00:39,759 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 19:00:39,759 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 19:00:39,759 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 19:00:39,793 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 19:00:39,793 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 19:00:39,795 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 19:00:39,816 - Main - ERROR - Worker-1 error: FINAL_FAIL
+2026-05-05 21:10:30,257 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 21:10:30,258 - Main - INFO - Running startup cleanup for 'uploads/'
+2026-05-05 21:10:30,259 - Main - INFO - Running printer self-healing...
+2026-05-05 21:10:30,341 - Main - INFO - Worker-0 started
+2026-05-05 21:10:30,341 - Main - INFO - Worker-1 started
+2026-05-05 21:10:30,341 - Main - INFO - Worker-2 started
+2026-05-05 21:10:30,342 - Main - INFO - Background Monitoring Thread started
+2026-05-05 21:12:53,688 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 21:12:53,688 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-05 21:12:53,690 - Main - INFO - Running printer self-healing...
+2026-05-05 21:12:53,757 - Main - INFO - Worker-0 started
+2026-05-05 21:12:53,757 - Main - INFO - Worker-1 started
+2026-05-05 21:12:53,758 - Main - INFO - Worker-2 started
+2026-05-05 21:12:53,758 - Main - INFO - Background Monitoring Thread started
+2026-05-05 22:43:03,654 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 22:43:03,655 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-05 22:43:03,655 - Main - INFO - Running printer self-healing...
+2026-05-05 22:43:03,728 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-05 22:43:03,731 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-05 22:43:03,732 - Main - INFO - Worker-0 started
+2026-05-05 22:43:03,733 - Main - INFO - Worker-1 started
+2026-05-05 22:43:03,733 - Main - INFO - Worker-2 started
+2026-05-05 22:43:03,734 - Main - INFO - Background Monitoring Thread started
+2026-05-05 22:43:03,735 - Main - WARNING - Agent local_pc_1 TIMED OUT. Marking Offline.
+2026-05-05 22:43:03,736 - Main - WARNING - TIMEOUT: USB Printer 'ZDesigner ZD230-203dpi ZPL' stale (>45s). Marking Offline.
+2026-05-05 22:43:11,905 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Offline -> Online
+2026-05-05 22:43:58,898 - Main - INFO - Worker-0 processing job 28 (Prio: 2)
+2026-05-05 22:43:58,902 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW160
+^LL200
+^CI28
+^MD12
+^PR3
+
+^CF0,18
+^FO5,5^FDTEST PATIENT/30/M^FS
+
+^CF0,16
+^FO5,25^FDID:PC9CE4F9EC68^FS
+
+^BY2,2,40
+^FO12,45
+^BCN,40,Y,N,N
+^FDPC9CE4F9EC68^FS
+
+^CF0,14
+^FO5,135^FD2026-05-05 22:43:58^FS
+
+^CF0,14
+^FO5,155^FDEDTA^FS
+
+^XZ
+2026-05-05 22:43:58,996 - Main - WARNING - Worker-0 retrying job 28 in 2s
+2026-05-05 22:44:00,998 - Main - INFO - Worker-0 processing job 28 (Prio: 2)
+2026-05-05 22:44:01,001 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_28.zpl
+2026-05-05 22:44:01,114 - Main - WARNING - Worker-0 retrying job 28 in 2s
+2026-05-05 22:44:03,116 - Main - INFO - Worker-0 processing job 28 (Prio: 2)
+2026-05-05 22:44:03,118 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_28.zpl
+2026-05-05 22:44:03,227 - Main - WARNING - Worker-0 retrying job 28 in 2s
+2026-05-05 22:44:05,229 - Main - INFO - Worker-0 processing job 28 (Prio: 2)
+2026-05-05 22:44:05,234 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_28.zpl
+2026-05-05 22:44:05,337 - Main - ERROR - Worker-0 error: FINAL_FAIL
+2026-05-05 23:02:33,079 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 23:02:33,079 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-05 23:02:33,079 - Main - INFO - Running printer self-healing...
+2026-05-05 23:02:33,131 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-05 23:02:33,133 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-05 23:02:33,133 - Main - INFO - Worker-0 started
+2026-05-05 23:02:33,134 - Main - INFO - Worker-1 started
+2026-05-05 23:02:33,134 - Main - INFO - Worker-2 started
+2026-05-05 23:02:33,134 - Main - INFO - Background Monitoring Thread started
+2026-05-05 23:04:59,727 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 23:04:59,727 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-05 23:04:59,728 - Main - INFO - Running printer self-healing...
+2026-05-05 23:04:59,778 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-05 23:04:59,779 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-05 23:04:59,781 - Main - INFO - Worker-0 started
+2026-05-05 23:04:59,781 - Main - INFO - Worker-1 started
+2026-05-05 23:04:59,782 - Main - INFO - Worker-2 started
+2026-05-05 23:04:59,782 - Main - INFO - Background Monitoring Thread started
+2026-05-05 23:09:54,449 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 23:09:54,449 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-05 23:09:54,450 - Main - INFO - Running printer self-healing...
+2026-05-05 23:09:54,499 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-05 23:09:54,500 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-05 23:09:54,501 - Main - INFO - Worker-0 started
+2026-05-05 23:09:54,501 - Main - INFO - Worker-1 started
+2026-05-05 23:09:54,502 - Main - INFO - Worker-2 started
+2026-05-05 23:09:54,502 - Main - INFO - Background Monitoring Thread started
+2026-05-05 23:10:20,015 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 23:10:20,015 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-05 23:10:20,017 - Main - INFO - Running printer self-healing...
+2026-05-05 23:10:20,063 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-05 23:10:20,066 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-05 23:10:20,066 - Main - INFO - Worker-0 started
+2026-05-05 23:10:20,066 - Main - INFO - Worker-1 started
+2026-05-05 23:10:20,067 - Main - INFO - Worker-2 started
+2026-05-05 23:10:20,067 - Main - INFO - Background Monitoring Thread started
+2026-05-05 23:11:12,557 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Online -> Offline
+2026-05-05 23:11:24,924 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-05 23:11:24,924 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-05 23:11:24,925 - Main - INFO - Running printer self-healing...
+2026-05-05 23:11:24,984 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-05 23:11:24,986 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-05 23:11:24,986 - Main - INFO - Worker-0 started
+2026-05-05 23:11:24,987 - Main - INFO - Worker-1 started
+2026-05-05 23:11:24,987 - Main - INFO - Worker-2 started
+2026-05-05 23:11:24,988 - Main - INFO - Background Monitoring Thread started
+2026-05-05 23:12:27,506 - Main - INFO - Worker-0 processing job 29 (Prio: 2)
+2026-05-05 23:12:27,510 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW160
+^LL200
+^CI28
+^MD12
+^PR3
+
+^CF0,18
+^FO5,5^FDTEST PATIENT/30/M^FS
+
+^CF0,16
+^FO5,25^FDID:PCECD000E726^FS
+
+^BY2,2,40
+^FO12,45
+^BCN,40,Y,N,N
+^FDPCECD000E726^FS
+
+^CF0,14
+^FO5,135^FD2026-05-05 23:12:27^FS
+
+^CF0,14
+^FO5,155^FDEDTA^FS
+
+^XZ
+2026-05-05 23:12:27,642 - Main - WARNING - Worker-0 retrying job 29 in 2s
+2026-05-05 23:12:29,644 - Main - INFO - Worker-0 processing job 29 (Prio: 2)
+2026-05-05 23:12:29,648 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_29.zpl
+2026-05-05 23:12:29,749 - Main - WARNING - Worker-0 retrying job 29 in 2s
+2026-05-05 23:12:31,751 - Main - INFO - Worker-0 processing job 29 (Prio: 2)
+2026-05-05 23:12:31,754 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_29.zpl
+2026-05-05 23:12:31,846 - Main - WARNING - Worker-0 retrying job 29 in 2s
+2026-05-05 23:12:31,924 - Main - INFO - Worker-1 processing job 30 (Prio: 2)
+2026-05-05 23:12:31,943 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 23:12:31,944 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 23:12:31,945 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 23:12:31,967 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 23:12:31,967 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 23:12:31,967 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 23:12:31,998 - Main - WARNING - Worker-1 retrying job 30 in 2s
+2026-05-05 23:12:33,847 - Main - INFO - Worker-0 processing job 29 (Prio: 2)
+2026-05-05 23:12:33,851 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_29.zpl
+2026-05-05 23:12:33,951 - Main - ERROR - Worker-0 error: FINAL_FAIL
+2026-05-05 23:12:34,000 - Main - INFO - Worker-1 processing job 30 (Prio: 2)
+2026-05-05 23:12:34,026 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 23:12:34,026 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 23:12:34,027 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 23:12:34,062 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 23:12:34,062 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 23:12:34,063 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 23:12:34,105 - Main - WARNING - Worker-1 retrying job 30 in 2s
+2026-05-05 23:12:36,106 - Main - INFO - Worker-1 processing job 30 (Prio: 2)
+2026-05-05 23:12:36,135 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 23:12:36,137 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 23:12:36,138 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 23:12:36,169 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 23:12:36,170 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 23:12:36,171 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 23:12:36,215 - Main - WARNING - Worker-1 retrying job 30 in 2s
+2026-05-05 23:12:38,218 - Main - INFO - Worker-1 processing job 30 (Prio: 2)
+2026-05-05 23:12:38,241 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 23:12:38,241 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 23:12:38,241 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 23:12:38,265 - DocumentService - INFO - Converting PDF to PCL
+2026-05-05 23:12:38,265 - DocumentService - WARNING - Primary (PCL) failed: can't concat str to bytes. Falling back to Raster.
+2026-05-05 23:12:38,265 - DocumentService - ERROR - Critical conversion failure: can't concat str to bytes
+2026-05-05 23:12:38,283 - Main - ERROR - Worker-1 error: FINAL_FAIL
+2026-05-06 08:58:43,367 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 08:58:43,368 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 08:58:43,368 - Main - INFO - Running printer self-healing...
+2026-05-06 08:58:43,436 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 08:58:43,440 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 08:58:43,440 - Main - INFO - Worker-0 started
+2026-05-06 08:58:43,441 - Main - INFO - Worker-1 started
+2026-05-06 08:58:43,441 - Main - INFO - Worker-2 started
+2026-05-06 08:58:43,442 - Main - INFO - Background Monitoring Thread started
+2026-05-06 08:58:43,443 - Main - WARNING - Agent local_pc_1 TIMED OUT. Marking Offline.
+2026-05-06 08:59:15,726 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Offline -> Online
+2026-05-06 08:59:27,921 - Main - INFO - Worker-0 processing job 31 (Prio: 2)
+2026-05-06 08:59:27,927 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW160
+^LL200
+^CI28
+^MD12
+^PR3
+
+^CF0,18
+^FO5,5^FDTEST PATIENT/30/M^FS
+
+^CF0,16
+^FO5,25^FDID:PC9B27B8BC13^FS
+
+^BY2,2,40
+^FO12,45
+^BCN,40,Y,N,N
+^FDPC9B27B8BC13^FS
+
+^CF0,14
+^FO5,135^FD2026-05-06 08:59:27^FS
+
+^CF0,14
+^FO5,155^FDEDTA^FS
+
+^XZ
+2026-05-06 08:59:28,060 - Main - WARNING - Worker-0 retrying job 31 in 2s
+2026-05-06 08:59:30,062 - Main - INFO - Worker-0 processing job 31 (Prio: 2)
+2026-05-06 08:59:30,064 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_31.zpl
+2026-05-06 08:59:30,170 - Main - WARNING - Worker-0 retrying job 31 in 2s
+2026-05-06 08:59:32,171 - Main - INFO - Worker-0 processing job 31 (Prio: 2)
+2026-05-06 08:59:32,175 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_31.zpl
+2026-05-06 08:59:32,278 - Main - WARNING - Worker-0 retrying job 31 in 2s
+2026-05-06 08:59:34,279 - Main - INFO - Worker-0 processing job 31 (Prio: 2)
+2026-05-06 08:59:34,280 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_31.zpl
+2026-05-06 08:59:34,374 - Main - ERROR - Worker-0 error: FINAL_FAIL
+2026-05-06 08:59:46,839 - Main - INFO - Worker-2 processing job 32 (Prio: 2)
+2026-05-06 08:59:46,843 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW160
+^LL200
+^CI28
+^MD12
+^PR3
+
+^CF0,18
+^FO5,5^FDTEST PATIENT/30/M^FS
+
+^CF0,16
+^FO5,25^FDID:PC4C6507AA1B^FS
+
+^BY2,2,40
+^FO12,45
+^BCN,40,Y,N,N
+^FDPC4C6507AA1B^FS
+
+^CF0,14
+^FO5,135^FD2026-05-06 08:59:46^FS
+
+^CF0,14
+^FO5,155^FDEDTA^FS
+
+^XZ
+2026-05-06 08:59:46,971 - Main - WARNING - Worker-2 retrying job 32 in 2s
+2026-05-06 08:59:48,972 - Main - INFO - Worker-2 processing job 32 (Prio: 2)
+2026-05-06 08:59:48,974 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_32.zpl
+2026-05-06 08:59:49,082 - Main - WARNING - Worker-2 retrying job 32 in 2s
+2026-05-06 08:59:51,082 - Main - INFO - Worker-2 processing job 32 (Prio: 2)
+2026-05-06 08:59:51,085 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_32.zpl
+2026-05-06 08:59:51,202 - Main - WARNING - Worker-2 retrying job 32 in 2s
+2026-05-06 08:59:53,203 - Main - INFO - Worker-2 processing job 32 (Prio: 2)
+2026-05-06 08:59:53,207 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_32.zpl
+2026-05-06 08:59:53,306 - Main - ERROR - Worker-2 error: FINAL_FAIL
+2026-05-06 09:00:29,085 - Main - INFO - Worker-0 processing job 33 (Prio: 2)
+2026-05-06 09:00:29,088 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW160
+^LL200
+^CI28
+^MD12
+^PR3
+
+^CF0,18
+^FO5,5^FDDhaya/25/M^FS
+
+^CF0,16
+^FO5,25^FDID:2300708096^FS
+
+^BY2,2,40
+^FO12,45
+^BCN,40,Y,N,N
+^FD2300708096^FS
+
+^CF0,14
+^FO5,135^FD2026-05-06 09:00:29^FS
+
+^CF0,14
+^FO5,155^FDEDTA^FS
+
+^XZ
+2026-05-06 09:00:29,166 - Main - WARNING - Worker-0 retrying job 33 in 2s
+2026-05-06 09:00:31,169 - Main - INFO - Worker-0 processing job 33 (Prio: 2)
+2026-05-06 09:00:31,171 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_33.zpl
+2026-05-06 09:00:31,270 - Main - WARNING - Worker-0 retrying job 33 in 2s
+2026-05-06 09:00:33,271 - Main - INFO - Worker-0 processing job 33 (Prio: 2)
+2026-05-06 09:00:33,276 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_33.zpl
+2026-05-06 09:00:33,375 - Main - WARNING - Worker-0 retrying job 33 in 2s
+2026-05-06 09:00:35,377 - Main - INFO - Worker-0 processing job 33 (Prio: 2)
+2026-05-06 09:00:35,378 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_33.zpl
+2026-05-06 09:00:35,466 - Main - ERROR - Worker-0 error: FINAL_FAIL
+2026-05-06 09:07:14,306 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 09:07:14,306 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 09:07:14,307 - Main - INFO - Running printer self-healing...
+2026-05-06 09:07:14,366 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 09:07:14,368 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 09:07:14,368 - Main - INFO - Worker-0 started
+2026-05-06 09:07:14,368 - Main - INFO - Worker-1 started
+2026-05-06 09:07:14,368 - Main - INFO - Worker-2 started
+2026-05-06 09:07:14,368 - Main - INFO - Background Monitoring Thread started
+2026-05-06 09:07:19,135 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 09:07:19,136 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 09:07:19,136 - Main - INFO - Running printer self-healing...
+2026-05-06 09:07:19,184 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 09:07:19,186 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 09:07:19,187 - Main - INFO - Worker-0 started
+2026-05-06 09:07:19,187 - Main - INFO - Worker-1 started
+2026-05-06 09:07:19,187 - Main - INFO - Worker-2 started
+2026-05-06 09:07:19,188 - Main - INFO - Background Monitoring Thread started
+2026-05-06 09:07:37,047 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 09:07:37,048 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 09:07:37,048 - Main - INFO - Running printer self-healing...
+2026-05-06 09:07:37,095 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 09:07:37,097 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 09:07:37,097 - Main - INFO - Worker-0 started
+2026-05-06 09:07:37,098 - Main - INFO - Worker-1 started
+2026-05-06 09:07:37,098 - Main - INFO - Worker-2 started
+2026-05-06 09:07:37,098 - Main - INFO - Background Monitoring Thread started
+2026-05-06 09:08:55,875 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 09:08:55,876 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 09:08:55,876 - Main - INFO - Running printer self-healing...
+2026-05-06 09:08:55,928 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 09:08:55,930 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 09:08:55,931 - Main - INFO - Worker-0 started
+2026-05-06 09:08:55,931 - Main - INFO - Worker-1 started
+2026-05-06 09:08:55,931 - Main - INFO - Worker-2 started
+2026-05-06 09:08:55,932 - Main - INFO - Background Monitoring Thread started
+2026-05-06 09:09:15,958 - Main - INFO - Worker-0 processing job 34 (Prio: 2)
+2026-05-06 09:09:15,964 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW160
+^LL200
+^CI28
+^MD12
+^PR3
+
+^CF0,18
+^FO5,5^FDDhaya/25/M^FS
+
+^CF0,16
+^FO5,25^FDID:2300708096^FS
+
+^BY2,2,40
+^FO12,45
+^BCN,40,Y,N,N
+^FD2300708096^FS
+
+^CF0,14
+^FO5,135^FD2026-05-06 09:09:15^FS
+
+^CF0,14
+^FO5,155^FDEDTA^FS
+
+^XZ
+2026-05-06 09:09:16,092 - Main - WARNING - Worker-0 retrying job 34 in 2s
+2026-05-06 09:09:18,094 - Main - INFO - Worker-0 processing job 34 (Prio: 2)
+2026-05-06 09:09:18,095 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_34.zpl
+2026-05-06 09:09:18,196 - Main - WARNING - Worker-0 retrying job 34 in 2s
+2026-05-06 09:09:20,197 - Main - INFO - Worker-0 processing job 34 (Prio: 2)
+2026-05-06 09:09:20,200 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_34.zpl
+2026-05-06 09:09:20,319 - Main - WARNING - Worker-0 retrying job 34 in 2s
+2026-05-06 09:09:22,320 - Main - INFO - Worker-0 processing job 34 (Prio: 2)
+2026-05-06 09:09:22,321 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_34.zpl
+2026-05-06 09:09:22,386 - Main - ERROR - Worker-0 error: FINAL_FAIL
+2026-05-06 09:13:17,280 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 09:13:17,280 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 09:13:17,281 - Main - INFO - Running printer self-healing...
+2026-05-06 09:13:17,333 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 09:13:17,334 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 09:13:17,336 - Main - INFO - Worker-0 started
+2026-05-06 09:13:17,336 - Main - INFO - Worker-1 started
+2026-05-06 09:13:17,337 - Main - INFO - Worker-2 started
+2026-05-06 09:13:17,337 - Main - INFO - Background Monitoring Thread started
+2026-05-06 09:13:22,826 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 09:13:22,826 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 09:13:22,827 - Main - INFO - Running printer self-healing...
+2026-05-06 09:13:22,881 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 09:13:22,884 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 09:13:22,885 - Main - INFO - Worker-0 started
+2026-05-06 09:13:22,885 - Main - INFO - Worker-1 started
+2026-05-06 09:13:22,886 - Main - INFO - Worker-2 started
+2026-05-06 09:13:22,886 - Main - INFO - Background Monitoring Thread started
+2026-05-06 09:14:29,217 - Main - INFO - Worker-0 processing job 35 (Prio: 2)
+2026-05-06 09:14:29,221 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW160
+^LL200
+^CI28
+^MD12
+^PR3
+
+^CF0,18
+^FO5,5^FDDhaya/25/M^FS
+
+^CF0,16
+^FO5,25^FDID:2300708096^FS
+
+^BY2,2,40
+^FO12,45
+^BCN,40,Y,N,N
+^FD2300708096^FS
+
+^CF0,14
+^FO5,135^FD2026-05-06 09:14:29^FS
+
+^CF0,14
+^FO5,155^FDEDTA^FS
+
+^XZ
+2026-05-06 09:27:15,211 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 09:27:15,212 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 09:27:15,212 - Main - INFO - Running printer self-healing...
+2026-05-06 09:27:15,263 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 09:27:15,264 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 09:27:15,265 - Main - INFO - Worker-0 started
+2026-05-06 09:27:15,266 - Main - INFO - Worker-1 started
+2026-05-06 09:27:15,266 - Main - INFO - Worker-2 started
+2026-05-06 09:27:15,266 - Main - INFO - Background Monitoring Thread started
+2026-05-06 09:28:24,310 - Main - INFO - Worker-0 processing job 36 (Prio: 2)
+2026-05-06 09:28:24,322 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW406
+^LL507
+^CI28
+^MD12
+^PR3
+
+^CF0,30
+^FO20,40^FDDhaya^FS
+^CF0,25
+^FO20,80^FD25 / M^FS
+
+^BY3,3,160
+^FO40,130
+^BCN,160,Y,N,N
+^FD2300708096^FS
+
+^CF0,22
+^FO20,380^FDDate: 2026-05-06 09:28:24^FS
+^CF0,22
+^FO20,415^FDType: EDTA^FS
+
+^XZ
+2026-05-06 09:28:26,923 - Main - ERROR - [CONFIRM REJECTED] Job 36: Instant completion detected (2.22s < 3s). Marking Failed.
+2026-05-06 09:38:57,564 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Online -> Offline
+2026-05-06 09:41:13,083 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Offline -> Online
+2026-05-06 09:41:43,174 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Online -> Error
+2026-05-06 09:41:58,248 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Error -> Online
+2026-05-06 09:42:28,385 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Online -> Error
+2026-05-06 09:42:43,441 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Error -> Online
+2026-05-06 09:43:43,689 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Online -> Offline
+2026-05-06 09:44:28,816 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Offline -> Online
+2026-05-06 09:44:58,935 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Online -> Offline
+2026-05-06 09:45:59,113 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Offline -> Online
+2026-05-06 09:48:51,620 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 09:48:51,620 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 09:48:51,621 - Main - INFO - Running printer self-healing...
+2026-05-06 09:48:51,690 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 09:48:51,693 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 09:48:51,694 - Main - INFO - Worker-0 started
+2026-05-06 09:48:51,695 - Main - INFO - Worker-1 started
+2026-05-06 09:48:51,695 - Main - INFO - Worker-2 started
+2026-05-06 09:48:51,695 - Main - INFO - Background Monitoring Thread started
+2026-05-06 09:48:51,697 - Main - WARNING - Agent local_pc_1 TIMED OUT. Marking Offline.
+2026-05-06 09:48:51,698 - Main - WARNING - TIMEOUT: USB Printer 'ZDesigner ZD230-203dpi ZPL' stale (>45s). Marking Offline.
+2026-05-06 09:48:53,759 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Offline -> Online
+2026-05-06 09:49:25,270 - Main - INFO - Worker-0 processing job 37 (Prio: 2)
+2026-05-06 09:49:25,274 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW406
+^LL507
+^CI28
+^MD12
+^PR3
+
+^CF0,30
+^FO20,40^FDDhaya^FS
+^CF0,25
+^FO20,80^FD25 / M^FS
+
+^BY3,3,160
+^FO40,130
+^BCN,160,Y,N,N
+^FD2300708096^FS
+
+^CF0,22
+^FO20,380^FDDate: 2026-05-06 09:49:25^FS
+^CF0,22
+^FO20,415^FDType: EDTA^FS
+
+^XZ
+2026-05-06 09:49:31,776 - Main - ERROR - [CONFIRM REJECTED] Job 37: Instant completion detected (2.16s < 3s). Marking Failed.
+2026-05-06 09:50:24,372 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 09:50:24,373 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 09:50:24,374 - Main - INFO - Running printer self-healing...
+2026-05-06 09:50:24,423 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 09:50:24,426 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 09:50:24,427 - Main - INFO - Worker-0 started
+2026-05-06 09:50:24,427 - Main - INFO - Worker-1 started
+2026-05-06 09:50:24,427 - Main - INFO - Worker-2 started
+2026-05-06 09:50:24,428 - Main - INFO - Background Monitoring Thread started
+2026-05-06 09:50:38,394 - Main - INFO - Worker-0 processing job 38 (Prio: 2)
+2026-05-06 09:50:38,400 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW406
+^LL507
+^CI28
+^MD12
+^PR3
+
+^CF0,30
+^FO20,40^FDDhaya^FS
+^CF0,25
+^FO20,80^FD25 / M^FS
+
+^BY3,3,160
+^FO0,130
+^BCN,160,Y,N,N
+^FD2300708096^FS
+
+^CF0,22
+^FO20,380^FDDate: 2026-05-06 09:50:38^FS
+^CF0,22
+^FO20,415^FDType: EDTA^FS
+
+^XZ
+2026-05-06 09:50:44,233 - Main - ERROR - [CONFIRM REJECTED] Job 38: Instant completion detected (2.17s < 3s). Marking Failed.
+2026-05-06 09:57:00,904 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 09:57:00,905 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 09:57:00,906 - Main - INFO - Running printer self-healing...
+2026-05-06 09:57:00,957 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 09:57:00,959 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 09:57:00,959 - Main - INFO - Worker-0 started
+2026-05-06 09:57:00,960 - Main - INFO - Worker-1 started
+2026-05-06 09:57:00,960 - Main - INFO - Worker-2 started
+2026-05-06 09:57:00,960 - Main - INFO - Background Monitoring Thread started
+2026-05-06 09:57:10,352 - Main - INFO - Worker-0 processing job 39 (Prio: 2)
+2026-05-06 09:57:10,355 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW508
+^LL406
+^CI28
+^MD12
+^PR3
+
+^CF0,35
+^FO20,20^FDDhaya^FS
+^CF0,28
+^FO20,65^FD25 / M^FS
+
+^BY2,3,100
+^FO109,110
+^BCN,100,Y,N,N
+^FD2300708096^FS
+
+^CF0,24
+^FO20,330^FDDate: 2026-05-06 09:57:10^FS
+^CF0,24
+^FO20,365^FDType: EDTA^FS
+
+^XZ
+2026-05-06 09:57:13,164 - Main - ERROR - [CONFIRM REJECTED] Job 39: Instant completion detected (2.12s < 3s). Marking Failed.
+2026-05-06 09:59:10,438 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 09:59:10,438 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 09:59:10,439 - Main - INFO - Running printer self-healing...
+2026-05-06 09:59:10,487 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 09:59:10,488 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 09:59:10,490 - Main - INFO - Worker-0 started
+2026-05-06 09:59:10,490 - Main - INFO - Worker-1 started
+2026-05-06 09:59:10,490 - Main - INFO - Worker-2 started
+2026-05-06 09:59:10,491 - Main - INFO - Background Monitoring Thread started
+2026-05-06 09:59:18,193 - Main - INFO - Worker-0 processing job 40 (Prio: 2)
+2026-05-06 09:59:18,197 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW508
+^LL203
+^CI28
+^MD15
+^PR3
+
+^CF0,22
+^FO10,8^FDDhaya / 25Y / M^FS
+
+^CF0,22
+^FO0,8^FB508,1,0,R^FD2300708096^FS
+
+^BY2,3,60
+^FO109,38
+^BCN,60,N,N,N
+^FD2300708096^FS
+
+^CF0,20
+^FO10,118^FDID: 2300708096  EDTA^FS
+
+^CF0,20
+^FO10,148^FD2026-05-06 09:59:18^FS
+
+^XZ
+2026-05-06 09:59:20,962 - Main - ERROR - [CONFIRM REJECTED] Job 40: Instant completion detected (2.16s < 3s). Marking Failed.
+2026-05-06 10:04:56,752 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 10:04:56,752 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 10:04:56,752 - Main - INFO - Running printer self-healing...
+2026-05-06 10:04:56,805 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 10:04:56,806 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 10:04:56,808 - Main - INFO - Worker-0 started
+2026-05-06 10:04:56,808 - Main - INFO - Worker-1 started
+2026-05-06 10:04:56,808 - Main - INFO - Worker-2 started
+2026-05-06 10:04:56,809 - Main - INFO - Background Monitoring Thread started
+2026-05-06 10:06:16,953 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 10:06:16,953 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 10:06:16,954 - Main - INFO - Running printer self-healing...
+2026-05-06 10:06:17,003 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 10:06:17,006 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 10:06:17,006 - Main - INFO - Worker-0 started
+2026-05-06 10:06:17,006 - Main - INFO - Worker-1 started
+2026-05-06 10:06:17,007 - Main - INFO - Worker-2 started
+2026-05-06 10:06:17,007 - Main - INFO - Background Monitoring Thread started
+2026-05-06 10:12:23,330 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 10:12:23,331 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 10:12:23,331 - Main - INFO - Running printer self-healing...
+2026-05-06 10:12:23,380 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 10:12:23,382 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 10:12:23,383 - Main - INFO - Worker-0 started
+2026-05-06 10:12:23,384 - Main - INFO - Worker-1 started
+2026-05-06 10:12:23,384 - Main - INFO - Worker-2 started
+2026-05-06 10:12:23,384 - Main - INFO - Background Monitoring Thread started
+2026-05-06 10:12:24,428 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 10:12:24,428 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 10:12:24,429 - Main - INFO - Running printer self-healing...
+2026-05-06 10:12:24,478 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 10:12:24,480 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 10:12:24,481 - Main - INFO - Worker-0 started
+2026-05-06 10:12:24,481 - Main - INFO - Worker-1 started
+2026-05-06 10:12:24,482 - Main - INFO - Worker-2 started
+2026-05-06 10:12:24,482 - Main - INFO - Background Monitoring Thread started
+2026-05-06 10:12:38,666 - Main - INFO - Worker-0 processing job 41 (Prio: 2)
+2026-05-06 10:12:38,671 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,28
+^FO10,12^FDDhaya  25Y / M^FS
+
+^CF0,28
+^FO0,12^FB508,1,0,R^FD2300708096^FS
+
+^BY3,3,130
+^FO36,55
+^BCN,130,N,N,N
+^FD2300708096^FS
+
+^CF0,26
+^FO10,305^FD2300708096   EDTA^FS
+
+^CF0,26
+^FO10,348^FD06/05/2026  10:12:38^FS
+
+^XZ
+2026-05-06 10:17:25,752 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 10:17:25,752 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 10:17:25,753 - Main - INFO - Running printer self-healing...
+2026-05-06 10:17:25,805 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 10:17:25,805 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 10:17:25,807 - Main - INFO - Worker-0 started
+2026-05-06 10:17:25,808 - Main - INFO - Worker-1 started
+2026-05-06 10:17:25,808 - Main - INFO - Worker-2 started
+2026-05-06 10:17:25,808 - Main - INFO - Background Monitoring Thread started
+2026-05-06 10:18:11,218 - Main - INFO - Worker-0 processing job 42 (Prio: 2)
+2026-05-06 10:18:11,223 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,28
+^FO10,12^FDDhaya  25Y / M^FS
+
+^CF0,28
+^FO0,12^FB508,1,0,R^FD2300708096^FS
+
+^BY3,3,130
+^FO36,55
+^BCN,130,N,N,N
+^FD2300708096^FS
+
+^CF0,26
+^FO10,305^FD2300708096   EDTA^FS
+
+^CF0,26
+^FO10,348^FD06/05/2026  10:18:11^FS
+
+^XZ
+2026-05-06 10:21:15,381 - Main - INFO - Worker-1 processing job 43 (Prio: 2)
+2026-05-06 10:21:15,383 - Main - INFO - [ZPL DEBUG]
+^XA
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,28
+^FO10,12^FDDhaya  25Y / M^FS
+
+^CF0,28
+^FO0,12^FB508,1,0,R^FD2300708096^FS
+
+^BY3,3,130
+^FO36,55
+^BCN,130,N,N,N
+^FD2300708096^FS
+
+^CF0,26
+^FO10,305^FD2300708096   EDTA^FS
+
+^CF0,26
+^FO10,348^FD06/05/2026  10:21:15^FS
+
+^XZ
+2026-05-06 10:30:42,111 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 10:30:42,112 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 10:30:42,113 - Main - INFO - Running printer self-healing...
+2026-05-06 10:30:42,159 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 10:30:42,161 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 10:30:42,162 - Main - INFO - Worker-0 started
+2026-05-06 10:30:42,162 - Main - INFO - Worker-1 started
+2026-05-06 10:30:42,162 - Main - INFO - Worker-2 started
+2026-05-06 10:30:42,162 - Main - INFO - Background Monitoring Thread started
+2026-05-06 10:30:53,149 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 10:30:53,150 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 10:30:53,150 - Main - INFO - Running printer self-healing...
+2026-05-06 10:30:53,199 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 10:30:53,200 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 10:30:53,202 - Main - INFO - Worker-0 started
+2026-05-06 10:30:53,202 - Main - INFO - Worker-1 started
+2026-05-06 10:30:53,203 - Main - INFO - Worker-2 started
+2026-05-06 10:30:53,203 - Main - INFO - Background Monitoring Thread started
+2026-05-06 10:33:12,490 - Main - INFO - Worker-0 processing job 44 (Prio: 2)
+2026-05-06 10:33:12,492 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,28
+^FO10,12^FDDhaya  25Y / M^FS
+
+^CF0,28
+^FO0,12^FB508,1,0,R^FD2300708096^FS
+
+^BY3,3,130
+^FO36,55
+^BCN,130,N,N,N
+^FD2300708096^FS
+
+^CF0,26
+^FO10,305^FD2300708096   EDTA^FS
+
+^CF0,26
+^FO10,348^FD06/05/2026  10:33:12^FS
+
+^XZ
+2026-05-06 10:42:41,636 - Main - INFO - Worker-1 processing job 45 (Prio: 2)
+2026-05-06 10:42:41,638 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,28
+^FO10,12^FDDhaya  25Y / M^FS
+
+^CF0,28
+^FO0,12^FB508,1,0,R^FD2300708096^FS
+
+^BY3,3,130
+^FO36,55
+^BCN,130,N,N,N
+^FD2300708096^FS
+
+^CF0,26
+^FO10,305^FD2300708096   EDTA^FS
+
+^CF0,26
+^FO10,348^FD06/05/2026  10:42:41^FS
+
+^XZ
+2026-05-06 10:43:35,926 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 10:43:35,926 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 10:43:35,927 - Main - INFO - Running printer self-healing...
+2026-05-06 10:43:35,976 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 10:43:35,977 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 10:43:35,978 - Main - INFO - Worker-0 started
+2026-05-06 10:43:35,978 - Main - INFO - Worker-1 started
+2026-05-06 10:43:35,978 - Main - INFO - Worker-2 started
+2026-05-06 10:43:35,979 - Main - INFO - Background Monitoring Thread started
+2026-05-06 10:43:59,867 - Main - INFO - Worker-0 processing job 46 (Prio: 2)
+2026-05-06 10:43:59,870 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,28
+^FO10,12^FDDhaya  25Y / M^FS
+
+^CF0,28
+^FO0,12^FB508,1,0,R^FD2300708096^FS
+
+^BY3,3,130
+^FO36,55
+^BCN,130,N,N,N
+^FD2300708096^FS
+
+^CF0,26
+^FO10,305^FD2300708096   EDTA^FS
+
+^CF0,26
+^FO10,348^FD06/05/2026  10:43:59^FS
+
+^XZ
+2026-05-06 10:44:06,473 - Main - ERROR - [CONFIRM REJECTED] Job 46: Instant completion detected (0.09s < 1s). Marking Failed.
+2026-05-06 10:55:13,434 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 10:55:13,435 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 10:55:13,436 - Main - INFO - Running printer self-healing...
+2026-05-06 10:55:13,482 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 10:55:13,482 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 10:55:13,484 - Main - INFO - Worker-0 started
+2026-05-06 10:55:13,484 - Main - INFO - Worker-1 started
+2026-05-06 10:55:13,484 - Main - INFO - Worker-2 started
+2026-05-06 10:55:13,484 - Main - INFO - Background Monitoring Thread started
+2026-05-06 10:55:41,019 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 10:55:41,020 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 10:55:41,021 - Main - INFO - Running printer self-healing...
+2026-05-06 10:55:41,071 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 10:55:41,072 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 10:55:41,072 - Main - INFO - Worker-0 started
+2026-05-06 10:55:41,073 - Main - INFO - Worker-1 started
+2026-05-06 10:55:41,073 - Main - INFO - Worker-2 started
+2026-05-06 10:55:41,073 - Main - INFO - Background Monitoring Thread started
+2026-05-06 10:55:53,715 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 10:55:53,715 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 10:55:53,716 - Main - INFO - Running printer self-healing...
+2026-05-06 10:55:53,766 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 10:55:53,767 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 10:55:53,768 - Main - INFO - Worker-0 started
+2026-05-06 10:55:53,768 - Main - INFO - Worker-1 started
+2026-05-06 10:55:53,769 - Main - INFO - Worker-2 started
+2026-05-06 10:55:53,769 - Main - INFO - Background Monitoring Thread started
+2026-05-06 10:56:36,262 - Main - INFO - Worker-0 processing job 47 (Prio: 2)
+2026-05-06 10:56:36,267 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,28
+^FO10,12^FDDhaya  25Y / M^FS
+
+^CF0,28
+^FO0,12^FB508,1,0,R^FD2300708096^FS
+
+^BY3,3,130
+^FO36,55
+^BCN,130,N,N,N
+^FD2300708096^FS
+
+^CF0,26
+^FO10,305^FD2300708096   EDTA^FS
+
+^CF0,26
+^FO10,348^FD06/05/2026  10:56:36^FS
+
+^XZ
+2026-05-06 10:56:37,559 - Main - ERROR - [CONFIRM REJECTED] Job 47: Instant completion detected (0.09s < 1s). Marking Failed.
+2026-05-06 11:34:20,458 - Main - WARNING - Agent local_pc_1 TIMED OUT. Marking Offline.
+2026-05-06 11:34:20,573 - Main - WARNING - TIMEOUT: USB Printer 'ZDesigner ZD230-203dpi ZPL' stale (>45s). Marking Offline.
+2026-05-06 11:34:20,604 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Online -> Offline
+2026-05-06 11:34:35,644 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Offline -> Online
+2026-05-06 11:50:35,253 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 11:50:35,254 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 11:50:35,254 - Main - INFO - Running printer self-healing...
+2026-05-06 11:50:35,307 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 11:50:35,309 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 11:50:35,310 - Main - INFO - Worker-0 started
+2026-05-06 11:50:35,310 - Main - INFO - Worker-1 started
+2026-05-06 11:50:35,310 - Main - INFO - Worker-2 started
+2026-05-06 11:50:35,311 - Main - INFO - Background Monitoring Thread started
+2026-05-06 11:51:29,840 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 11:51:29,840 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 11:51:29,842 - Main - INFO - Running printer self-healing...
+2026-05-06 11:51:29,888 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 11:51:29,889 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 11:51:29,891 - Main - INFO - Worker-0 started
+2026-05-06 11:51:29,891 - Main - INFO - Worker-1 started
+2026-05-06 11:51:29,892 - Main - INFO - Worker-2 started
+2026-05-06 11:51:29,892 - Main - INFO - Background Monitoring Thread started
+2026-05-06 11:51:50,523 - Main - INFO - Worker-0 processing job 48 (Prio: 2)
+2026-05-06 11:51:50,530 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,24
+^FO14,14^FDDhaya  25Y / M^FS
+
+^CF0,24
+^FO14,14^FB480,1,0,R^FD2300708096^FS
+
+^BY3,3,110
+^FO36,58
+^BCN,110,N,N,N
+^FD2300708096^FS
+
+^CF0,22
+^FO14,145^FD2300708096   EDTA^FS
+
+^CF0,22
+^FO14,170^FD06/05/2026  11:51:50^FS
+
+^XZ
+2026-05-06 11:51:55,395 - Main - ERROR - [CONFIRM REJECTED] Job 48: Instant completion detected (0.11s < 1s). Marking Failed.
+2026-05-06 12:00:30,762 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:00:30,762 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:00:30,764 - Main - INFO - Running printer self-healing...
+2026-05-06 12:00:30,807 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:00:30,809 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:00:30,810 - Main - INFO - Worker-0 started
+2026-05-06 12:00:30,811 - Main - INFO - Worker-1 started
+2026-05-06 12:00:30,811 - Main - INFO - Worker-2 started
+2026-05-06 12:00:30,811 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:00:31,807 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:00:31,807 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:00:31,807 - Main - INFO - Running printer self-healing...
+2026-05-06 12:00:31,853 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:00:31,853 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:00:31,855 - Main - INFO - Worker-0 started
+2026-05-06 12:00:31,856 - Main - INFO - Worker-1 started
+2026-05-06 12:00:31,856 - Main - INFO - Worker-2 started
+2026-05-06 12:00:31,856 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:00:37,404 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:00:37,405 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:00:37,405 - Main - INFO - Running printer self-healing...
+2026-05-06 12:00:37,454 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:00:37,456 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:00:37,457 - Main - INFO - Worker-0 started
+2026-05-06 12:00:37,457 - Main - INFO - Worker-1 started
+2026-05-06 12:00:37,458 - Main - INFO - Worker-2 started
+2026-05-06 12:00:37,458 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:01:12,903 - Main - INFO - Worker-0 processing job 49 (Prio: 2)
+2026-05-06 12:01:12,907 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,26
+^FO20,20^FDDhaya^FS
+
+^CF0,26
+^FO20,20^FB468,1,0,R^FD25Y / M^FS
+
+^BY2,3,90
+^FO109,95
+^BCN,90,Y,N,N
+^FD2300708096^FS
+
+^CF0,22
+^FO20,258^FD06/05/2026  12:01:12^FS
+
+^CF0,22
+^FO20,258^FB468,1,0,R^FDEDTA^FS
+
+^XZ
+2026-05-06 12:01:15,914 - Main - ERROR - [CONFIRM REJECTED] Job 49: Instant completion detected (0.11s < 1s). Marking Failed.
+2026-05-06 12:10:48,167 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:10:48,168 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:10:48,168 - Main - INFO - Running printer self-healing...
+2026-05-06 12:10:48,214 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:10:48,215 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:10:48,216 - Main - INFO - Worker-0 started
+2026-05-06 12:10:48,216 - Main - INFO - Worker-1 started
+2026-05-06 12:10:48,217 - Main - INFO - Worker-2 started
+2026-05-06 12:10:48,217 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:10:49,178 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:10:49,178 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:10:49,178 - Main - INFO - Running printer self-healing...
+2026-05-06 12:10:49,224 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:10:49,225 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:10:49,226 - Main - INFO - Worker-0 started
+2026-05-06 12:10:49,226 - Main - INFO - Worker-1 started
+2026-05-06 12:10:49,226 - Main - INFO - Worker-2 started
+2026-05-06 12:10:49,226 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:11:05,448 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:11:05,449 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:11:05,449 - Main - INFO - Running printer self-healing...
+2026-05-06 12:11:05,494 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:11:05,496 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:11:05,497 - Main - INFO - Worker-0 started
+2026-05-06 12:11:05,497 - Main - INFO - Worker-1 started
+2026-05-06 12:11:05,498 - Main - INFO - Worker-2 started
+2026-05-06 12:11:05,498 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:11:30,773 - Main - INFO - Worker-0 processing job 50 (Prio: 2)
+2026-05-06 12:11:30,776 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,26
+^FO20,16^FDDhaya  25Y / M^FS
+
+^CF0,26
+^FO20,16^FB468,1,0,R^FD2300708096^FS
+
+^BY2,3,88
+^FO109,82
+^BCN,88,N,N,N
+^FD2300708096^FS
+
+^CF0,22
+^FO20,200^FB468,1,0,C^FD2300708096^FS
+
+^CF0,22
+^FO20,240^FD06/05/2026  12:11:30^FS
+
+^CF0,22
+^FO20,240^FB468,1,0,R^FDEDTA^FS
+
+^XZ
+2026-05-06 12:11:31,136 - Main - ERROR - [CONFIRM REJECTED] Job 50: Instant completion detected (0.12s < 1s). Marking Failed.
+2026-05-06 12:22:07,954 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:22:07,955 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:22:07,955 - Main - INFO - Running printer self-healing...
+2026-05-06 12:22:08,005 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:22:08,007 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:22:08,008 - Main - INFO - Worker-0 started
+2026-05-06 12:22:08,008 - Main - INFO - Worker-1 started
+2026-05-06 12:22:08,008 - Main - INFO - Worker-2 started
+2026-05-06 12:22:08,008 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:22:57,902 - Main - INFO - Worker-0 processing job 51 (Prio: 2)
+2026-05-06 12:22:57,906 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH24,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,26
+^FO0,14^FDDhaya  25Y / M^FS
+
+^CF0,26
+^FO0,14^FB464,1,0,R^FD2300708096^FS
+
+^BY2,3,80
+^FO87,56
+^BCN,80,N,N,N
+^FD2300708096^FS
+
+^CF0,22
+^FO0,148^FB464,1,0,C^FD2300708096^FS
+
+^CF0,22
+^FO0,180^FD06/05/2026  12:22:57^FS
+
+^CF0,22
+^FO0,180^FB464,1,0,R^FDEDTA^FS
+
+^XZ
+2026-05-06 12:22:58,519 - Main - ERROR - [CONFIRM REJECTED] Job 51: Instant completion detected (0.09s < 1s). Marking Failed.
+2026-05-06 12:28:28,115 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:28:28,115 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:28:28,116 - Main - INFO - Running printer self-healing...
+2026-05-06 12:28:28,163 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:28:28,164 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:28:28,165 - Main - INFO - Worker-0 started
+2026-05-06 12:28:28,165 - Main - INFO - Worker-1 started
+2026-05-06 12:28:28,166 - Main - INFO - Worker-2 started
+2026-05-06 12:28:28,166 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:28:50,634 - Main - INFO - Worker-0 processing job 52 (Prio: 2)
+2026-05-06 12:28:50,639 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH30,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,22
+^FO0,14^FDDhaya  25Y / M^FS
+
+^CF0,22
+^FO0,14^FB448,1,0,R^FD2300708096^FS
+
+^BY2,3,76
+^FO79,50
+^BCN,76,N,N,N
+^FD2300708096^FS
+
+^CF0,22
+^FO0,140^FB448,1,0,C^FD2300708096^FS
+
+^CF0,22
+^FO0,168^FD06/05/2026  12:28:50^FS
+
+^CF0,22
+^FO0,168^FB448,1,0,R^FDEDTA^FS
+
+^XZ
+2026-05-06 12:28:54,886 - Main - ERROR - [CONFIRM REJECTED] Job 52: Instant completion detected (0.08s < 1s). Marking Failed.
+2026-05-06 12:40:04,516 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:40:04,516 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:40:04,517 - Main - INFO - Running printer self-healing...
+2026-05-06 12:40:04,563 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:40:04,564 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:40:04,565 - Main - INFO - Worker-0 started
+2026-05-06 12:40:04,566 - Main - INFO - Worker-1 started
+2026-05-06 12:40:04,566 - Main - INFO - Worker-2 started
+2026-05-06 12:40:04,566 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:40:12,895 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:40:12,896 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:40:12,896 - Main - INFO - Running printer self-healing...
+2026-05-06 12:40:12,942 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:40:12,944 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:40:12,944 - Main - INFO - Worker-0 started
+2026-05-06 12:40:12,945 - Main - INFO - Worker-1 started
+2026-05-06 12:40:12,945 - Main - INFO - Worker-2 started
+2026-05-06 12:40:12,945 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:40:16,609 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:40:16,609 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:40:16,611 - Main - INFO - Running printer self-healing...
+2026-05-06 12:40:16,657 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:40:16,659 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:40:16,659 - Main - INFO - Worker-0 started
+2026-05-06 12:40:16,660 - Main - INFO - Worker-1 started
+2026-05-06 12:40:16,660 - Main - INFO - Worker-2 started
+2026-05-06 12:40:16,660 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:40:41,997 - Main - INFO - Worker-0 processing job 53 (Prio: 2)
+2026-05-06 12:40:42,001 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH40,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,22
+^FO0,14^FDDhaya  25Y / M^FS
+
+^CF0,22
+^FO0,14^FB420,1,0,R^FD2300708096^FS
+
+^BY2,3,76
+^FO65,50
+^BCN,76,N,N,N
+^FD2300708096^FS
+
+^CF0,22
+^FO0,140^FB420,1,0,C^FD2300708096^FS
+
+^CF0,22
+^FO0,168^FD06/05/2026  12:40:41^FS
+
+^CF0,22
+^FO0,168^FB420,1,0,R^FDEDTA^FS
+
+^XZ
+2026-05-06 12:40:43,176 - Main - ERROR - [CONFIRM REJECTED] Job 53: Instant completion detected (0.08s < 1s). Marking Failed.
+2026-05-06 12:48:24,157 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:48:24,157 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:48:24,159 - Main - INFO - Running printer self-healing...
+2026-05-06 12:48:24,203 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:48:24,204 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:48:24,205 - Main - INFO - Worker-0 started
+2026-05-06 12:48:24,205 - Main - INFO - Worker-1 started
+2026-05-06 12:48:24,206 - Main - INFO - Worker-2 started
+2026-05-06 12:48:24,206 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:48:25,120 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:48:25,121 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:48:25,121 - Main - INFO - Running printer self-healing...
+2026-05-06 12:48:25,165 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:48:25,167 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:48:25,167 - Main - INFO - Worker-0 started
+2026-05-06 12:48:25,167 - Main - INFO - Worker-1 started
+2026-05-06 12:48:25,169 - Main - INFO - Worker-2 started
+2026-05-06 12:48:25,169 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:48:45,135 - Main - INFO - Worker-0 processing job 54 (Prio: 2)
+2026-05-06 12:48:45,138 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,22
+^FO50,30^FDDhaya  25Y / M^FS
+
+^CF0,22
+^FO50,30^FB408,1,0,R^FD2300708096^FS
+
+^BY2,3,80
+^FO109,75
+^BCN,80,N,N,N
+^FD2300708096^FS
+
+^CF0,22
+^FO50,170^FB408,1,0,C^FD2300708096^FS
+
+^CF0,22
+^FO50,200^FD06/05/2026  12:48:45^FS
+
+^CF0,22
+^FO50,200^FB408,1,0,R^FDEDTA^FS
+
+^XZ
+2026-05-06 12:48:45,368 - Main - ERROR - [CONFIRM REJECTED] Job 54: Instant completion detected (0.10s < 1s). Marking Failed.
+2026-05-06 12:51:34,242 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:51:34,242 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:51:34,243 - Main - INFO - Running printer self-healing...
+2026-05-06 12:51:34,290 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:51:34,292 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:51:34,293 - Main - INFO - Worker-0 started
+2026-05-06 12:51:34,293 - Main - INFO - Worker-1 started
+2026-05-06 12:51:34,293 - Main - INFO - Worker-2 started
+2026-05-06 12:51:34,293 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:51:46,172 - Main - INFO - Worker-0 processing job 55 (Prio: 2)
+2026-05-06 12:51:46,176 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,18
+^FO50,20^FDDhaya  25Y / M^FS
+
+^CF0,18
+^FO50,20^FB360,1,0,R^FD2300708096^FS
+
+^BY2,3,60
+^FO85,50
+^BCN,60,N,N,N
+^FD2300708096^FS
+
+^CF0,18
+^FO50,118^FB360,1,0,C^FD2300708096^FS
+
+^CF0,18
+^FO50,145^FD06/05/2026  12:51:46^FS
+
+^CF0,18
+^FO50,145^FB360,1,0,R^FDEDTA^FS
+
+^XZ
+2026-05-06 12:51:51,240 - Main - ERROR - [CONFIRM REJECTED] Job 55: Instant completion detected (0.09s < 1s). Marking Failed.
+2026-05-06 12:55:08,731 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:55:08,732 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:55:08,732 - Main - INFO - Running printer self-healing...
+2026-05-06 12:55:08,778 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:55:08,780 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:55:08,781 - Main - INFO - Worker-0 started
+2026-05-06 12:55:08,781 - Main - INFO - Worker-1 started
+2026-05-06 12:55:08,781 - Main - INFO - Worker-2 started
+2026-05-06 12:55:08,782 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:55:09,742 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 12:55:09,743 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 12:55:09,743 - Main - INFO - Running printer self-healing...
+2026-05-06 12:55:09,790 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 12:55:09,791 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 12:55:09,792 - Main - INFO - Worker-0 started
+2026-05-06 12:55:09,792 - Main - INFO - Worker-1 started
+2026-05-06 12:55:09,792 - Main - INFO - Worker-2 started
+2026-05-06 12:55:09,792 - Main - INFO - Background Monitoring Thread started
+2026-05-06 12:55:23,306 - Main - INFO - Worker-0 processing job 56 (Prio: 2)
+2026-05-06 12:55:23,309 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,18
+^FO65,20^FDDhaya  25Y / M^FS
+
+^CF0,18
+^FO65,20^FB355,1,0,R^FD2300708096^FS
+
+^BY2,3,60
+^FO97,50
+^BCN,60,N,N,N
+^FD2300708096^FS
+
+^CF0,18
+^FO65,118^FB355,1,0,C^FD2300708096^FS
+
+^CF0,18
+^FO65,145^FD06/05/2026  12:55:23^FS
+
+^CF0,18
+^FO65,145^FB355,1,0,R^FDEDTA^FS
+
+^XZ
+2026-05-06 12:55:27,151 - Main - ERROR - [CONFIRM REJECTED] Job 56: Instant completion detected (0.09s < 1s). Marking Failed.
+2026-05-06 13:58:36,753 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Online -> Offline
+2026-05-06 14:00:44,081 - Main - INFO - STATUS CHANGE: 'ZDesigner ZD230-203dpi ZPL' [USB] | Offline -> Online
+2026-05-06 14:10:00,209 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:10:00,209 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:10:00,209 - Main - INFO - Running printer self-healing...
+2026-05-06 14:10:00,262 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:10:00,265 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:10:00,266 - Main - INFO - Worker-0 started
+2026-05-06 14:10:00,266 - Main - INFO - Worker-1 started
+2026-05-06 14:10:00,267 - Main - INFO - Worker-2 started
+2026-05-06 14:10:00,267 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:11:23,534 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:11:23,534 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:11:23,535 - Main - INFO - Running printer self-healing...
+2026-05-06 14:11:23,581 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:11:23,583 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:11:23,584 - Main - INFO - Worker-0 started
+2026-05-06 14:11:23,584 - Main - INFO - Worker-1 started
+2026-05-06 14:11:23,584 - Main - INFO - Worker-2 started
+2026-05-06 14:11:23,585 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:11:38,053 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:11:38,053 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:11:38,054 - Main - INFO - Running printer self-healing...
+2026-05-06 14:11:38,105 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:11:38,107 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:11:38,108 - Main - INFO - Worker-0 started
+2026-05-06 14:11:38,109 - Main - INFO - Worker-1 started
+2026-05-06 14:11:38,109 - Main - INFO - Worker-2 started
+2026-05-06 14:11:38,109 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:11:53,589 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:11:53,590 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:11:53,591 - Main - INFO - Running printer self-healing...
+2026-05-06 14:11:53,637 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:11:53,639 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:11:53,640 - Main - INFO - Worker-0 started
+2026-05-06 14:11:53,640 - Main - INFO - Worker-1 started
+2026-05-06 14:11:53,640 - Main - INFO - Worker-2 started
+2026-05-06 14:11:53,641 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:14:45,957 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:14:45,957 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:14:45,958 - Main - INFO - Running printer self-healing...
+2026-05-06 14:14:46,005 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:14:46,007 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:14:46,008 - Main - INFO - Worker-0 started
+2026-05-06 14:14:46,009 - Main - INFO - Worker-1 started
+2026-05-06 14:14:46,009 - Main - INFO - Worker-2 started
+2026-05-06 14:14:46,009 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:15:37,462 - Main - INFO - Worker-0 processing job 57 (Prio: 2)
+2026-05-06 14:15:37,469 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,18
+^FO65,20^FDDhaya  25Y / M^FS
+
+^CF0,24
+^FO65,14^FB355,1,0,R^FD2300708096^FS
+
+^BY2,3,55
+^FO97,48
+^BCN,55,N,N,N
+^FD2300708096^FS
+
+^CF0,24
+^FO65,110^FB355,1,0,C^FD2300708096^FS
+
+^CF0,18
+^FO65,138^FD06/05/2026  14:15:37^FS
+
+^CF0,18
+^FO65,138^FB355,1,0,R^FDEDTA^FS
+^CF0,18
+^FO65,160^FDCBC^FS
+
+^XZ
+2026-05-06 14:15:41,445 - Main - ERROR - [CONFIRM REJECTED] Job 57: Instant completion detected (0.16s < 1s). Marking Failed.
+2026-05-06 14:20:42,201 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:20:42,201 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:20:42,201 - Main - INFO - Running printer self-healing...
+2026-05-06 14:20:42,250 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:20:42,252 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:20:42,253 - Main - INFO - Worker-0 started
+2026-05-06 14:20:42,253 - Main - INFO - Worker-1 started
+2026-05-06 14:20:42,254 - Main - INFO - Worker-2 started
+2026-05-06 14:20:42,254 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:20:43,263 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:20:43,264 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:20:43,264 - Main - INFO - Running printer self-healing...
+2026-05-06 14:20:43,311 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:20:43,314 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:20:43,315 - Main - INFO - Worker-0 started
+2026-05-06 14:20:43,315 - Main - INFO - Worker-1 started
+2026-05-06 14:20:43,315 - Main - INFO - Worker-2 started
+2026-05-06 14:20:43,316 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:20:50,171 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:20:50,171 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:20:50,171 - Main - INFO - Running printer self-healing...
+2026-05-06 14:20:50,217 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:20:50,220 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:20:50,221 - Main - INFO - Worker-0 started
+2026-05-06 14:20:50,221 - Main - INFO - Worker-1 started
+2026-05-06 14:20:50,221 - Main - INFO - Worker-2 started
+2026-05-06 14:20:50,221 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:21:18,156 - Main - INFO - Worker-0 processing job 58 (Prio: 2)
+2026-05-06 14:21:18,160 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,18
+^FO65,26^FDDhaya  25Y / M^FS
+
+^CF0,24
+^FO65,22^FB355,1,0,R^FD2300708096^FS
+
+^BY2,3,55
+^FO97,54
+^BCN,55,N,N,N
+^FD2300708096^FS
+
+^CF0,24
+^FO65,116^FB355,1,0,C^FD2300708096^FS
+
+^CF0,18
+^FO65,144^FD06/05/2026  14:21:18^FS
+
+^CF0,18
+^FO65,144^FB355,1,0,R^FDEDTA^FS
+^CF0,18
+^FO65,172^FDCBC^FS
+
+^XZ
+2026-05-06 14:21:18,662 - Main - ERROR - [CONFIRM REJECTED] Job 58: Instant completion detected (0.14s < 1s). Marking Failed.
+2026-05-06 14:25:55,884 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:25:55,886 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:25:55,886 - Main - INFO - Running printer self-healing...
+2026-05-06 14:25:55,936 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:25:55,938 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:25:55,939 - Main - INFO - Worker-0 started
+2026-05-06 14:25:55,939 - Main - INFO - Worker-1 started
+2026-05-06 14:25:55,940 - Main - INFO - Worker-2 started
+2026-05-06 14:25:55,940 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:25:56,909 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:25:56,909 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:25:56,909 - Main - INFO - Running printer self-healing...
+2026-05-06 14:25:56,953 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:25:56,955 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:25:56,957 - Main - INFO - Worker-0 started
+2026-05-06 14:25:56,957 - Main - INFO - Worker-1 started
+2026-05-06 14:25:56,957 - Main - INFO - Worker-2 started
+2026-05-06 14:25:56,958 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:26:16,748 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:26:16,749 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:26:16,749 - Main - INFO - Running printer self-healing...
+2026-05-06 14:26:16,794 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:26:16,797 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:26:16,798 - Main - INFO - Worker-0 started
+2026-05-06 14:26:16,798 - Main - INFO - Worker-1 started
+2026-05-06 14:26:16,798 - Main - INFO - Worker-2 started
+2026-05-06 14:26:16,798 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:27:22,128 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:27:22,129 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:27:22,129 - Main - INFO - Running printer self-healing...
+2026-05-06 14:27:22,178 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:27:22,179 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:27:22,181 - Main - INFO - Worker-0 started
+2026-05-06 14:27:22,182 - Main - INFO - Worker-1 started
+2026-05-06 14:27:22,182 - Main - INFO - Worker-2 started
+2026-05-06 14:27:22,182 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:27:45,463 - Main - INFO - Worker-0 processing job 59 (Prio: 2)
+2026-05-06 14:27:45,468 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,18
+^FO65,26^FDDhaya  25Y / M^FS
+
+^CF0,24
+^FO65,22^FB355,1,0,R^FD2300708096^FS
+
+^BY2,3,55
+^FO117,54
+^BCN,55,N,N,N
+^FD2300708096^FS
+
+^CF0,24
+^FO65,116^FB355,1,0,C^FD2300708096^FS
+
+^CF0,18
+^FO65,144^FD06/05/2026  14:27:45^FS
+
+^CF0,18
+^FO65,144^FB355,1,0,R^FDEDTA^FS
+^CF0,18
+^FO65,172^FDCBC^FS
+
+^XZ
+2026-05-06 14:27:50,286 - Main - ERROR - [CONFIRM REJECTED] Job 59: Instant completion detected (0.14s < 1s). Marking Failed.
+2026-05-06 14:38:27,809 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:38:27,810 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:38:27,810 - Main - INFO - Running printer self-healing...
+2026-05-06 14:38:27,866 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:38:27,867 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:38:27,868 - Main - INFO - Worker-0 started
+2026-05-06 14:38:27,869 - Main - INFO - Worker-1 started
+2026-05-06 14:38:27,869 - Main - INFO - Worker-2 started
+2026-05-06 14:38:27,869 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:38:36,068 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:38:36,068 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:38:36,069 - Main - INFO - Running printer self-healing...
+2026-05-06 14:38:36,117 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:38:36,119 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:38:36,120 - Main - INFO - Worker-0 started
+2026-05-06 14:38:36,121 - Main - INFO - Worker-1 started
+2026-05-06 14:38:36,121 - Main - INFO - Worker-2 started
+2026-05-06 14:38:36,121 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:39:03,187 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:39:03,187 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:39:03,188 - Main - INFO - Running printer self-healing...
+2026-05-06 14:39:03,246 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:39:03,247 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:39:03,248 - Main - INFO - Worker-0 started
+2026-05-06 14:39:03,248 - Main - INFO - Worker-1 started
+2026-05-06 14:39:03,249 - Main - INFO - Worker-2 started
+2026-05-06 14:39:03,249 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:39:20,006 - Main - INFO - Worker-0 processing job 60 (Prio: 2)
+2026-05-06 14:39:20,010 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,18
+^FO65,26^FDDhaya  25Y / M^FS
+
+^CF0,24
+^FO65,22^FB355,1,0,R^FD2300708096^FS
+
+^BY2,3,55
+^FO117,54
+^BCN,55,N,N,N
+^FD2300708096^FS
+
+^CF0,24
+^FO65,116^FB355,1,0,C^FD2300708096^FS
+
+^CF0,18
+^FO65,144^FD06/05/2026  14:39:20^FS
+
+^CF0,18
+^FO65,144^FB355,1,0,R^FDEDTA^FS
+^CF0,18
+^FO65,172^FDCBC^FS
+
+^XZ
+2026-05-06 14:44:57,915 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:44:57,915 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:44:57,916 - Main - INFO - Running printer self-healing...
+2026-05-06 14:44:57,964 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:44:57,966 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:44:57,967 - Main - INFO - Worker-0 started
+2026-05-06 14:44:57,967 - Main - INFO - Worker-1 started
+2026-05-06 14:44:57,968 - Main - INFO - Worker-2 started
+2026-05-06 14:44:57,968 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:45:42,277 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:45:42,277 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:45:42,277 - Main - INFO - Running printer self-healing...
+2026-05-06 14:45:42,324 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:45:42,325 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:45:42,326 - Main - INFO - Worker-0 started
+2026-05-06 14:45:42,326 - Main - INFO - Worker-1 started
+2026-05-06 14:45:42,326 - Main - INFO - Worker-2 started
+2026-05-06 14:45:42,326 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:46:21,215 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:46:21,215 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:46:21,215 - Main - INFO - Running printer self-healing...
+2026-05-06 14:46:21,261 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:46:21,263 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:46:21,265 - Main - INFO - Worker-0 started
+2026-05-06 14:46:21,265 - Main - INFO - Worker-1 started
+2026-05-06 14:46:21,266 - Main - INFO - Worker-2 started
+2026-05-06 14:46:21,266 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:46:35,359 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:46:35,359 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:46:35,359 - Main - INFO - Running printer self-healing...
+2026-05-06 14:46:35,409 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:46:35,411 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:46:35,412 - Main - INFO - Worker-0 started
+2026-05-06 14:46:35,413 - Main - INFO - Worker-1 started
+2026-05-06 14:46:35,413 - Main - INFO - Worker-2 started
+2026-05-06 14:46:35,413 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:47:02,545 - Main - INFO - Worker-0 processing job 61 (Prio: 2)
+2026-05-06 14:47:02,548 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,18
+^FO65,26^FDDhaya  25Y / M^FS
+
+^CF0,24
+^FO65,22^FB355,1,0,R^FD2300708096^FS
+
+^BY2,3,55
+^FO117,54
+^BCN,55,N,N,N
+^FD2300708096^FS
+
+^CF0,24
+^FO65,116^FB355,1,0,C^FD2300708096^FS
+
+^CF0,18
+^FO65,144^FD06/05/2026  14:47:02^FS
+
+^CF0,18
+^FO65,144^FB355,1,0,R^FDEDTA^FS
+^CF0,18
+^FO65,172^FDCBC^FS
+
+^XZ
+2026-05-06 14:56:08,648 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:56:08,648 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:56:08,650 - Main - INFO - Running printer self-healing...
+2026-05-06 14:56:08,695 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:56:08,698 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:56:08,699 - Main - INFO - Worker-0 started
+2026-05-06 14:56:08,699 - Main - INFO - Worker-1 started
+2026-05-06 14:56:08,700 - Main - INFO - Worker-2 started
+2026-05-06 14:56:08,700 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:56:09,710 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:56:09,710 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:56:09,710 - Main - INFO - Running printer self-healing...
+2026-05-06 14:56:09,757 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:56:09,759 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:56:09,760 - Main - INFO - Worker-0 started
+2026-05-06 14:56:09,760 - Main - INFO - Worker-1 started
+2026-05-06 14:56:09,760 - Main - INFO - Worker-2 started
+2026-05-06 14:56:09,762 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:58:51,522 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 14:58:51,522 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 14:58:51,522 - Main - INFO - Running printer self-healing...
+2026-05-06 14:58:51,573 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 14:58:51,575 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 14:58:51,576 - Main - INFO - Worker-0 started
+2026-05-06 14:58:51,576 - Main - INFO - Worker-1 started
+2026-05-06 14:58:51,577 - Main - INFO - Worker-2 started
+2026-05-06 14:58:51,577 - Main - INFO - Background Monitoring Thread started
+2026-05-06 14:59:10,838 - Main - INFO - Worker-0 processing job 62 (Prio: 2)
+2026-05-06 14:59:10,844 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,18
+^FO65,26^FDDhaya  25Y / M^FS
+
+^CF0,24
+^FO65,22^FB355,1,0,R^FD2300708096^FS
+
+^BY2,3,55
+^FO117,54
+^BCN,55,N,N,N
+^FD2300708096^FS
+
+^CF0,24
+^FO65,116^FB355,1,0,C^FD2300708096^FS
+
+^CF0,18
+^FO65,144^FD06/05/2026  14:59:10^FS
+
+^CF0,18
+^FO65,144^FB355,1,0,R^FDEDTA^FS
+^CF0,18
+^FO65,172^FDCBC^FS
+
+^XZ
+2026-05-06 15:03:13,737 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 15:03:13,738 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 15:03:13,739 - Main - INFO - Running printer self-healing...
+2026-05-06 15:03:13,788 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 15:03:13,791 - Main - WARNING - RECOVERY: Job 62 was stale in 'Agent Printing'. Resetting to 'Queued'.
+2026-05-06 15:03:13,793 - Main - INFO - RECOVERY: Re-queuing job 62 (Category: Barcode)
+2026-05-06 15:03:13,799 - Main - INFO - RECOVERY COMPLETE: 1 jobs re-queued.
+2026-05-06 15:03:13,800 - Main - INFO - Worker-0 started
+2026-05-06 15:03:13,800 - Main - INFO - Worker-1 started
+2026-05-06 15:03:13,800 - Main - INFO - Worker-2 started
+2026-05-06 15:03:13,800 - Main - INFO - Worker-0 processing job 62 (Prio: 2)
+2026-05-06 15:03:13,800 - Main - INFO - Background Monitoring Thread started
+2026-05-06 15:03:13,806 - Main - INFO - [ZPL DEBUG]
+uploads/barcode_62.zpl
+2026-05-06 15:03:14,861 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 15:03:14,861 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 15:03:14,862 - Main - INFO - Running printer self-healing...
+2026-05-06 15:03:14,911 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 15:03:14,913 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 15:03:14,914 - Main - INFO - Worker-0 started
+2026-05-06 15:03:14,914 - Main - INFO - Worker-1 started
+2026-05-06 15:03:14,916 - Main - INFO - Worker-2 started
+2026-05-06 15:03:14,916 - Main - INFO - Background Monitoring Thread started
+2026-05-06 15:03:20,172 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 15:03:20,173 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 15:03:20,173 - Main - INFO - Running printer self-healing...
+2026-05-06 15:03:20,224 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 15:03:20,225 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 15:03:20,226 - Main - INFO - Worker-0 started
+2026-05-06 15:03:20,226 - Main - INFO - Worker-1 started
+2026-05-06 15:03:20,227 - Main - INFO - Worker-2 started
+2026-05-06 15:03:20,227 - Main - INFO - Background Monitoring Thread started
+2026-05-06 15:03:24,878 - Main - CRITICAL - Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.
+2026-05-06 15:03:24,878 - Main - INFO - Running startup cleanup for 'uploads/' - clearing all stale data
+2026-05-06 15:03:24,879 - Main - INFO - Running printer self-healing...
+2026-05-06 15:03:24,931 - Main - INFO - MANDATORY: Running queue recovery...
+2026-05-06 15:03:24,933 - Main - INFO - RECOVERY COMPLETE: 0 jobs re-queued.
+2026-05-06 15:03:24,935 - Main - INFO - Worker-0 started
+2026-05-06 15:03:24,935 - Main - INFO - Worker-1 started
+2026-05-06 15:03:24,937 - Main - INFO - Worker-2 started
+2026-05-06 15:03:24,937 - Main - INFO - Background Monitoring Thread started
+2026-05-06 15:03:48,650 - Main - INFO - Worker-0 processing job 63 (Prio: 2)
+2026-05-06 15:03:48,656 - Main - INFO - [ZPL DEBUG]
+^XA
+^LH0,0
+^PW508
+^LL406
+^CI28
+^MD15
+^PR3
+
+^CF0,18
+^FO65,26^FDDhaya  25Y / M^FS
+
+^CF0,24
+^FO65,22^FB355,1,0,R^FD2300708096^FS
+
+^BY2,3,55
+^FO117,54
+^BCN,55,N,N,N
+^FD2300708096^FS
+
+^CF0,24
+^FO65,116^FB355,1,0,C^FD2300708096^FS
+
+^CF0,18
+^FO65,144^FD06/05/2026  15:03:48^FS
+
+^CF0,18
+^FO65,144^FB355,1,0,R^FDEDTA^FS
+^CF0,18
+^FO65,172^FDCBC^FS
+
+^XZ
+2026-05-06 15:03:53,655 - Main - INFO - [CONFIRM ACCEPTED] Job 63: Marking Completed.

@@ -457,3 +457,23 @@ input,select{
   background: #ffe6e6;
   color: #d11a2a;
 }
+
+.badge.green {
+  background: #e6f7ee;
+  color: #1f8f4e;
+}
+
+.badge.orange {
+  background: #fff4e5;
+  color: #d97706;
+}
+
+.badge.red {
+  background: #ffe6e6;
+  color: #d11a2a;
+}
+
+.badge.gray {
+  background: #f0f0f0;
+  color: #666;
+}

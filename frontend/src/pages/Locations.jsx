@@ -1,214 +1,50 @@
-import { useState, useContext } from "react";
+import { useContext } from "react";
 import { AppData } from "../context/AppData";
+import { API_BASE_URL } from "../config";
+
 function Locations() {
-  const { locations, setLocations, loadAll } = useContext(AppData);
-  
-  const [open, setOpen] = useState(false);
-  const [editName, setEditName] = useState("");
-
-  const [newLocation, setNewLocation] = useState("");
-
-  const saveLocation = async () => {
-    const trimmedLocation = newLocation.trim();
-    if (trimmedLocation === "") return;
-
-    const url = editName
-      ? `http://127.0.0.1:8000/locations/${encodeURIComponent(editName)}`
-      : "http://127.0.0.1:8000/locations";
-
-    const method = editName ? "PUT" : "POST";
-
-    const res = await fetch(url, {
-      method: method,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ name: trimmedLocation }),
-    });
-
-    const result = await res.json();
-
-    if (result.error) {
-      alert(result.error);
-      return;
-    }
-
-    if (editName) {
-      setLocations((current) =>
-        current.map((item) => (item === editName ? trimmedLocation : item))
-      );
-    } else {
-      setLocations((current) =>
-        current.includes(trimmedLocation) ? current : [...current, trimmedLocation]
-      );
-    }
-
-    setNewLocation("");
-    setEditName("");
-    setOpen(false);
-    loadAll();
-  };
-
-  const editLocation = (name) => {
-    setEditName(name);
-    setNewLocation(name);
-    setOpen(true);
-  };
-
-  const deleteLocation = async (name) => {
-    if (!window.confirm("Delete location?")) return;
-
-    const res = await fetch(
-      `http://127.0.0.1:8000/locations/${encodeURIComponent(name)}`,
-      { method: "DELETE" }
-    );
-
-    const result = await res.json();
-
-    if (result.error) {
-      alert(result.error);
-      return;
-    }
-
-    setLocations((current) => current.filter((item) => item !== name));
-    loadAll();
-  };
+  const { locations, loading, errors, loadLocations } = useContext(AppData);
 
   const syncLocations = async () => {
-    await loadAll();
-    alert("Locations synchronized successfully");
-  };
-
-  const openAdd = () => {
-    setEditName("");
-    setNewLocation("");
-    setOpen(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/sync-locations`);
+      const result = await res.json();
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      await loadLocations();
+      alert(`Synced ${result.count} locations from hospital system`);
+    } catch (err) {
+      alert("Sync failed: " + err.message);
+    }
   };
 
   return (
     <div className="page">
+      <h1>Hospital Locations</h1>
+      <p className="sub">Locations are synchronized automatically from the hospital HIS system.</p>
 
-      <h1>Shared Locations</h1>
-
-      <p className="sub">
-        Locations can be stored locally or synchronized from main system
-      </p>
-
-      <button
-        className="btn"
-        onClick={openAdd}
-      >
-        + Add Location
-      </button>
-
-      <button
-        className="btn"
-        style={{ marginLeft: "10px" }}
-        onClick={syncLocations}
-      >
-        Sync Locations
-      </button>
-
+      <button className="btn" onClick={syncLocations}>🔄 Sync from Hospital</button>
       <br /><br />
 
-      {locations.map((item, index) => (
-        <div
-          className="listCard"
-          key={index}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-
-          <span>{item}</span>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-            }}
-          >
-
-            <button
-              className="btn"
-              onClick={() =>
-                editLocation(item)
-              }
-            >
-              Edit
-            </button>
-
-            <button
-              className="btn"
-              onClick={() =>
-                deleteLocation(item)
-              }
-            >
-              Delete
-            </button>
-
-          </div>
-
-        </div>
-      ))}
-
-      {open && (
-        <div className="modalOverlay">
-
-          <div className="modalBox">
-
-            <div className="modalHead">
-
-              <h3>
-                {editName
-                  ? "Edit Location"
-                  : "Add Location"}
-              </h3>
-
-              <button
-                onClick={() => setOpen(false)}
-              >
-                ✕
-              </button>
-
+      {loading.locations ? (
+        <div className="emptyState pulse">Loading hospital locations...</div>
+      ) : errors.locations ? (
+        <div className="emptyState error">{errors.locations}. <button onClick={loadLocations}>Retry</button></div>
+      ) : locations.length === 0 ? (
+        <div className="emptyState">No locations synced yet. Click "Sync" above.</div>
+      ) : (
+        locations.map((item, index) => (
+          <div className="listCard" key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <strong style={{ display: "block" }}>{item.name}</strong>
+              <small style={{ color: "#aaa", fontSize: "0.75rem" }}>ID: {item.external_id}</small>
             </div>
-
-            <form
-              className="modalBody"
-              onSubmit={(e) => {
-                e.preventDefault();
-                saveLocation();
-              }}
-            >
-
-              <input
-                placeholder="Location Name"
-                value={newLocation}
-                onChange={(e) =>
-                  setNewLocation(
-                    e.target.value
-                  )
-                }
-              />
-
-              <button
-                type="submit"
-                className="btn full"
-              >
-                {editName
-                  ? "Update Location"
-                  : "Save Location"}
-              </button>
-
-            </form>
-
+            <span style={{ fontSize: "0.8rem", color: "#888" }}>Synced</span>
           </div>
-
-        </div>
+        ))
       )}
-
     </div>
   );
 }

@@ -2,23 +2,44 @@ import sqlite3
 import os
 from datetime import datetime, timezone
 
+import time
+
 def utcnow() -> str:
-    """Return current UTC time as ISO 8601 string. Used for all timestamps."""
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-# ✅ CONSISTENT JOB STATUS CONSTANTS
+def safe_delete(file_path):
+    """🔹 Robust file deletion with retries (Windows safe)"""
+    if not file_path or not os.path.exists(file_path):
+        return
+    for i in range(3):
+        try:
+            os.remove(file_path)
+            return
+        except PermissionError:
+            time.sleep(1)
+        except Exception:
+            break
+
 class JobStatus:
     QUEUED     = "Queued"
     PRINTING   = "Printing"
     COMPLETED  = "Completed"
     FAILED     = "Failed"
     RETRYING   = "Retrying"
+    PENDING_AGENT = "Pending Agent"
+    AGENT_PRINTING = "Agent Printing"
+    FAILED_AGENT = "Failed Agent"
 
-VALID_STATUSES = {JobStatus.QUEUED, JobStatus.PRINTING, JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.RETRYING}
+class PrinterStatus:
+    ONLINE  = "Online"
+    OFFLINE = "Offline"
+    ERROR   = "Error"
+
+VALID_STATUSES = {PrinterStatus.ONLINE, PrinterStatus.OFFLINE, PrinterStatus.ERROR}
 
 def get_connection():
     db_path = os.environ.get("PRINTCENTER_DB_PATH", "printcenter.db")
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=10) # 🔹 Added timeout for concurrency
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -26,22 +47,29 @@ def init_db():
     conn = get_connection()
     cur = conn.cursor()
 
-    # ✅ PRINT JOBS (ONLY ONCE)
+    # PRINT JOBS
     cur.execute("""
     CREATE TABLE IF NOT EXISTS print_jobs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         location TEXT,
+        location_id TEXT,
         category TEXT,
         printer TEXT,
         status TEXT,
         type TEXT,
         time TEXT,
-        
         patient_name TEXT,
         age TEXT,
         gender TEXT,
         patient_id TEXT,
-        tube_type TEXT
+        tube_type TEXT,
+        file_path TEXT,
+        file_type TEXT,
+        retry_count INTEGER DEFAULT 0,
+        pages INTEGER DEFAULT 1,
+        locked_at TEXT,
+        locked_by TEXT,
+        priority INTEGER DEFAULT 2
     )
     """)
 
@@ -56,11 +84,12 @@ def init_db():
     )
     """)
 
-    # ✅ MAPPING
+    # MAPPING (STRICT ID-FIRST)
     cur.execute("""
     CREATE TABLE IF NOT EXISTS mapping (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        location TEXT UNIQUE,
+        location TEXT,
+        external_id TEXT UNIQUE,
         a4Primary TEXT,
         a4Secondary TEXT,
         barPrimary TEXT,
@@ -68,7 +97,7 @@ def init_db():
     )
     """)
 
-    # ✅ CATEGORIES
+    # CATEGORIES
     cur.execute("""
     CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,70 +105,110 @@ def init_db():
     )
     """)
 
-    # ✅ PRINTERS
     cur.execute("""
     CREATE TABLE IF NOT EXISTS printers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
+        name TEXT UNIQUE,
         ip TEXT,
         category TEXT,
-        status TEXT
+        status TEXT DEFAULT 'Offline',
+        language TEXT DEFAULT 'PS',
+        connection_type TEXT CHECK(connection_type IN ('IP', 'USB')) DEFAULT 'IP',
+        last_updated TEXT,
+        last_update_source TEXT
     )
     """)
-    # ✅ ADD LANGUAGE COLUMN (SAFE MIGRATION)
-    try:
-      cur.execute("ALTER TABLE printers ADD COLUMN language TEXT DEFAULT 'PS'")
-    except Exception as e:
-       if "duplicate column name" not in str(e).lower():
-          print("DB Error:", e)
 
-    # ✅ ADD PRINT_JOBS COLUMNS (SAFE MIGRATION)
+    # LOCATIONS (STRICT ID-FIRST)
+    # Ensure name is not unique, external_id is UNIQUE
     try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN file_path TEXT")
-    except Exception as e:
-        pass
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN file_type TEXT")
-    except Exception as e:
-        pass
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN retry_count INTEGER DEFAULT 0")
-    except Exception as e:
-        pass
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN pages INTEGER DEFAULT 1")
-    except Exception as e:
+        cur.execute("PRAGMA index_list('locations')")
+        indices = cur.fetchall()
+        for idx in indices:
+            cur.execute(f"PRAGMA index_info('{idx['name']}')")
+            cols = cur.fetchall()
+            if any(c['name'] == 'name' for c in cols) and idx['unique'] == 1:
+                cur.execute("DROP TABLE locations")
+                break
+    except:
         pass
 
-    # ✅ LOCATIONS
     cur.execute("""
     CREATE TABLE IF NOT EXISTS locations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE
+        name TEXT,
+        block TEXT,
+        external_id TEXT UNIQUE
     )
     """)
 
-    # ✅ INDEXES — Added for high-frequency query columns
-    # These are safe to run repeatedly (IF NOT EXISTS)
-    indexes = [
-        # print_jobs: status filter (dashboard + /print-jobs?status=)
-        "CREATE INDEX IF NOT EXISTS idx_jobs_status ON print_jobs(status)",
-        # print_jobs: retry filter (/print-jobs?retried=true)
-        "CREATE INDEX IF NOT EXISTS idx_jobs_retry ON print_jobs(retry_count)",
-        # print_jobs: printer analytics (GROUP BY printer)
-        "CREATE INDEX IF NOT EXISTS idx_jobs_printer ON print_jobs(printer)",
-        # print_jobs: patient dedup check
-        "CREATE INDEX IF NOT EXISTS idx_jobs_patient_id ON print_jobs(patient_id)",
-        # print_logs: per-job log lookup (GET /print-logs/{job_id})
-        "CREATE INDEX IF NOT EXISTS idx_logs_job_id ON print_logs(job_id)",
-        # print_logs: status filter in log modal
-        "CREATE INDEX IF NOT EXISTS idx_logs_status ON print_logs(status)",
-    ]
-    for idx_sql in indexes:
-        try:
-            cur.execute(idx_sql)
-        except Exception as e:
-            print(f"[DB] Index warning: {e}")
+    # AGENTS
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS agents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        agent_id TEXT UNIQUE,
+        location_id TEXT,
+        status TEXT,
+        last_seen TEXT,
+        token TEXT
+    )
+    """)
+
+    # SAFE MIGRATIONS
+    try:
+        cur.execute("ALTER TABLE print_jobs ADD COLUMN location_id TEXT")
+    except:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE print_jobs ADD COLUMN locked_at TEXT")
+    except:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE print_jobs ADD COLUMN locked_by TEXT")
+    except:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE print_jobs ADD COLUMN priority INTEGER DEFAULT 2")
+    except:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE mapping ADD COLUMN external_id TEXT")
+    except:
+        pass
+
+    try:
+        cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_mapping_external_id ON mapping(external_id)")
+    except:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE printers ADD COLUMN connection_type TEXT CHECK(connection_type IN ('IP', 'USB')) DEFAULT 'IP'")
+    except:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE printers ADD COLUMN last_updated TEXT")
+    except:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE printers ADD COLUMN last_update_source TEXT")
+    except:
+        pass
+
+    # 🔹 DATA MIGRATION: Populating connection_type and normalizing status
+    cur.execute("UPDATE printers SET connection_type = 'IP' WHERE ip IS NOT NULL AND ip != '' AND connection_type IS NULL")
+    cur.execute("UPDATE printers SET connection_type = 'USB' WHERE (ip IS NULL OR ip = '') AND connection_type IS NULL")
+    # Default fallback
+    cur.execute("UPDATE printers SET connection_type = 'IP' WHERE connection_type IS NULL")
+    
+    # Normalize status: Live -> Online
+    cur.execute("UPDATE printers SET status = 'Online' WHERE status = 'Live'")
+    cur.execute("UPDATE printers SET status = 'Offline' WHERE status IS NULL OR status = 'Maintenance'")
 
     conn.commit()
     conn.close()
