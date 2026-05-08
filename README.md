@@ -198,6 +198,29 @@ Once activated, the agent uses its unique ID and Token for every request:
 
 ---
 
+## 🛠️ Developer Reference: Connection Architecture
+
+For developers maintaining or extending the system, here is how the connection automation is implemented:
+
+### **1. Configuration Persistence**
+The agent's "memory" is stored in `agent_config.json`. This file is managed by `agent_config.py`. 
+*   **Key Field:** `server_url` (The resolved IP/URL of the central backend).
+*   **Key Field:** `token` (The unique secure identifier for authenticated polling).
+
+### **2. Dynamic URL Resolution**
+In `agent.py`, the `SERVER_URL` is not hardcoded. It follows this priority:
+1.  Value stored in `agent_config.json` (set during installation).
+2.  Environment variable `SERVER_URL`.
+3.  Default fallback: `http://127.0.0.1:8000`.
+
+### **3. Automated Handshake (`ensure_registered`)**
+The `ensure_registered()` function in `agent.py` handles the first-time connection logic:
+*   It checks for a `pending_activation_code`.
+*   It performs a `POST` to `/agent/register` on the resolved `SERVER_URL`.
+*   On success, it swaps the code for a permanent `token` and a unique `agent_id`, ensuring zero-touch connectivity for all future restarts.
+
+---
+
 ## 🌐 Remote Deployment Guide
 
 To run the Backend on a central server and the Print Agent on nursing workstations:
