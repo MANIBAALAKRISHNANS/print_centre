@@ -1,14 +1,19 @@
 import sqlite3
-import psycopg2
-from psycopg2.extras import RealDictCursor
-
-from config import settings
 import os
 import shutil
 import logging
 from datetime import datetime, timezone, timedelta
-
 import time
+from config import settings
+
+# 🔹 Graceful PostgreSQL Import
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    HAS_POSTGRES = True
+except ImportError:
+    HAS_POSTGRES = False
+
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -65,8 +70,12 @@ def get_row_value(row, key, index=0):
 
 def get_connection():
     if settings.db_type == "postgresql":
+        if not HAS_POSTGRES:
+            logger.error("PostgreSQL driver (psycopg2) is not installed. Run 'pip install psycopg2-binary'")
+            raise ImportError("PostgreSQL driver not found.")
         try:
             conn = psycopg2.connect(
+
                 host=settings.db_host,
                 port=settings.db_port,
                 user=settings.db_user,
@@ -87,8 +96,12 @@ def get_connection():
 
 def get_cursor(conn):
     if settings.db_type == "postgresql":
-        return conn.cursor(cursor_factory=RealDictCursor)
+        if HAS_POSTGRES:
+            return conn.cursor(cursor_factory=RealDictCursor)
+        else:
+            raise ImportError("PostgreSQL driver not found.")
     return conn.cursor()
+
 
 def get_placeholder():
     return "%s" if settings.db_type == "postgresql" else "?"
