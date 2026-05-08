@@ -1,6 +1,8 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
 import uuid
+
 import secrets
 import requests
 import threading
@@ -404,7 +406,19 @@ class ResetPasswordRequest(BaseModel):
 class RoleUpdateRequest(BaseModel):
     role: str
 
+class CategoryRequest(BaseModel):
+    name: str
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
 # ━━━ AUTH ENDPOINTS ━━━
+
 
 @app.post("/auth/login")
 @limiter.limit("10/minute")
