@@ -22,6 +22,18 @@ echo "[STEP 2] Installing dependencies..."
 source venv/bin/activate
 pip install -r requirements.txt
 
+# Ask for Server and Code if not already registered
+if [ ! -f "agent_config.json" ]; then
+    echo "---------------------------------------------------"
+    echo "SETUP: Connecting to your PrintHub Server"
+    echo "---------------------------------------------------"
+    read -p "Enter Server IP (e.g. 192.168.1.50): " SERVER_IP
+    read -p "Enter Activation Code from Dashboard: " ACT_CODE
+    
+    echo "Registering with server http://$SERVER_IP:8000..."
+    python3 agent_setup.py --code "$ACT_CODE" --server "http://$SERVER_IP:8000"
+fi
+
 # 3. Create LaunchAgent Plist
 PLIST_PATH="$HOME/Library/LaunchAgents/com.printhub.agent.plist"
 echo "[STEP 3] Configuring background service..."

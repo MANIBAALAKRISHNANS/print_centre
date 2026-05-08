@@ -27,15 +27,16 @@ echo [STEP 2] Installing dependencies...
 call .\venv\Scripts\activate
 pip install -r requirements.txt
 
-:: Check if registered
+:: Ask for Server and Code if not already registered
 if not exist "agent_config.json" (
     echo ---------------------------------------------------
-    echo WARNING: Agent is not yet registered!
-    echo Please run the following command first:
-    echo python agent_setup.py --code YOUR_CODE --server http://YOUR_SERVER_IP:8000
+    echo SETUP: Connecting to your PrintHub Server
     echo ---------------------------------------------------
-    pause
-    exit /b 1
+    set /p SERVER_IP="Enter Server IP (e.g. 192.168.1.50): "
+    set /p ACT_CODE="Enter Activation Code from Dashboard: "
+    
+    echo Registering with server http://%SERVER_IP%:8000...
+    python agent_setup.py --code %ACT_CODE% --server http://%SERVER_IP%:8000
 )
 
 :: Install the Service
