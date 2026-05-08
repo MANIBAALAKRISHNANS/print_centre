@@ -1,17 +1,25 @@
 import { useState, useEffect, useContext, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppData } from "../context/AppData";
+import { useFetch } from "../context/AuthContext";
+import { SkeletonLine, SkeletonTable } from "../components/Skeleton";
 import { API_BASE_URL } from "../config";
 
 function Dashboard() {
+  const navigate = useNavigate();
   const { printers, loading: appLoading, errors: appErrors } = useContext(AppData);
 
   const [stats, setStats] = useState(null);
+  const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [health, setHealth] = useState({ warnings: [] });
+
+  const authFetch = useFetch();
 
   const loadStats = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/dashboard`);
+      const res = await authFetch(`${API_BASE_URL}/dashboard`);
       if (!res.ok) throw new Error("Dashboard failed");
       const data = await res.json();
       setStats(data);
@@ -21,13 +29,44 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authFetch]);
+
+  const loadHealth = useCallback(async () => {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/admin/job-health`);
+      if (res.ok) {
+        const data = await res.json();
+        setHealth(data);
+      }
+    } catch (e) {
+      /* silent */
+    }
+  }, [authFetch]);
 
   useEffect(() => {
     loadStats();
-    const interval = setInterval(loadStats, 15000); // 15s polling
-    return () => clearInterval(interval);
-  }, [loadStats]);
+    loadHealth();
+    const interval = setInterval(loadStats, 15000);
+    const healthInterval = setInterval(loadHealth, 60000);
+    return () => {
+      clearInterval(interval);
+      clearInterval(healthInterval);
+    };
+  }, [loadStats, loadHealth]);
+
+  useEffect(() => {
+    const loadAgents = async () => {
+      try {
+        const res = await authFetch(`${API_BASE_URL}/agents`);
+        setAgents(await res.json());
+      } catch (e) {
+        /* silent */
+      }
+    };
+    loadAgents();
+    const t = setInterval(loadAgents, 15000);
+    return () => clearInterval(t);
+  }, [authFetch]);
 
   const getStatusColor = (status) => {
     const s = (status || "").toLowerCase();
@@ -44,8 +83,17 @@ function Dashboard() {
     return diff > 45000;
   };
 
-  const SkeletonCard = () => (
-    <div className="statCard gray pulse" style={{ height: "100px", background: "#f0f0f0" }}></div>
+  const isAgentStale = (last_seen) => {
+    if (!last_seen) return true;
+    const d = new Date(last_seen.replace(" UTC", "Z").replace(" ", "T"));
+    return Date.now() - d.getTime() > 45000;
+  };
+
+  const StatSkeleton = () => (
+    <div className="statCard gray" style={{ position: "relative", overflow: "hidden" }}>
+        <SkeletonLine width="60%" height="14px" style={{ marginBottom: "12px" }} />
+        <SkeletonLine width="40%" height="28px" />
+    </div>
   );
 
   return (
@@ -55,11 +103,34 @@ function Dashboard() {
 
       {error && <div className="errorBanner">Unable to load dashboard stats: {error}</div>}
 
+      {health.warnings?.map((w, idx) => (
+        <div 
+          key={idx} 
+          className="warningBanner pulse" 
+          style={{ 
+            cursor: "pointer", 
+            marginBottom: "15px", 
+            background: "#fffbeb", 
+            border: "1px solid #fde68a", 
+            color: "#92400e",
+            padding: "12px",
+            borderRadius: "8px",
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px"
+          }} 
+          onClick={() => navigate("/printjobs")}
+        >
+          <span>⚠</span> {w}
+        </div>
+      ))}
+
       <h2 style={{ margin: "20px 0 10px", fontSize: "1rem", opacity: 0.7 }}>PRINTER HEALTH</h2>
       <div className="stats">
         {loading && !stats ? (
           <>
-            <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
+            <StatSkeleton /><StatSkeleton /><StatSkeleton />
           </>
         ) : (
           <>
@@ -74,7 +145,7 @@ function Dashboard() {
       <div className="stats">
         {loading && !stats ? (
           <>
-            <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
+            <StatSkeleton /><StatSkeleton /><StatSkeleton /><StatSkeleton />
           </>
         ) : (
           <>
@@ -86,10 +157,34 @@ function Dashboard() {
         )}
       </div>
 
+      <h2 style={{ margin: "28px 0 10px", fontSize: "1rem", opacity: 0.7 }}>AGENT STATUS</h2>
+      <div className="stats">
+        {loading && agents.length === 0 ? (
+          <>
+            <StatSkeleton /><StatSkeleton /><StatSkeleton />
+          </>
+        ) : (
+          <>
+            <div className="statCard blue">
+              <h3>Total Agents</h3>
+              <h2>{agents.length}</h2>
+            </div>
+            <div className="statCard green">
+              <h3>Online</h3>
+              <h2>{agents.filter((a) => !isAgentStale(a.last_seen)).length}</h2>
+            </div>
+            <div className="statCard red">
+              <h3>Offline</h3>
+              <h2>{agents.filter((a) => isAgentStale(a.last_seen)).length}</h2>
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="card" style={{ marginTop: "28px" }}>
         <h2 style={{ marginBottom: "15px" }}>Printer Live Status</h2>
         {appLoading.printers ? (
-          <p className="loadingText pulse">Loading printers...</p>
+          <SkeletonTable rows={5} cols={4} />
         ) : appErrors.printers ? (
           <p className="errorText">{appErrors.printers}</p>
         ) : (

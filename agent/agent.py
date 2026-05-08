@@ -1,8 +1,34 @@
+import socket
+import platform
+import logging
 import time
 import requests
 import os
-import logging
 import threading
+
+_OS = platform.system()
+_WIN32_AVAILABLE = False
+
+if _OS == "Windows":
+    try:
+        import win32print
+        _WIN32_AVAILABLE = True
+    except ImportError:
+        logging.warning("win32print not available — USB printing disabled")
+elif _OS == "Darwin":
+    try:
+        from agent_macos import (
+            check_printer_status as _macos_check,
+            print_raw as _macos_print_raw,
+            list_local_printers as _macos_list,
+            _get_usb_port as _macos_get_port,
+            print_direct as _macos_print_direct
+        )
+    except ImportError:
+        logging.error("agent_macos.py missing or incomplete — macOS printing will fail")
+else:
+    logging.error(f"Unsupported OS: {_OS}")
+from agent_config import load_config, save_config
 
 # 🔹 Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -10,31 +36,70 @@ logger = logging.getLogger("PrintAgent")
 
 # 🔹 Configuration
 SERVER_URL = os.environ.get("SERVER_URL", "http://127.0.0.1:8000")
-AGENT_ID = os.environ.get("AGENT_ID", "local_pc_1")
-TOKEN = os.environ.get("AGENT_TOKEN", "hospital_agent_token_2026") # Secure Token
-LOCATION_ID = os.environ.get("AGENT_LOCATION_ID", "95600d98-504e-4ff4-865d-6726b19dc0bc") # 🔹 NEW: Explicit location mapping
+
+def ensure_registered():
+    config = load_config()
+    
+    # 1. Already registered
+    if config.get("agent_id") and config.get("token"):
+        logger.info(f"[AGENT] Loaded credentials for {config['agent_id']}")
+        return config["agent_id"], config["token"], config.get("location_id", "")
+    
+    # 2. Check for pending activation code written by setup tool
+    pending_code = config.get("pending_activation_code")
+    if not pending_code:
+        logger.critical("[AGENT] No credentials and no pending_activation_code found.")
+        logger.critical("[AGENT] Run: python agent_setup.py --code YOUR_ACTIVATION_CODE")
+        logger.critical("[AGENT] Then restart the service.")
+        raise SystemExit(1)
+    
+    logger.info(f"[AGENT] Found pending activation code — attempting registration...")
+    hostname = socket.gethostname()
+    server_url = config.get("server_url", SERVER_URL)
+    
+    try:
+        res = requests.post(
+            f"{server_url}/agent/register", 
+            json={"activation_code": pending_code, "hostname": hostname}, 
+            timeout=15
+        )
+        if res.status_code == 200:
+            data = res.json()
+            
+            # Save new credentials and CLEAR the pending code
+            new_config = {
+                "agent_id": data["agent_id"],
+                "token": data["token"],
+                "location_id": data["location_id"],
+                "server_url": server_url
+            }
+            save_config(new_config)
+            
+            logger.info(f"[AGENT] Registered successfully as {data['agent_id']}")
+            return data["agent_id"], data["token"], data["location_id"]
+        else:
+            logger.critical(f"[AGENT] Registration failed: {res.status_code} {res.text}")
+            raise SystemExit(1)
+    except requests.RequestException as e:
+        logger.critical(f"[AGENT] Cannot reach server at {server_url}: {e}")
+        raise SystemExit(1)
+
+AGENT_ID, TOKEN, LOCATION_ID = ensure_registered()
 POLL_INTERVAL = 5 
 HEARTBEAT_INTERVAL = 15 # 🔹 Reduced interval for better monitoring
 
-try:
-    import win32print
-except ImportError:
-    win32print = None
+# ── OS DISPATCH WRAPPERS ──────────────────────────────────────────────────
 
-def check_printer_status(printer_name):
-    """Strict three-layer hardware detection — NO assumptions.
-
-    Layer 1 — Physical presence (EnumPrinters):
-        The printer must appear in the system's enumerated printer list.
-    Layer 2 — Handle reachability (OpenPrinter):
-        If the OS cannot open a handle, the printer is definitely offline.
-    Layer 3 — Status flags (GetPrinter level 2):
-        Hardware flags must be clean (0x00).
-    """
-    if not win32print:
+def check_printer_status(printer_name: str) -> str:
+    """Dispatches printer status check based on OS."""
+    if _OS == "Darwin":
+        return _macos_check(printer_name)
+    
+    # Existing Windows logic
+    if not _WIN32_AVAILABLE:
         return "Offline"
 
-    # ── Layer 1: Physical presence ──────────────────────────────────────────
+    # ── Layer 1: Physical presence (win32print) ──────────────────────────
     try:
         enumerated = {p[2].lower() for p in win32print.EnumPrinters(2)}
     except Exception as e:
@@ -45,65 +110,76 @@ def check_printer_status(printer_name):
         logger.warning(f"[HARDWARE VALIDATION FAIL] '{printer_name}' not found in EnumPrinters list")
         return "Offline"
 
-    # ── Layer 2: Handle reachability ────────────────────────────────────────
+    # ── Layer 2: WMI Validation (More reliable for Offline/Disconnected) ──
+    try:
+        import pythoncom
+        from wmi import WMI
+        # Initialize COM for the current thread (Mandatory for background threads)
+        pythoncom.CoInitialize()
+        try:
+            c = WMI()
+            wmi_printers = c.Win32_Printer(Name=printer_name)
+            if wmi_printers:
+                wp = wmi_printers[0]
+                if getattr(wp, "WorkOffline", False):
+                    logger.warning(f"[HARDWARE VALIDATION FAIL] WMI reports '{printer_name}' is WorkOffline")
+                    return "Offline"
+                
+                p_status = getattr(wp, "PrinterStatus", 0)
+                if p_status in [1, 2, 7]:
+                    logger.warning(f"[HARDWARE VALIDATION FAIL] WMI reports '{printer_name}' PrinterStatus: {p_status}")
+                    return "Offline"
+            # Cleanup COM objects before return/finally
+            if 'wp' in locals(): del wp
+            del wmi_printers
+            del c
+            import gc
+            gc.collect()
+        finally:
+            pythoncom.CoUninitialize()
+    except ImportError:
+        logger.debug("[WMI DEBUG] wmi or pythoncom module not installed. Skipping WMI check.")
+    except Exception as e:
+        logger.debug(f"[WMI DEBUG] WMI check failed: {e}")
+
+    # ── Layer 3: Handle & Attribute inspection (win32print) ────────────────
     try:
         handle = win32print.OpenPrinter(printer_name)
+        try:
+            info = win32print.GetPrinter(handle, 2)
+            status = info.get("Status", 0)
+            attributes = info.get("Attributes", 0)
+            
+            # 🔹 DEBUG: Log raw details to diagnose "ghost" online states
+            logger.info(f"[HARDWARE DEBUG] '{printer_name}' | Status: 0x{status:08X} | Attr: 0x{attributes:08X}")
+
+            if attributes & 0x00000400: # PRINTER_ATTRIBUTE_WORK_OFFLINE
+                logger.warning(f"[HARDWARE VALIDATION FAIL] '{printer_name}' has WORK_OFFLINE attribute")
+                return "Offline"
+            
+            if status & 0x00000080: # PRINTER_STATUS_OFFLINE
+                return "Offline"
+                
+            if status & 0x00001000: # PRINTER_STATUS_NOT_AVAILABLE
+                return "Offline"
+
+            if status & (0x00000002 | 0x00000008 | 0x00000010 | 0x00004000):
+                return "Error"
+
+            return "Online" 
+        finally:
+            win32print.ClosePrinter(handle)
     except Exception as e:
-        logger.error(f"[HARDWARE VALIDATION FAIL] OpenPrinter failed for '{printer_name}': {e}")
+        logger.error(f"[HARDWARE VALIDATION FAIL] win32print handle check failed: {e}")
         return "Offline"
 
-    # ── Layer 3: Status flag & Attribute inspection ──────────────────────────
-    try:
-        info = win32print.GetPrinter(handle, 2)
-        status = info.get("Status", 0)
-        attributes = info.get("Attributes", 0)
-        port = info.get("pPortName", "Unknown")
-        
-        # 🔹 DEBUG: Log raw details to diagnose "ghost" online states
-        logger.info(f"[HARDWARE DEBUG] '{printer_name}' | Status: 0x{status:08X} | Attr: 0x{attributes:08X} | Port: {port}")
-
-        # 1. Attribute Check: PRINTER_ATTRIBUTE_WORK_OFFLINE (0x400)
-        # This is the most reliable way to detect "Use Printer Offline" or 
-        # unplugged state in many Windows drivers.
-        if attributes & 0x00000400:
-            logger.warning(f"[HARDWARE VALIDATION FAIL] '{printer_name}' is set to WORK_OFFLINE (Attr: 0x{attributes:08X})")
-            return "Offline"
-
-        # 2. Status Bitmask Check
-        # 0x00000080 = PRINTER_STATUS_OFFLINE
-        # 0x00000001 = PRINTER_STATUS_PAUSED
-        # 0x00000002 = PRINTER_STATUS_ERROR
-        # 0x00000008 = PRINTER_STATUS_PAPER_JAM
-        # 0x00000010 = PRINTER_STATUS_PAPER_OUT
-        # 0x00001000 = PRINTER_STATUS_NOT_AVAILABLE
-        # 0x00004000 = PRINTER_STATUS_OUT_OF_MEMORY
-        
-        if status & 0x00000080:
-            logger.warning(f"[HARDWARE VALIDATION FAIL] '{printer_name}' status bit shows OFFLINE (0x{status:08X})")
-            return "Offline"
-            
-        if status & 0x00001000:
-            logger.warning(f"[HARDWARE VALIDATION FAIL] '{printer_name}' status bit shows NOT_AVAILABLE (0x{status:08X})")
-            return "Offline"
-
-        if status & (0x00000002 | 0x00000008 | 0x00000010 | 0x00004000):
-            logger.warning(f"[HARDWARE VALIDATION FAIL] '{printer_name}' has ERROR/JAM/PAPER-OUT/MEM-FAIL (0x{status:08X})")
-            return "Error"
-
-        # 3. Final Fallback: If status is anything but 0 (Ready) or 0x20000 (Normal during some operations), be cautious.
-        # But for now, if status is 0 and Attr is not Offline, we are good.
-        if status == 0:
-            return "Online"
-        
-        # If we reach here, there's some non-zero status we haven't explicitly handled
-        logger.info(f"[HARDWARE INFO] '{printer_name}' has non-zero status 0x{status:08X}, but not explicitly Offline.")
-        return "Online" 
-    finally:
-        win32print.ClosePrinter(handle)
-
-def _get_usb_port(printer_name):
-    """Fetch the physical port name (e.g., USB001) for a Windows printer."""
-    if not win32print:
+def _get_usb_port(printer_name: str):
+    """Dispatches port retrieval based on OS."""
+    if _OS == "Darwin":
+        return _macos_get_port(printer_name)
+    
+    # Existing Windows logic
+    if not _WIN32_AVAILABLE:
         return None
     try:
         handle = win32print.OpenPrinter(printer_name)
@@ -117,8 +193,12 @@ def _get_usb_port(printer_name):
         logger.error(f"[USB PORT] Failed to get port for '{printer_name}': {e}")
         return None
 
-def print_direct(port_name, data):
-    """Write raw bytes directly to a hardware port, bypassing the Windows driver."""
+def print_direct(port_name: str, data: bytes) -> bool:
+    """Dispatches direct port printing based on OS."""
+    if _OS == "Darwin":
+        return _macos_print_direct(port_name, data)
+        
+    # Existing Windows logic
     try:
         device_path = f"\\\\.\\{port_name}"
         logger.info(f"[DIRECT PRINT] Opening {device_path} for raw write ({len(data)} bytes)")
@@ -129,9 +209,13 @@ def print_direct(port_name, data):
         logger.error(f"[DIRECT PRINT] Failed to write to {port_name}: {e}")
         return False
 
-def print_raw(printer_name, data):
-    """Send raw data to a local USB printer via Spooler (Fallback)."""
-    if not win32print:
+def print_raw(printer_name: str, data: bytes) -> bool:
+    """Dispatches raw spooler printing based on OS."""
+    if _OS == "Darwin":
+        return _macos_print_raw(printer_name, data)
+        
+    # Existing Windows logic
+    if not _WIN32_AVAILABLE:
         logger.error("[PRINT_RAW] win32print not available")
         return False
     try:
@@ -177,8 +261,11 @@ def status_reporting_loop():
                 continue
                 
             # 2. Enum local printers
-            printers = win32print.EnumPrinters(2)
-            local_printers = {p[2]: p for p in printers}
+            if _OS == "Darwin":
+                local_printers = {p: {} for p in _macos_list()}
+            else:
+                printers = win32print.EnumPrinters(2)
+                local_printers = {p[2]: p for p in printers}
             
             # 3. Report for all mapped printers
             for p_name in mapped_printers:
@@ -207,11 +294,12 @@ def status_reporting_loop():
 
 def heartbeat_loop():
     """Background heartbeat loop"""
+    hostname = socket.gethostname()
     while True:
         try:
             requests.post(
                 f"{SERVER_URL}/agent/heartbeat",
-                params={"agent_id": AGENT_ID, "token": TOKEN, "location_id": LOCATION_ID},
+                params={"agent_id": AGENT_ID, "token": TOKEN, "location_id": LOCATION_ID, "hostname": hostname},
                 timeout=5
             )
         except: pass
@@ -293,7 +381,8 @@ def agent_loop():
                                 
                         # ── FORCE FRESH STATUS BEFORE PRINT ──────────────────────────
                         current_status = check_printer_status(job['printer'])
-                        # ── QUICK PRE-PRINT CHECK ──────────────────────────
+                        # Added: 1s sleep allows printer hardware to settle before the final status check
+                        time.sleep(1)
                         current_status = check_printer_status(job['printer'])
                         if current_status != "Online":
                             logger.error(f"[VALIDATION FAIL] Aborting Job {jid}: Printer is {current_status}")
@@ -310,8 +399,15 @@ def agent_loop():
                         port_name = _get_usb_port(job['printer'])
                         if port_name and (port_name.upper().startswith("USB") or port_name.upper().startswith("COM")):
                             if print_direct(port_name, bytes(content)):
-                                logger.info(f"[JOB SUCCESS] ID: {jid} via direct port {port_name}")
-                                printed = True
+                                logger.info(f"[POST-PRINT CHECK] Direct write done. Waiting 1s for hardware settle...")
+                                time.sleep(1)
+                                post_status = check_printer_status(job['printer'])
+                                if post_status != "Error":
+                                    logger.info(f"[JOB SUCCESS] ID: {jid} via direct port {port_name} | post_status={post_status}")
+                                    printed = True
+                                else:
+                                    logger.error(f"[POST-PRINT CHECK FAIL] ID: {jid} | Hardware error after direct write")
+                                    # Fall through to spooler fallback attempt
                             else:
                                 logger.warning(f"[JOB RETRY] Direct write failed for {port_name}, falling back to spooler")
 

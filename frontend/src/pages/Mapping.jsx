@@ -1,5 +1,9 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useCallback } from "react";
 import { AppData } from "../context/AppData";
+import { useFetch } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
+import { SkeletonTable } from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
 import { API_BASE_URL } from "../config";
 
 function Mapping() {
@@ -7,6 +11,7 @@ function Mapping() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const toast = useToast();
   
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -18,10 +23,11 @@ function Mapping() {
     barPrimary: "None",
     barSecondary: "None",
   });
+  const authFetch = useFetch();
 
-  const loadMappings = async () => {
+  const loadMappings = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/mapping`);
+      const res = await authFetch(`${API_BASE_URL}/mapping`);
       if (!res.ok) throw new Error("Failed to load mappings");
       const data = await res.json();
       setRows(data);
@@ -31,17 +37,17 @@ function Mapping() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authFetch]);
 
   useEffect(() => {
     loadMappings();
     const interval = setInterval(loadMappings, 10000); // 10s refresh for mapping
     return () => clearInterval(interval);
-  }, []);
+  }, [loadMappings]);
 
   const testPrint = async (locationId, category) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/print-job`, {
+      const res = await authFetch(`${API_BASE_URL}/print-job`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -50,18 +56,18 @@ function Mapping() {
         }),
       });
       const data = await res.json();
-      if (data.error) alert("Print Error: " + data.error);
-      else alert("✅ Print job queued: " + data.job_id);
-    } catch (err) { alert("Print failed: " + err.message); }
+      if (data.error) toast.error("Print Error: " + data.error);
+      else toast.success("✅ Print job queued: " + data.job_id);
+    } catch (err) { toast.error("Print failed: " + err.message); }
   };
 
   const validateMappings = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/mapping-validate`);
+      const res = await authFetch(`${API_BASE_URL}/mapping-validate`);
       const result = await res.json();
-      if (result.valid) alert("✅ All mappings are valid!");
-      else alert(`⚠️ Issues:\n\n${result.issues.map(i => `${i.location}: ${i.issue}`).join("\n")}`);
-    } catch (err) { alert(`Error: ${err.message}`); }
+      if (result.valid) toast.success("✅ All mappings are valid!");
+      else toast.warning(`${result.issues.length} mapping issues found. Check details.`);
+    } catch (err) { toast.error(`Error: ${err.message}`); }
   };
 
   const editMapping = (row) => {
@@ -72,13 +78,14 @@ function Mapping() {
 
   const saveMapping = async () => {
     try {
-      await fetch(`${API_BASE_URL}/mapping/${editId}`, {
+      await authFetch(`${API_BASE_URL}/mapping/${editId}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
       setOpen(false);
+      toast.success("Mapping updated");
       loadMappings();
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
   };
 
   return (
@@ -92,9 +99,15 @@ function Mapping() {
       <br />
       <div className="card">
         {loading && rows.length === 0 ? (
-          <p className="loadingText pulse">Loading mappings...</p>
+          <SkeletonTable rows={5} cols={7} />
         ) : error ? (
           <p className="errorText">{error}. <button onClick={loadMappings}>Retry</button></p>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            icon="🗺️"
+            title="No mappings configured"
+            subtitle="Printers must be mapped to locations before they can be used."
+          />
         ) : (
           <table>
             <thead>

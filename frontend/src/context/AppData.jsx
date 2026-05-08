@@ -1,5 +1,5 @@
-/* eslint-disable react-refresh/only-export-components */
-import { createContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useState, useEffect, useCallback, useMemo } from "react";
+import { useFetch } from "./AuthContext";
 import { API_BASE_URL } from "../config";
 
 export const AppData = createContext();
@@ -21,12 +21,16 @@ function AppDataProvider({ children }) {
     categories: null
   });
 
-  const fetchResource = useCallback(async (url, setter, key) => {
-    setLoading(prev => ({ ...prev, [key]: true }));
+  const authFetch = useFetch();
+
+  const fetchResource = useCallback(async (url, setter, key, silent = false) => {
+    if (!silent) {
+      setLoading(prev => ({ ...prev, [key]: true }));
+    }
     setErrors(prev => ({ ...prev, [key]: null }));
     
     try {
-      const res = await fetch(url);
+      const res = await authFetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setter(data);
@@ -34,31 +38,44 @@ function AppDataProvider({ children }) {
       console.log(`${key} load error`, err);
       setErrors(prev => ({ ...prev, [key]: err.message }));
     } finally {
-      setLoading(prev => ({ ...prev, [key]: false }));
+      if (!silent) {
+        setLoading(prev => ({ ...prev, [key]: false }));
+      }
     }
-  }, []);
+  }, [authFetch]);
 
-  const loadPrinters = () => fetchResource(`${API_BASE_URL}/printers`, setPrinters, "printers");
-  const loadLocations = () => fetchResource(`${API_BASE_URL}/locations`, setLocations, "locations");
-  const loadCategories = () => fetchResource(`${API_BASE_URL}/categories`, setCategories, "categories");
+  const loadPrinters = useCallback((silent = false) => fetchResource(`${API_BASE_URL}/printers`, setPrinters, "printers", silent), [fetchResource]);
+  const loadLocations = useCallback((silent = false) => fetchResource(`${API_BASE_URL}/locations`, setLocations, "locations", silent), [fetchResource]);
+  const loadCategories = useCallback((silent = false) => fetchResource(`${API_BASE_URL}/categories`, setCategories, "categories", silent), [fetchResource]);
+
+  const loadAll = useCallback((silent = false) => {
+    loadPrinters(silent);
+    loadLocations(silent);
+    loadCategories(silent);
+  }, [loadPrinters, loadLocations, loadCategories]);
 
   useEffect(() => {
-    // Independent, non-blocking loads
-    loadPrinters();
-    loadLocations();
-    loadCategories();
-  }, []); // eslint-disable-line
+    // ONLY fetch if we have a token. 
+    // This prevents unauthorized calls (401) on the login screen.
+    const hasToken = document.cookie.includes("print_hub_session");
+    if (hasToken) {
+      loadPrinters();
+      loadLocations();
+      loadCategories();
+    }
+  }, [loadPrinters, loadLocations, loadCategories]);
+
+  const value = React.useMemo(() => ({
+    printers, setPrinters,
+    locations, setLocations,
+    categories, setCategories,
+    loading, errors,
+    loadPrinters, loadLocations, loadCategories,
+    loadAll
+  }), [printers, locations, categories, loading, errors, loadPrinters, loadLocations, loadCategories, loadAll]);
 
   return (
-    <AppData.Provider
-      value={{
-        printers, setPrinters,
-        locations, setLocations,
-        categories, setCategories,
-        loading, errors,
-        loadPrinters, loadLocations, loadCategories
-      }}
-    >
+    <AppData.Provider value={value}>
       {children}
     </AppData.Provider>
   );

@@ -1,6 +1,7 @@
 from database import get_connection, utcnow, JobStatus, safe_delete
 from services.printer_service import check_printer, send_to_printer
 from services.document_service import process_document
+from services.utils import is_usb_trusted
 import os
 import logging
 from datetime import datetime, timezone
@@ -129,17 +130,7 @@ def print_with_failover(job_id, location_id, category, payload):
                         raise RuntimeError("Printer unreachable via IP")
                 else:
                     # 🔹 USB Printer: Assign to Agent
-                    STALE_THRESHOLD = 45
-                    is_valid = False
-                    try:
-                        last_updated_dt = datetime.strptime(printer["last_updated"], "%Y-%m-%d %H:%M:%S UTC").replace(tzinfo=timezone.utc)
-                        age = (datetime.now(timezone.utc) - last_updated_dt).total_seconds()
-                        source = str(printer.get("last_update_source", ""))
-                        if printer.get("status") == "Online" and age < STALE_THRESHOLD and source.startswith("Agent"):
-                            is_valid = True
-                    except: pass
-
-                    if not is_valid:
+                    if not is_usb_trusted(printer):
                         log_print_event(job_id, printer["name"], "Failed", "Printer Offline or Stale")
                         raise RuntimeError(f"Printer '{printer['name']}' is Offline or Stale")
 

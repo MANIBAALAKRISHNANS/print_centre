@@ -1,22 +1,28 @@
 import { useContext } from "react";
 import { AppData } from "../context/AppData";
+import { useFetch } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
+import { SkeletonLine } from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
 import { API_BASE_URL } from "../config";
 
 function Locations() {
   const { locations, loading, errors, loadLocations } = useContext(AppData);
+  const authFetch = useFetch();
+  const toast = useToast();
 
   const syncLocations = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/sync-locations`);
+      const res = await authFetch(`${API_BASE_URL}/sync-locations`);
       const result = await res.json();
       if (result.error) {
-        alert(result.error);
+        toast.error(result.error);
         return;
       }
       await loadLocations();
-      alert(`Synced ${result.count} locations from hospital system`);
+      toast.success(`Synced ${result.count} locations successfully`);
     } catch (err) {
-      alert("Sync failed: " + err.message);
+      toast.error("Sync failed: " + err.message);
     }
   };
 
@@ -29,11 +35,19 @@ function Locations() {
       <br /><br />
 
       {loading.locations ? (
-        <div className="emptyState pulse">Loading hospital locations...</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <SkeletonLine height="60px" /><SkeletonLine height="60px" /><SkeletonLine height="60px" />
+        </div>
       ) : errors.locations ? (
         <div className="emptyState error">{errors.locations}. <button onClick={loadLocations}>Retry</button></div>
       ) : locations.length === 0 ? (
-        <div className="emptyState">No locations synced yet. Click "Sync" above.</div>
+        <EmptyState 
+            icon="🏥"
+            title="No locations synced"
+            subtitle="Hospital locations are required to map printers to wards."
+            action={syncLocations}
+            actionLabel="Sync from Hospital"
+        />
       ) : (
         locations.map((item, index) => (
           <div className="listCard" key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

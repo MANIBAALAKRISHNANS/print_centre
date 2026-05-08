@@ -1,4 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useFetch } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
+import { SkeletonTable, SkeletonTableRow } from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
+import { API_BASE_URL } from "../config";
 
 function PrintJobs() {
   const [jobs, setJobs] = useState([]);
@@ -9,25 +14,35 @@ function PrintJobs() {
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
   const PAGE_SIZE = 50;
+  const searchTimeout = useRef(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
   // Cache: Map<job_id, { logs, fetchedAt }>
   const logCache = useRef({});
   const CACHE_TTL_MS = 10000; // 10 seconds TTL for active jobs; stable jobs cached forever
+  const authFetch = useFetch();
 
-  const loadJobs = async (pageNum = 0, currentFilter = filter) => {
+  const loadJobs = useCallback(async (pageNum = 0, currentFilter = filter, search = searchQuery) => {
     try {
-      let url = `http://127.0.0.1:8000/print-jobs?limit=${PAGE_SIZE}&offset=${pageNum * PAGE_SIZE}`;
+      let url = `${API_BASE_URL}/print-jobs?limit=${PAGE_SIZE}&offset=${pageNum * PAGE_SIZE}`;
       
       if (currentFilter !== "All") {
         if (currentFilter === "Retried") {
           url += "&retried=true";
         } else {
-          url += `&status=${currentFilter}`;
+          url += `&status=${encodeURIComponent(currentFilter)}`;
         }
       }
+      
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
 
-      const res = await fetch(url);
+      const res = await authFetch(url);
       const data = await res.json();
       
       if (Array.isArray(data)) {
@@ -37,32 +52,47 @@ function PrintJobs() {
         setTotal(data.total ?? 0);
       }
     } catch (err) {
-      console.log("PrintJobs API error", err);
+      toast.error("Failed to load print jobs");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [filter, authFetch]);
 
   // Reset to page 0 when filter changes
   useEffect(() => {
     setPage(0);
-    loadJobs(0, filter);
+    loadJobs(0, filter, searchQuery);
   }, [filter]); // eslint-disable-line
 
+  // Handle Search Debounce
   useEffect(() => {
-    if (page > 0) loadJobs(page, filter);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    
+    searchTimeout.current = setTimeout(() => {
+      setPage(0);
+      loadJobs(0, filter, searchQuery);
+    }, 400);
+
+    return () => clearTimeout(searchTimeout.current);
+  }, [searchQuery]); // eslint-disable-line
+
+  useEffect(() => {
+    if (page > 0) loadJobs(page, filter, searchQuery);
   }, [page]); // eslint-disable-line
 
   useEffect(() => {
-    const interval = setInterval(() => loadJobs(page, filter), 10000); // 10s polling
+    const interval = setInterval(() => loadJobs(page, filter, searchQuery), 10000); // 10s polling
     return () => clearInterval(interval);
-  }, [page, filter]); // eslint-disable-line
+  }, [page, filter, searchQuery]); // eslint-disable-line
 
   const clearJobs = async () => {
-    if (!window.confirm("Clear all print jobs?")) return;
     try {
-      await fetch("http://127.0.0.1:8000/print-jobs", { method: "DELETE" });
+      await authFetch(`${API_BASE_URL}/print-jobs`, { method: "DELETE" });
       await loadJobs(page);
+      toast.success("All jobs cleared");
+      setShowClearConfirm(false);
     } catch (err) {
-      console.log("Clear jobs error", err);
+      toast.error("Failed to clear jobs");
     }
   };
 
@@ -83,7 +113,7 @@ function PrintJobs() {
 
     setLoadingLogs(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/print-logs/${job.id}`);
+      const res = await authFetch(`${API_BASE_URL}/print-logs/${job.id}`);
       const data = await res.json();
       logCache.current[job.id] = { logs: data, fetchedAt: Date.now() };
       setJobLogs(data);
@@ -101,12 +131,13 @@ function PrintJobs() {
   };
 
   const statusBadge = (status) => {
-    const n = status?.toLowerCase();
-    if (n === "printing") return "live";
+    const n = (status || "").toLowerCase();
     if (n === "completed") return "blue";
-    if (n === "queued") return "warn";
-    if (n === "failed") return "offline";
-    return "offline";
+    if (n === "printing" || n === "agent printing") return "live"; // Added: agent printing
+    if (n === "queued" || n === "pending agent") return "warn"; // Added: pending agent
+    if (n === "failed" || n === "failed agent") return "offline"; // Added: failed agent
+    if (n === "retrying") return "orange"; // Added: retrying status
+    return "gray";
   };
 
   const routeBadge = (type) => {
@@ -115,12 +146,34 @@ function PrintJobs() {
     return "offline";
   };
 
-  const FILTERS = ["All", "Queued", "Printing", "Completed", "Failed", "Retried"];
+  // Added: additional agent-related filters
+  const FILTERS = [
+    "All", "Queued", "Printing", "Completed",
+    "Failed", "Pending Agent", "Agent Printing", "Failed Agent", "Retried"
+  ];
 
   return (
     <div className="page">
       <h1>Print Jobs</h1>
       <p className="sub">Live queue — click any row to view detailed logs</p>
+
+      <div style={{ marginBottom: "16px" }}>
+        <input 
+          type="text"
+          placeholder="Search by patient ID, printer, or category..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "12px 16px",
+            borderRadius: "8px",
+            border: "1px solid #ddd",
+            fontSize: "1rem",
+            outline: "none",
+            boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)"
+          }}
+        />
+      </div>
 
       {/* Filter Tabs */}
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
@@ -145,7 +198,7 @@ function PrintJobs() {
         <button
           className="btn"
           style={{ marginLeft: "auto" }}
-          onClick={clearJobs}
+          onClick={() => setShowClearConfirm(true)}
         >
           Clear Jobs
         </button>
@@ -166,10 +219,16 @@ function PrintJobs() {
             </tr>
           </thead>
           <tbody>
-            {jobs.length === 0 ? (
+            {loading ? (
+              <SkeletonTableRow cols={8} />
+            ) : jobs.length === 0 ? (
               <tr>
-                <td colSpan="8" style={{ textAlign: "center", color: "#888" }}>
-                  No jobs found for "{filter}"
+                <td colSpan="8">
+                  <EmptyState 
+                    icon="🖨️"
+                    title="No print jobs found"
+                    subtitle={filter === "All" ? "Jobs will appear here as they are submitted." : `No jobs found with status "${filter}"`}
+                  />
                 </td>
               </tr>
             ) : (
@@ -385,6 +444,28 @@ function PrintJobs() {
                   </table>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {showClearConfirm && (
+        <div className="modalOverlay">
+          <div className="modalBox" style={{ textAlign: "center", padding: "30px" }}>
+            <h3 style={{ marginBottom: "15px" }}>Clear All Jobs?</h3>
+            <p style={{ color: "#666", marginBottom: "25px" }}>
+              Are you sure you want to delete all print job history? This cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+              <button 
+                className="btn" 
+                style={{ background: "#ef4444" }}
+                onClick={clearJobs}
+              >Clear All</button>
+              <button 
+                className="btn" 
+                style={{ background: "#6b7280" }}
+                onClick={() => setShowClearConfirm(false)}
+              >Cancel</button>
             </div>
           </div>
         </div>

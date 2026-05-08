@@ -1,14 +1,22 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect, useRef, useMemo } from "react";
 import { AppData } from "../context/AppData";
+import { useFetch } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
+import { SkeletonTable } from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
 import { API_BASE_URL } from "../config";
 
 function Printers() {
-  const { printers, setPrinters, loadAll } = useContext(AppData);
+  const { printers, setPrinters, loadAll, loading: appLoading, errors: appErrors } = useContext(AppData);
 
   const [categories, setCategories] = useState([]);
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [filter, setFilter] = useState("All");
+  const [checking, setChecking] = useState({}); // { printerId: boolean }
+  const lastStatuses = useRef({}); // { printerId: status }
+  const [now, setNow] = useState(Date.now());
 
   const [newPrinter, setNewPrinter] = useState({
     name: "",
@@ -19,42 +27,63 @@ function Printers() {
     connection_type: "IP",
   });
 
-
-
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const authFetch = useFetch();
+  const toast = useToast();
 
   /* load categories */
   useEffect(() => {
-    fetch(`${API_BASE_URL}/categories`)
+    authFetch(`${API_BASE_URL}/categories`)
       .then((res) => res.json())
       .then((data) => {
-        setCategories(data);
-
-        if (data.length > 0) {
-          setNewPrinter((old) => ({
-            ...old,
-            category: data[0],
-            language: data[0] === "Barcode" ? "ZPL" : "PS",
-          }));
+        if (Array.isArray(data)) {
+          setCategories(data);
+          if (data.length > 0) {
+            setNewPrinter((old) => ({
+              ...old,
+              category: data[0],
+              language: data[0] === "Barcode" ? "ZPL" : "PS",
+            }));
+          }
         }
-      });
-  }, []);
+      })
+      .catch(err => toast.error("Failed to load categories"));
+  }, [authFetch, toast]);
 
   useEffect(() => {
     const refreshPrinterStatus = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/printers`);
+        const res = await authFetch(`${API_BASE_URL}/printers`);
         const data = await res.json();
-        setPrinters(data);
+        
+        if (Array.isArray(data)) {
+            // Check for status changes to trigger toasts
+            data.forEach(p => {
+                const prev = lastStatuses.current[p.id];
+                const current = p.status;
+                if (prev && prev !== current) {
+                    if (current === "Online") toast.success(`Printer ${p.name} is back ONLINE`);
+                    if (current === "Offline") toast.warning(`Printer ${p.name} has gone OFFLINE`);
+                }
+                lastStatuses.current[p.id] = current;
+            });
+
+            setPrinters(data);
+        }
       } catch (err) {
-        console.log("Printer status refresh error", err);
+        // Silent for background poll
       }
     };
 
     refreshPrinterStatus();
-    const interval = setInterval(refreshPrinterStatus, 10000); // 10s polling
+    const interval = setInterval(refreshPrinterStatus, 30000); // 30s polling
+    const timeInterval = setInterval(() => setNow(Date.now()), 60000); // Update relative times
 
-    return () => clearInterval(interval);
-  }, [setPrinters]);
+    return () => {
+        clearInterval(interval);
+        clearInterval(timeInterval);
+    };
+  }, [setPrinters, authFetch, toast]);
 
   const getStatusColor = (status) => {
     const s = (status || "").toLowerCase();
@@ -66,10 +95,48 @@ function Printers() {
 
   const isStale = (last_updated) => {
     if (!last_updated) return true;
-    // Backend format: "YYYY-MM-DD HH:MM:SS UTC"
     const cleanStr = last_updated.replace(" UTC", "Z").replace(" ", "T");
     const diff = Date.now() - new Date(cleanStr).getTime();
     return diff > 45000;
+  };
+
+  const getRelativeTime = (timeStr) => {
+    if (!timeStr) return "Never";
+    const cleanStr = timeStr.replace(" UTC", "Z").replace(" ", "T");
+    const diff = Math.floor((now - new Date(cleanStr).getTime()) / 1000);
+    
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+    return `${Math.floor(diff / 86400)} d ago`;
+  };
+
+  const filteredPrinters = useMemo(() => {
+    return printers.filter(p => {
+        if (filter === "All") return true;
+        if (filter === "Online") return p.status === "Online";
+        if (filter === "Offline") return p.status === "Offline";
+        if (filter === "USB") return p.connection_type === "USB";
+        if (filter === "Network") return p.connection_type === "IP";
+        return true;
+    });
+  }, [printers, filter]);
+
+  const forceCheck = async (name, id) => {
+    setChecking(prev => ({ ...prev, [id]: true }));
+    try {
+        const res = await authFetch(`${API_BASE_URL}/printers/${encodeURIComponent(name)}/status`);
+        const data = await res.json();
+        if (data.error) toast.error(data.error);
+        else {
+            toast.info(`Status Check: ${data.status}`);
+            loadAll(true); // Silent refresh
+        }
+    } catch (err) {
+        toast.error("Status check failed");
+    } finally {
+        setChecking(prev => ({ ...prev, [id]: false }));
+    }
   };
 
   /* add / edit save */
@@ -89,7 +156,7 @@ function Printers() {
 
     const method = editId ? "PUT" : "POST";
 
-    const res = await fetch(url, {
+    const res = await authFetch(url, {
       method: method,
       headers: {
         "Content-Type": "application/json",
@@ -100,7 +167,7 @@ function Printers() {
     const result = await res.json();
 
     if (result.error) {
-      alert(result.error);
+      toast.error(result.error);
       return;
     }
 
@@ -129,6 +196,7 @@ function Printers() {
     setEditId(null);
     setOpen(false);
     loadAll();
+    toast.success(`Printer ${editId ? "updated" : "saved"}`);
   };
 
   /* open edit */
@@ -148,24 +216,28 @@ function Printers() {
 
   /* delete */
   const deletePrinter = async (id) => {
-    if (!window.confirm("Delete printer?")) return;
+    try {
+      const res = await authFetch(
+        `${API_BASE_URL}/printers/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
-    const res = await fetch(
-      `${API_BASE_URL}/printers/${id}`,
-      {
-        method: "DELETE",
+      const result = await res.json();
+
+      if (result.error) {
+        toast.error(result.error);
+        return;
       }
-    );
 
-    const result = await res.json();
-
-    if (result.error) {
-      alert(result.error);
-      return;
+      setPrinters((current) => current.filter((printer) => printer.id !== id));
+      loadAll();
+      toast.success("Printer deleted");
+      setConfirmDelete(null);
+    } catch (err) {
+      toast.error("Failed to delete printer");
     }
-
-    setPrinters((current) => current.filter((printer) => printer.id !== id));
-    loadAll();
   };
 
   /* add mode */
@@ -189,51 +261,104 @@ function Printers() {
 
       <h1>Printers</h1>
 
-      <p className="sub">
-        Manage all connected printers
-      </p>
+      <div style={{ 
+          display: "flex", 
+          gap: "12px", 
+          marginBottom: "24px", 
+          flexWrap: "wrap",
+          alignItems: "center",
+          background: "#f8fafc",
+          padding: "12px",
+          borderRadius: "8px",
+          border: "1px solid #e2e8f0"
+      }}>
+          <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#64748b", marginRight: "8px" }}>SUMMARY</span>
+          <div className="badge blue">Total: {printers.length}</div>
+          <div className="badge live">Online: {printers.filter(p => p.status === "Online").length}</div>
+          <div className="badge offline">Offline: {printers.filter(p => p.status === "Offline").length}</div>
+          <div className="badge gray">USB: {printers.filter(p => p.connection_type === "USB").length}</div>
+          <div className="badge gray">Network: {printers.filter(p => p.connection_type === "IP").length}</div>
+          
+          <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
+              <button className="btn" onClick={openAdd}>+ Add Printer</button>
+          </div>
+      </div>
 
-      <button className="btn" onClick={openAdd}>
-        + Add Printer
-      </button>
-
-      <br /><br />
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+          {[
+              { id: "All", label: "All", count: printers.length },
+              { id: "Online", label: "Online", count: printers.filter(p => p.status === "Online").length },
+              { id: "Offline", label: "Offline", count: printers.filter(p => p.status === "Offline").length },
+              { id: "USB", label: "USB", count: printers.filter(p => p.connection_type === "USB").length },
+              { id: "Network", label: "Network", count: printers.filter(p => p.connection_type === "IP").length }
+          ].map(f => (
+              <button 
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                style={{
+                    padding: "6px 12px",
+                    borderRadius: "20px",
+                    border: filter === f.id ? "2px solid #4f46e5" : "2px solid #ddd",
+                    background: filter === f.id ? "#4f46e5" : "white",
+                    color: filter === f.id ? "white" : "#333",
+                    cursor: "pointer",
+                    fontSize: "0.85rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px"
+                }}
+              >
+                  {f.label} <span style={{ opacity: 0.7, fontSize: "0.75rem" }}>{f.count}</span>
+              </button>
+          ))}
+      </div>
 
       <div className="card">
 
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>IP</th>
-              <th>Category</th>
-              <th>Language</th>
-              <th>Status</th>
-              <th>Change</th>
-              <th>Actions</th>
+               <th>Name</th>
+               <th>Type</th>
+               <th>IP</th>
+               <th>Category</th>
+               <th>Language</th>
+               <th>Status</th>
+               <th>Last Activity</th>
+               <th>Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {printers.map((p, i) => {
+            {appLoading.printers ? (
+               <tr>
+                 <td colSpan="8">
+                   <SkeletonTable rows={5} cols={8} />
+                 </td>
+               </tr>
+            ) : filteredPrinters.length === 0 ? (
+               <tr>
+                 <td colSpan="8">
+                    <EmptyState 
+                        icon="🖨️"
+                        title="No printers found"
+                        subtitle={filter === "All" ? "Start by adding your first hospital printer." : `No printers found for filter "${filter}"`}
+                        action={openAdd}
+                        actionLabel="Add Printer"
+                    />
+                 </td>
+               </tr>
+            ) : filteredPrinters.map((p) => {
               const normalizedStatus = (p.status || "").toLowerCase();
               let displayStatus = normalizedStatus;
+              const isUsb = p.connection_type === "USB";
+              const stale = isUsb && isStale(p.last_updated);
 
-              if (p.connection_type === "USB" && isStale(p.last_updated)) {
-                displayStatus = "offline";
-              }
-
-              console.log({
-                name: p.name,
-                backendStatus: p.status,
-                displayStatus,
-                last_updated: p.last_updated
-              });
+              if (stale) displayStatus = "offline";
 
               return (
-                <tr key={i}>
-                  <td>{p.name}</td>
+                <tr key={p.id}>
+                  <td><strong>{p.name}</strong></td>
                   <td>
                     <span style={{ fontSize: '0.8em', opacity: 0.7 }}>
                       {p.connection_type || 'IP'}
@@ -244,35 +369,57 @@ function Printers() {
                   <td>{p.language}</td>
 
                   <td>
-                    <span className={`badge ${getStatusColor(displayStatus)}`}>
-                      {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                       <span className={`dot ${displayStatus === "online" ? "pulse-green" : "red"}`} style={{ 
+                           width: "8px", height: "8px", borderRadius: "50%",
+                           background: displayStatus === "online" ? "#22c55e" : "#ef4444",
+                           animation: displayStatus === "online" ? "pulse 2s infinite" : "none"
+                       }}></span>
+                       <span className={`badge ${getStatusColor(displayStatus)}`}>
+                         {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
+                       </span>
+                       {stale && <span className="badge offline" style={{ fontSize: "0.7rem" }}>⚠ Stale</span>}
+                    </div>
+                  </td>
+
+                  <td style={{ fontSize: "0.85rem" }}>
+                      <div style={{ color: "#333" }}>{getRelativeTime(p.last_updated)}</div>
+                      {isUsb && (
+                          <div style={{ fontSize: "0.75rem", color: "#888" }}>
+                              Agent: {p.last_update_source || "Unknown"}
+                          </div>
+                      )}
                   </td>
 
                   <td>
-                    <button
-                      className="btn"
-                      onClick={() => editPrinter(p)}
-                    >
-                      Edit
-                    </button>
-
-                    <button
-                      className="btn"
-                      style={{ marginLeft: "8px" }}
-                      onClick={() =>
-                        deletePrinter(p.id)
-                      }
-                    >
-                      Delete
-                    </button>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                       <button
+                         className="btn"
+                         disabled={checking[p.id]}
+                         onClick={() => forceCheck(p.name, p.id)}
+                         style={{ minWidth: "100px" }}
+                       >
+                         {checking[p.id] ? "Checking..." : "Force Check"}
+                       </button>
+                       <button
+                         className="btn"
+                         onClick={() => editPrinter(p)}
+                       >
+                         Edit
+                       </button>
+                       <button
+                         className="btn"
+                         style={{ background: "#ef4444" }}
+                         onClick={() => setConfirmDelete(p)}
+                       >
+                         Delete
+                       </button>
+                    </div>
                   </td>
-
                 </tr>
               );
             })}
           </tbody>
-
         </table>
 
       </div>
@@ -381,10 +528,31 @@ function Printers() {
             </form>
 
           </div>
-
         </div>
       )}
 
+      {confirmDelete && (
+        <div className="modalOverlay">
+          <div className="modalBox" style={{ textAlign: "center", padding: "30px" }}>
+            <h3 style={{ marginBottom: "15px" }}>Delete Printer?</h3>
+            <p style={{ color: "#666", marginBottom: "25px" }}>
+              Are you sure you want to delete <strong>{confirmDelete.name}</strong>?
+            </p>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+              <button 
+                className="btn" 
+                style={{ background: "#ef4444" }}
+                onClick={() => deletePrinter(confirmDelete.id)}
+              >Delete</button>
+              <button 
+                className="btn" 
+                style={{ background: "#6b7280" }}
+                onClick={() => setConfirmDelete(null)}
+              >Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,38 @@
+# Environment
+.env
+.env.production
+.env.local
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+backups/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+build/
+dist/
+*.egg-info/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/build/
+
+# Logs
+*.log
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agent Config (Credentials)
+agent/agent_config.json
+agent_config.json

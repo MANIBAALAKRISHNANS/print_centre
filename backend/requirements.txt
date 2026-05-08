@@ -2,5 +2,11 @@ fastapi
 uvicorn
 python-multipart
 pydantic
+pydantic-settings
 pywin32
 requests
+passlib[bcrypt]
+bcrypt==3.2.0
+python-jose[cryptography]
+slowapi
+apscheduler
