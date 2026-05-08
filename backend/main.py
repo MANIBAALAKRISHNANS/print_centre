@@ -17,7 +17,10 @@ from fastapi.responses import JSONResponse
 import json
 import time
 from logging_config import setup_logging
-from database import init_db, get_connection, utcnow, JobStatus, safe_delete, seed_admin, archive_old_jobs, backup_database
+from database import (
+    init_db, get_connection, get_cursor, get_placeholder, get_row_value,
+    utcnow, JobStatus, safe_delete, seed_admin, archive_old_jobs, backup_database
+)
 from services.recovery import recover_stuck_jobs, check_database_integrity
 from services.alerts import alert, alert_deduplicated
 from datetime import datetime, timezone
