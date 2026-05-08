@@ -45,9 +45,31 @@ logger = logging.getLogger("Main")
 
 print_queue = PriorityQueue(maxsize=500)
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI()
+app = FastAPI(
+    title="🏥 Clinical PrintHub Professional API",
+    description="""
+    Production-grade hospital print management infrastructure.
+    
+    ### Key Clinical Features:
+    * **🛡️ Security:** Role-Based Access Control (RBAC) & Token Authentication.
+    * **📊 Monitoring:** Real-time hardware heartbeat and health analytics.
+    * **💾 Persistence:** Multi-dialect support (PostgreSQL/SQLite) with auto-backups.
+    * **🚑 Reliability:** Automated job recovery and clinical queue management.
+    
+    *Authorized hospital personnel only. All access is logged for HIPAA auditing.*
+    """,
+    version="3.5.0-PRO",
+    contact={
+        "name": "Savetha Hospital IT Engineering",
+        "url": "https://github.com/MANIBAALAKRISHNANS/print_centre",
+    },
+    license_info={
+        "name": "Enterprise Clinical License",
+    }
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):

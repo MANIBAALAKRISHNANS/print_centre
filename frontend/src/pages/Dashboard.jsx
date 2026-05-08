@@ -46,7 +46,7 @@ function Dashboard() {
   useEffect(() => {
     loadStats();
     loadHealth();
-    // 🔹 CLINICAL UPGRADE: 5-second real-time heartbeat
+    // 🔹 CLINICAL HEARTBEAT
     const interval = setInterval(loadStats, 5000);
     const healthInterval = setInterval(loadHealth, 30000);
     return () => {
@@ -65,7 +65,6 @@ function Dashboard() {
       }
     };
     loadAgents();
-    // 🔹 CLINICAL UPGRADE: 10-second agent heartbeat
     const t = setInterval(loadAgents, 10000);
     return () => clearInterval(t);
   }, [authFetch]);
@@ -92,24 +91,26 @@ function Dashboard() {
   };
 
   const StatSkeleton = () => (
-    <div className="statCard gray" style={{ position: "relative", overflow: "hidden" }}>
+    <div className="clinical-card" style={{ padding: "20px", position: "relative", overflow: "hidden" }}>
         <SkeletonLine width="60%" height="14px" style={{ marginBottom: "12px" }} />
         <SkeletonLine width="40%" height="28px" />
     </div>
   );
 
   return (
-    <div className="page">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div className="page" style={{ padding: "40px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "32px" }}>
         <div>
-          <h1>Print Center Dashboard</h1>
-          <p className="sub">Real-time clinical printer health & analytics</p>
+          <h1 className="clinical-title" style={{ margin: 0, fontSize: "2rem" }}>Hospital Print Overview</h1>
+          <p style={{ color: "var(--text-muted)", marginTop: "4px", fontSize: "0.95rem" }}>
+            Real-time health monitoring for Savetha Hospital Network
+          </p>
         </div>
-        <div className="badge green pulse" style={{ padding: "8px 12px", borderRadius: "20px", fontWeight: "bold" }}>
-          ● LIVE MONITORING
+        <div className="live-monitor-badge">
+          <div className="live-dot"></div>
+          LIVE MONITORING
         </div>
       </div>
-
 
       {error && <div className="errorBanner">Unable to load dashboard stats: {error}</div>}
 
@@ -119,91 +120,80 @@ function Dashboard() {
           className="warningBanner pulse" 
           style={{ 
             cursor: "pointer", 
-            marginBottom: "15px", 
-            background: "#fffbeb", 
-            border: "1px solid #fde68a", 
-            color: "#92400e",
-            padding: "12px",
-            borderRadius: "8px",
-            fontWeight: "bold",
+            marginBottom: "20px", 
+            background: "rgba(245, 158, 11, 0.1)", 
+            border: "1px solid rgba(245, 158, 11, 0.2)", 
+            color: "#b45309",
+            padding: "16px",
+            borderRadius: "12px",
+            fontWeight: "600",
             display: "flex",
             alignItems: "center",
-            gap: "10px"
+            gap: "12px",
+            boxShadow: "var(--shadow-sm)"
           }} 
           onClick={() => navigate("/printjobs")}
         >
-          <span>⚠</span> {w}
+          <span style={{ fontSize: "1.2rem" }}>⚠️</span> {w}
         </div>
       ))}
 
-      <h2 style={{ margin: "20px 0 10px", fontSize: "1rem", opacity: 0.7 }}>PRINTER HEALTH</h2>
-      <div className="stats">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "24px", marginBottom: "40px" }}>
         {loading && !stats ? (
-          <>
-            <StatSkeleton /><StatSkeleton /><StatSkeleton />
-          </>
+          <><StatSkeleton /><StatSkeleton /><StatSkeleton /><StatSkeleton /></>
         ) : (
           <>
-            <div className="statCard blue"><h3>Total Printers</h3><h2>{stats?.total ?? 0}</h2></div>
-            <div className="statCard green"><h3>Live</h3><h2>{stats?.live ?? 0}</h2></div>
-            <div className="statCard red"><h3>Offline</h3><h2>{stats?.offline ?? 0}</h2></div>
-          </>
-        )}
-      </div>
-
-      <h2 style={{ margin: "28px 0 10px", fontSize: "1rem", opacity: 0.7 }}>JOB ANALYTICS</h2>
-      <div className="stats">
-        {loading && !stats ? (
-          <>
-            <StatSkeleton /><StatSkeleton /><StatSkeleton /><StatSkeleton />
-          </>
-        ) : (
-          <>
-            <div className="statCard blue"><h3>Total Jobs</h3><h2>{stats?.jobs?.total ?? 0}</h2></div>
-            <div className="statCard green"><h3>Completed</h3><h2>{stats?.jobs?.completed ?? 0}</h2></div>
-            <div className="statCard red"><h3>Failed</h3><h2>{stats?.jobs?.failed ?? 0}</h2></div>
-            <div className="statCard orange"><h3>Had Retries</h3><h2>{stats?.jobs?.retried ?? 0}</h2></div>
-          </>
-        )}
-      </div>
-
-      <h2 style={{ margin: "28px 0 10px", fontSize: "1rem", opacity: 0.7 }}>AGENT STATUS</h2>
-      <div className="stats">
-        {loading && agents.length === 0 ? (
-          <>
-            <StatSkeleton /><StatSkeleton /><StatSkeleton />
-          </>
-        ) : (
-          <>
-            <div className="statCard blue">
-              <h3>Total Agents</h3>
-              <h2>{agents.length}</h2>
+            <div className="clinical-card" style={{ padding: "24px" }}>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", marginBottom: "8px" }}>Network Printers</p>
+              <h2 style={{ margin: 0, fontSize: "2rem", fontWeight: 800 }}>{stats?.total ?? 0}</h2>
+              <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
+                <span style={{ fontSize: "0.7rem", color: "var(--success)", fontWeight: 700 }}>● {stats?.live ?? 0} Online</span>
+                <span style={{ fontSize: "0.7rem", color: "var(--danger)", fontWeight: 700 }}>● {stats?.offline ?? 0} Offline</span>
+              </div>
             </div>
-            <div className="statCard green">
-              <h3>Online</h3>
-              <h2>{agents.filter((a) => !isAgentStale(a.last_seen)).length}</h2>
+
+            <div className="clinical-card" style={{ padding: "24px" }}>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", marginBottom: "8px" }}>Active Agents</p>
+              <h2 style={{ margin: 0, fontSize: "2rem", fontWeight: 800 }}>{agents.length}</h2>
+              <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
+                <span style={{ fontSize: "0.7rem", color: "var(--success)", fontWeight: 700 }}>● {agents.filter((a) => !isAgentStale(a.last_seen)).length} Connected</span>
+              </div>
             </div>
-            <div className="statCard red">
-              <h3>Offline</h3>
-              <h2>{agents.filter((a) => isAgentStale(a.last_seen)).length}</h2>
+
+            <div className="clinical-card" style={{ padding: "24px" }}>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", marginBottom: "8px" }}>Today's Jobs</p>
+              <h2 style={{ margin: 0, fontSize: "2rem", fontWeight: 800 }}>{stats?.jobs?.total ?? 0}</h2>
+              <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
+                <span style={{ fontSize: "0.7rem", color: "var(--success)", fontWeight: 700 }}>{stats?.jobs?.completed ?? 0} Successful</span>
+              </div>
+            </div>
+
+            <div className="clinical-card" style={{ padding: "24px", background: stats?.jobs?.failed > 0 ? "rgba(239, 68, 68, 0.05)" : "white" }}>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", marginBottom: "8px" }}>System Alerts</p>
+              <h2 style={{ margin: 0, fontSize: "2rem", fontWeight: 800, color: stats?.jobs?.failed > 0 ? "var(--danger)" : "inherit" }}>{stats?.jobs?.failed ?? 0}</h2>
+              <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "12px" }}>{stats?.jobs?.retried ?? 0} jobs recovered automatically</p>
             </div>
           </>
         )}
       </div>
 
-      <div className="card" style={{ marginTop: "28px" }}>
-        <h2 style={{ marginBottom: "15px" }}>Printer Live Status</h2>
+      <div className="clinical-card" style={{ padding: "0", overflow: "hidden" }}>
+        <div style={{ padding: "24px", borderBottom: "1px solid rgba(0,0,0,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ margin: 0, fontWeight: 700 }}>Real-time Hardware Status</h3>
+          <button className="btn outline sm" onClick={() => navigate("/printers")}>View All Hardware</button>
+        </div>
+        
         {appLoading.printers ? (
-          <SkeletonTable rows={5} cols={4} />
+          <div style={{ padding: "24px" }}><SkeletonTable rows={5} cols={4} /></div>
         ) : appErrors.printers ? (
-          <p className="errorText">{appErrors.printers}</p>
+          <p className="errorText" style={{ padding: "24px" }}>{appErrors.printers}</p>
         ) : (
-          <table>
+          <table className="clinical-table">
             <thead>
-              <tr><th>Printer</th><th>Category</th><th>Language</th><th>Status</th></tr>
+              <tr><th>Hardware Name</th><th>Category</th><th>Protocol</th><th>Clinical Status</th></tr>
             </thead>
             <tbody>
-              {printers.map((item, index) => {
+              {printers.slice(0, 10).map((item, index) => {
                 const normalizedStatus = (item.status || "").toLowerCase();
                 let displayStatus = normalizedStatus;
 
@@ -211,21 +201,14 @@ function Dashboard() {
                   displayStatus = "offline";
                 }
 
-                console.log({
-                  name: item.name,
-                  backendStatus: item.status,
-                  displayStatus,
-                  last_updated: item.last_updated
-                });
-
                 return (
-                  <tr key={index}>
-                    <td>{item.name}</td>
+                  <tr key={index} style={{ cursor: "pointer" }} onClick={() => navigate("/printers")}>
+                    <td style={{ fontWeight: 600 }}>{item.name}</td>
                     <td>{item.category}</td>
-                    <td>{item.language}</td>
+                    <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{item.language}</td>
                     <td>
                       <span className={`badge ${getStatusColor(displayStatus)}`}>
-                        {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
+                        {displayStatus.toUpperCase()}
                       </span>
                     </td>
                   </tr>
