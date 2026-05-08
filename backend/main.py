@@ -454,7 +454,6 @@ def login(request: Request, data: LoginRequest):
     conn = get_connection()
     cur = get_cursor(conn)
     placeholder = get_placeholder()
-    placeholder = get_placeholder()
     cur.execute(f"SELECT * FROM users WHERE username={placeholder}", (data.username,))
     row = cur.fetchone()
     conn.close()
@@ -507,7 +506,6 @@ def change_password(data: ChangePasswordRequest, current_user: dict = Depends(ge
     conn = get_connection()
     try:
         cur = get_cursor(conn)
-        placeholder = get_placeholder()
         placeholder = get_placeholder()
         cur.execute(f"SELECT password_hash FROM users WHERE username={placeholder}", (username,))
         row = cur.fetchone()
@@ -973,7 +971,6 @@ def add_category(data: CategoryRequest, admin: dict = Depends(require_admin)):
     conn = get_connection()
     cur = get_cursor(conn)
     placeholder = get_placeholder()
-    placeholder = get_placeholder()
     cur.execute(f"INSERT INTO categories (name) VALUES ({placeholder})", (data.name,))
     conn.commit()
     conn.close()
@@ -984,7 +981,6 @@ def add_category(data: CategoryRequest, admin: dict = Depends(require_admin)):
 def delete_category(name: str, admin: dict = Depends(require_admin)):
     conn = get_connection()
     cur = get_cursor(conn)
-    placeholder = get_placeholder()
     placeholder = get_placeholder()
     cur.execute(f"DELETE FROM categories WHERE name={placeholder}", (name,))
     conn.commit()
@@ -1155,8 +1151,8 @@ def get_agent_jobs(agent_id: str, token: str, location_id: str = None):
                 cur.execute(f"UPDATE agents SET location_id={placeholder} WHERE agent_id={placeholder}", (location_id, agent_id))
         else:
             # First contact registration
-            cur.execute(f"INSERT INTO agents (agent_id, location_id, status, last_seen, token) VALUES ({placeholder}, {placeholder}, 'Online', datetime('now'), {placeholder})",
-                        (agent_id, location_id, token))
+            cur.execute(f"INSERT INTO agents (agent_id, location_id, status, last_seen, token) VALUES ({placeholder}, {placeholder}, 'Online', {placeholder}, {placeholder})",
+                        (agent_id, location_id, utcnow(), token))
             conn.commit()
         
         # 🔹 2. Atomic Lease Mechanism
@@ -1402,8 +1398,8 @@ def agent_heartbeat(agent_id: str, token: str, location_id: str = None, hostname
             cur.execute(f"UPDATE agents SET location_id={placeholder} WHERE agent_id={placeholder}", (location_id, agent_id))
     else:
         # Register
-        cur.execute(f"INSERT INTO agents (agent_id, location_id, status, last_seen, token, hostname) VALUES ({placeholder}, {placeholder}, 'Online', datetime('now'), {placeholder}, {placeholder})",
-                    (agent_id, location_id, token, hostname))
+        cur.execute(f"INSERT INTO agents (agent_id, location_id, status, last_seen, token, hostname) VALUES ({placeholder}, {placeholder}, 'Online', {placeholder}, {placeholder}, {placeholder})",
+                    (agent_id, location_id, utcnow(), token, hostname))
     
     conn.commit()
     conn.close()
@@ -1445,7 +1441,6 @@ def list_activation_codes(current_user: dict = Depends(require_admin)):
 def revoke_activation_code(code_id: int, current_user: dict = Depends(require_admin)):
     conn = get_connection()
     cur = get_cursor(conn)
-    placeholder = get_placeholder()
     placeholder = get_placeholder()
     cur.execute(f"SELECT used FROM activation_codes WHERE id={placeholder}", (code_id,))
     row = cur.fetchone()
@@ -1545,8 +1540,8 @@ def get_agent_config(agent_id: str, token: str, location_id: str = None):
             raise HTTPException(401, "Invalid agent token")
     else:
         # First contact registration
-        cur.execute(f"INSERT INTO agents (agent_id, location_id, status, last_seen, token) VALUES ({placeholder}, {placeholder}, 'Online', datetime('now'), {placeholder})",
-                    (agent_id, location_id, token))
+        cur.execute(f"INSERT INTO agents (agent_id, location_id, status, last_seen, token) VALUES ({placeholder}, {placeholder}, 'Online', {placeholder}, {placeholder})",
+                    (agent_id, location_id, utcnow(), token))
         conn.commit()
 
     # 2. Get location_id if not provided
@@ -1747,8 +1742,8 @@ def cleanup_logs(days: int = 30, admin_token: str = None):
     
     # Logs use utcnow() which is formatted string. We need to handle comparison.
     # Simplified: DELETE WHERE time < (current_time - days)
-    # Using SQLITE date functions if possible, or just string comparison if sorted.
-    cur.execute(f"DELETE FROM print_logs WHERE time < datetime('now', '-' || {placeholder} || ' days')", (str(days),))
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S UTC")
+    cur.execute(f"DELETE FROM print_logs WHERE time < {placeholder}", (cutoff,))
     count = cur.rowcount
     conn.commit()
     conn.close()
@@ -1835,9 +1830,10 @@ def monitor_loop():
             conn = get_connection()
             cur = get_cursor(conn)
             placeholder = get_placeholder()
+            cutoff = (datetime.now(timezone.utc) - timedelta(seconds=settings.stale_threshold_seconds)).strftime("%Y-%m-%d %H:%M:%S UTC")
             
             # 1. HEARTBEAT ENFORCEMENT (Mark agents Offline if > threshold)
-            cur.execute(f"SELECT agent_id, hostname, location_id FROM agents WHERE status='Online' AND last_seen < datetime('now', '-' || {placeholder} || ' seconds')", (str(settings.stale_threshold_seconds),))
+            cur.execute(f"SELECT agent_id, hostname, location_id FROM agents WHERE status='Online' AND last_seen < {placeholder}", (cutoff,))
             dead_agents = cur.fetchall()
             for agent in dead_agents:
                 logger.warning(f"Agent {agent['agent_id']} TIMED OUT. Marking Offline.")
@@ -1852,8 +1848,8 @@ def monitor_loop():
             cur.execute(f"""
                 SELECT name, location_id FROM printers 
                 WHERE connection_type='USB' AND status='Online'
-                AND last_updated < datetime('now', '-' || {placeholder} || ' seconds')
-            """, (str(settings.stale_threshold_seconds),))
+                AND last_updated < {placeholder}
+            """, (cutoff,))
             timed_out = cur.fetchall()
             for p in timed_out:
                 logger.warning(f"TIMEOUT: USB Printer '{p['name']}' stale (>45s). Marking Offline.")
@@ -1911,7 +1907,6 @@ def clinical_daily_cleanup():
     # 3. Expire stale jobs (Safety)
     conn = get_connection()
     cur = get_cursor(conn)
-    placeholder = get_placeholder()
     placeholder = get_placeholder()
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S UTC")
     cur.execute(f"UPDATE print_jobs SET status='Expired' WHERE status='Queued' AND time < {placeholder}", (cutoff,))
