@@ -1,6 +1,7 @@
 @echo off
 :: PrintHub Agent Service Installer
 :: Must be run as Administrator
+cd /d "%~dp0"
 
 echo ---------------------------------------------------
 echo PrintHub Agent Service Installer
