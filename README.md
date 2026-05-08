@@ -71,22 +71,40 @@ The "Audit Log" (accessible via the Administration panel) is a forensic record d
     *   [Ghostscript](https://ghostscript.com/): Required for advanced PDF processing.
     *   *Note: Ensure both are added to your System PATH.*
 
-### 2. Backend Installation
+### 2. Backend Installation (API & Database)
+
+#### **Windows**
 ```powershell
 cd backend
 python -m venv venv
 .\venv\Scripts\activate
 pip install -r requirements.txt
-# Run the server
-uvicorn main:app --reload --port 8000
+# Run the server (allowing network access)
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### **macOS / Linux**
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+# Run the server (allowing network access)
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 3. Frontend Dashboard
+
+#### **Windows & macOS**
 ```powershell
 cd frontend
 npm install
-npm run dev
+# Set your Server IP before starting (Optional for remote access)
+# Windows: set VITE_API_URL=http://SERVER_IP:8000
+# Mac: export VITE_API_URL=http://SERVER_IP:8000
+npm run dev -- --host
 ```
+*Note: Use `-- --host` to allow other devices to view the dashboard via your IP.*
 
 ### 4. Print Agent Setup (Workstation Installation)
 
