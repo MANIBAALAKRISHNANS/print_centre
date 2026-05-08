@@ -1786,14 +1786,27 @@ def monitor_loop():
 
 # 🔹 SCHEDULER: Production Maintenance
 scheduler = BackgroundScheduler()
-# 1 AM: Backup
-scheduler.add_job(backup_database, 'cron', hour=1, minute=0)
-# 2 AM: Archive
-scheduler.add_job(archive_old_jobs, 'cron', hour=2, minute=0)
-# Every 5 mins: Stuck job recovery
-scheduler.add_job(recover_stuck_jobs, 'interval', minutes=5)
-# Sunday 3 AM: Integrity check
-scheduler.add_job(check_database_integrity, 'cron', day_of_week='sun', hour=3)
+
+@scheduler.scheduled_job('cron', hour=0, minute=0)
+def clinical_daily_cleanup():
+    """🔹 Runs every night at midnight"""
+    logger.info("[MAINTENANCE] Starting clinical cleanup...")
+    # 1. Backup
+    backup_database()
+    # 2. Archive
+    archive_old_jobs(days_to_keep=30)
+    # 3. Expire stale jobs (Safety)
+    conn = get_connection()
+    cur = get_cursor(conn)
+    placeholder = get_placeholder()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S UTC")
+    cur.execute(f"UPDATE print_jobs SET status='Expired' WHERE status='Queued' AND time < {placeholder}", (cutoff,))
+    conn.commit()
+    conn.close()
+
+# Real-time recovery
+scheduler.add_job(recover_stuck_jobs, 'interval', minutes=1)
 scheduler.start()
+
 
 threading.Thread(target=monitor_loop, daemon=True).start()

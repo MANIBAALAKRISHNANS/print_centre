@@ -46,8 +46,9 @@ function Dashboard() {
   useEffect(() => {
     loadStats();
     loadHealth();
-    const interval = setInterval(loadStats, 15000);
-    const healthInterval = setInterval(loadHealth, 60000);
+    // 🔹 CLINICAL UPGRADE: 5-second real-time heartbeat
+    const interval = setInterval(loadStats, 5000);
+    const healthInterval = setInterval(loadHealth, 30000);
     return () => {
       clearInterval(interval);
       clearInterval(healthInterval);
@@ -64,7 +65,8 @@ function Dashboard() {
       }
     };
     loadAgents();
-    const t = setInterval(loadAgents, 15000);
+    // 🔹 CLINICAL UPGRADE: 10-second agent heartbeat
+    const t = setInterval(loadAgents, 10000);
     return () => clearInterval(t);
   }, [authFetch]);
 
@@ -98,8 +100,16 @@ function Dashboard() {
 
   return (
     <div className="page">
-      <h1>Print Center Dashboard</h1>
-      <p className="sub">Live printer health and job analytics</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1>Print Center Dashboard</h1>
+          <p className="sub">Real-time clinical printer health & analytics</p>
+        </div>
+        <div className="badge green pulse" style={{ padding: "8px 12px", borderRadius: "20px", fontWeight: "bold" }}>
+          ● LIVE MONITORING
+        </div>
+      </div>
+
 
       {error && <div className="errorBanner">Unable to load dashboard stats: {error}</div>}
 

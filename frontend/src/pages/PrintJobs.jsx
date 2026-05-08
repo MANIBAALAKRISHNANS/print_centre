@@ -81,7 +81,8 @@ function PrintJobs() {
   }, [page]); // eslint-disable-line
 
   useEffect(() => {
-    const interval = setInterval(() => loadJobs(page, filter, searchQuery), 10000); // 10s polling
+    // 🔹 CLINICAL UPGRADE: 5-second real-time heartbeat for job tracking
+    const interval = setInterval(() => loadJobs(page, filter, searchQuery), 5000);
     return () => clearInterval(interval);
   }, [page, filter, searchQuery]); // eslint-disable-line
 
@@ -154,8 +155,16 @@ function PrintJobs() {
 
   return (
     <div className="page">
-      <h1>Print Jobs</h1>
-      <p className="sub">Live queue — click any row to view detailed logs</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <div>
+          <h1>Print Jobs</h1>
+          <p className="sub">Real-time clinical queue — click any row for detailed logs</p>
+        </div>
+        <div className="badge green pulse" style={{ padding: "8px 12px", borderRadius: "20px", fontWeight: "bold" }}>
+          ● LIVE MONITORING
+        </div>
+      </div>
+
 
       <div style={{ marginBottom: "16px" }}>
         <input 
