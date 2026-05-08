@@ -22,14 +22,40 @@ PrintHub consists of three core components that work in perfect synchronization:
 *   **Automatic Failover:** Smart routing logic automatically redirects jobs to a secondary printer if the primary device is offline.
 
 ### 🔒 Security & Compliance
-*   **HIPAA Auditing:** Every action (Print, View, User Create, Status Change) is recorded with a timestamp, IP address, and actor identity.
-*   **Secure Activation:** Agents use one-time **Activation Codes** to link to the backend, eliminating the need for hardcoded passwords or insecure tokens.
-*   **RBAC (Role-Based Access Control):** 
-    *   **Admin:** Full system control.
-    *   **Operator (IT):** Manage printers, categories, and infrastructure.
-    *   **Viewer (Nurse):** Real-time monitoring of print queues without configuration rights.
+*   **HIPAA Audit Logging:** A comprehensive, immutable record of every system event. It tracks **who** did **what**, **when**, and from **which IP address**.
+*   **Secure Activation:** Agents use one-time **Activation Codes** to link to the backend, eliminating the need for hardcoded passwords.
+*   **Granular RBAC:** Detailed access levels tailored for Hospital IT and Clinical staff.
 
-### 📄 Intelligent Document Processing
+---
+
+## 👥 Role-Based Access Control (RBAC)
+
+PrintHub enforces strict access control to ensure patient data privacy and system stability.
+
+| Role | Label | Permissions |
+| :--- | :--- | :--- |
+| **Admin** | Administrator | **Full System Control:** Can create/delete users, reset passwords, generate agent activation codes, view full audit logs, and manage all hardware. |
+| **Operator** | IT Operator | **Infrastructure Management:** Can add/remove printers, update location mappings, and clear print queues. Cannot manage users or view sensitive audit logs. |
+| **Viewer** | Clinical Staff | **Read-Only:** Can monitor the status of print jobs and see printer health. Suitable for nursing stations to verify if a label has been printed. |
+
+---
+
+## 📋 HIPAA Audit Logging (Admin Log)
+
+The "Audit Log" (accessible via the Administration panel) is a forensic record designed for HIPAA compliance. Every critical action triggers an entry:
+
+### **What is captured?**
+*   **Actor:** The username or Agent ID that performed the action.
+*   **Action:** Specific event type (e.g., `LOGIN`, `PRINT_JOB`, `USER_CREATE`, `PRINTER_OFFLINE`).
+*   **Resource ID:** The specific printer, user, or job affected.
+*   **Patient ID:** (For print jobs) The encrypted identifier of the patient whose record was printed.
+*   **IP Address:** The network location of the actor.
+*   **Status:** Whether the action succeeded or failed.
+*   **Details:** Expanded JSON metadata for technical debugging.
+
+---
+
+## 📄 Intelligent Document Processing
 *   **Dynamic Conversion:** Automatically converts clinical documents (DOCX/PDF) into high-fidelity print streams.
 *   **ZPL Support:** Direct-to-hardware ZPL (Zebra Programming Language) support for millimetre-perfect barcode label printing.
 
