@@ -1157,7 +1157,11 @@ def get_agent_jobs(agent_id: str, token: str, location_id: str = None):
         
         # 🔹 2. Atomic Lease Mechanism
         # Fetch jobs that are Pending OR have a timed-out lease (older than 2 mins)
-        cur.execute(f"BEGIN TRANSACTION")
+        from config import settings
+        if getattr(settings, "db_type", "sqlite") == "sqlite":
+            cur.execute("BEGIN IMMEDIATE")
+        else:
+            cur.execute("BEGIN")
         try:
             reclaim_threshold = datetime.now(timezone.utc).timestamp() - 300 # 5 mins
             
@@ -1316,6 +1320,9 @@ def test_alert(current_user: dict = Depends(require_admin)):
 def fail_agent_job(job_id: int, agent_id: str, token: str, error: str):
     conn = get_connection()
     cur = get_cursor(conn)
+    from config import settings
+    if getattr(settings, "db_type", "sqlite") == "sqlite":
+        cur.execute("BEGIN IMMEDIATE")
     placeholder = get_placeholder()
     # Security
     cur.execute(f"SELECT id FROM agents WHERE agent_id={placeholder} AND token={placeholder}", (agent_id, token))
@@ -1351,6 +1358,9 @@ def fail_agent_job(job_id: int, agent_id: str, token: str, error: str):
 def get_agent_job_file(job_id: int, agent_id: str, token: str):
     conn = get_connection()
     cur = get_cursor(conn)
+    from config import settings
+    if getattr(settings, "db_type", "sqlite") == "sqlite":
+        cur.execute("BEGIN IMMEDIATE")
     placeholder = get_placeholder()
     # 🔹 1. Validate Agent Token & Job Ownership
     cur.execute(f"""
@@ -1383,6 +1393,9 @@ def get_agent_job_file(job_id: int, agent_id: str, token: str):
 def agent_heartbeat(agent_id: str, token: str, location_id: str = None, hostname: str = None):
     conn = get_connection()
     cur = get_cursor(conn)
+    from config import settings
+    if getattr(settings, "db_type", "sqlite") == "sqlite":
+        cur.execute("BEGIN IMMEDIATE")
     placeholder = get_placeholder()
     
     # 1. Token Check
@@ -1529,6 +1542,9 @@ def register_agent(request: Request, data: AgentRegisterRequest):
 def get_agent_config(agent_id: str, token: str, location_id: str = None):
     conn = get_connection()
     cur = get_cursor(conn)
+    from config import settings
+    if getattr(settings, "db_type", "sqlite") == "sqlite":
+        cur.execute("BEGIN IMMEDIATE")
     placeholder = get_placeholder()
     
     # 1. Token Check / Registration
@@ -1574,6 +1590,9 @@ def get_agent_config(agent_id: str, token: str, location_id: str = None):
 def confirm_agent_job(job_id: int, agent_id: str, token: str):
     conn = get_connection()
     cur = get_cursor(conn)
+    from config import settings
+    if getattr(settings, "db_type", "sqlite") == "sqlite":
+        cur.execute("BEGIN IMMEDIATE")
     placeholder = get_placeholder()
 
     try:
