@@ -1,14 +1,16 @@
 from uuid import uuid4
 from datetime import datetime
-from database import get_connection
+from database import get_connection, get_cursor, get_placeholder
 
 def patient_id_exists(patient_id):
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT 1 FROM print_jobs WHERE patient_id=? LIMIT 1", (patient_id,))
+    cur = get_cursor(conn)
+    placeholder = get_placeholder()
+    cur.execute(f"SELECT 1 FROM print_jobs WHERE patient_id={placeholder} LIMIT 1", (patient_id,))
     exists = cur.fetchone() is not None
     conn.close()
     return exists
+
 
 def generate_patient_id():
     while True:

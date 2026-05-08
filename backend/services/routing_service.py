@@ -1,4 +1,7 @@
-from database import get_connection, utcnow, JobStatus, safe_delete
+from database import (
+    get_connection, get_cursor, get_placeholder, get_row_value, 
+    utcnow, JobStatus, safe_delete
+)
 from services.printer_service import check_printer, send_to_printer
 from services.document_service import process_document
 from services.utils import is_usb_trusted
@@ -14,8 +17,9 @@ def fetch_mapping(location_id):
         return None
     conn = get_connection()
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM mapping WHERE external_id=?", (str(location_id),))
+        cur = get_cursor(conn)
+        placeholder = get_placeholder()
+        cur.execute(f"SELECT * FROM mapping WHERE external_id={placeholder}", (str(location_id),))
         row = cur.fetchone()
         return dict(row) if row else None
     finally:
@@ -26,8 +30,9 @@ def fetch_printer(name):
         return None
     conn = get_connection()
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM printers WHERE name=?", (name,))
+        cur = get_cursor(conn)
+        placeholder = get_placeholder()
+        cur.execute(f"SELECT * FROM printers WHERE name={placeholder}", (name,))
         row = cur.fetchone()
         return dict(row) if row else None
     finally:
@@ -47,8 +52,9 @@ def mapping_candidates(mapping, category):
 def log_print_event(job_id, printer, status, message):
     conn = get_connection()
     try:
-        cur = conn.cursor()
-        cur.execute("INSERT INTO print_logs (job_id, printer, status, message, time) VALUES (?, ?, ?, ?, ?)",
+        cur = get_cursor(conn)
+        placeholder = get_placeholder()
+        cur.execute(f"INSERT INTO print_logs (job_id, printer, status, message, time) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})",
                     (job_id, printer, status, message, utcnow()))
         conn.commit()
     finally:
@@ -57,17 +63,18 @@ def log_print_event(job_id, printer, status, message):
 def mark_job(job_id, status, printer=None, route_type=None):
     conn = get_connection()
     try:
-        cur = conn.cursor()
-        fields = ["status=?"]
+        cur = get_cursor(conn)
+        placeholder = get_placeholder()
+        fields = [f"status={placeholder}"]
         params = [status]
         if printer is not None:
-            fields.append("printer=?")
+            fields.append(f"printer={placeholder}")
             params.append(printer)
         if route_type is not None:
-            fields.append("type=?")
+            fields.append(f"type={placeholder}")
             params.append(route_type)
         params.append(job_id)
-        cur.execute(f"UPDATE print_jobs SET {', '.join(fields)} WHERE id=?", params)
+        cur.execute(f"UPDATE print_jobs SET {', '.join(fields)} WHERE id={placeholder}", params)
         conn.commit()
     finally:
         conn.close()
@@ -75,21 +82,24 @@ def mark_job(job_id, status, printer=None, route_type=None):
 def get_job_retry(job_id):
     conn = get_connection()
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT retry_count FROM print_jobs WHERE id=?", (job_id,))
+        cur = get_cursor(conn)
+        placeholder = get_placeholder()
+        cur.execute(f"SELECT retry_count FROM print_jobs WHERE id={placeholder}", (job_id,))
         row = cur.fetchone()
-        return row["retry_count"] if row else 0
+        return get_row_value(row, "retry_count", 0) or 0
     finally:
         conn.close()
 
 def mark_job_retry(job_id, retry_count):
     conn = get_connection()
     try:
-        cur = conn.cursor()
-        cur.execute("UPDATE print_jobs SET retry_count=? WHERE id=?", (retry_count, job_id))
+        cur = get_cursor(conn)
+        placeholder = get_placeholder()
+        cur.execute(f"UPDATE print_jobs SET retry_count={placeholder} WHERE id={placeholder}", (retry_count, job_id))
         conn.commit()
     finally:
         conn.close()
+
 
 def print_with_failover(job_id, location_id, category, payload):
     """
