@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     
     # ── Infrastructure ────────────────────────────────
     database_path: str = "printers.db"
+    db_type: str = "sqlite" # or "postgresql"
+    db_host: str = "localhost"
+    db_port: int = 5432
+    db_user: str = "postgres"
+    db_password: str = "password"
+    db_name: str = "printhub"
     database_backup_path: str = "./backups/"
     stale_threshold_seconds: int = 45
 

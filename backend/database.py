@@ -1,4 +1,7 @@
 import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
 from config import settings
 import os
 import shutil
@@ -44,6 +47,20 @@ VALID_STATUSES = {PrinterStatus.ONLINE, PrinterStatus.OFFLINE, PrinterStatus.ERR
 
 # Future: PostgreSQL migration planned. See db_adapter.py (archived) for DBManager stub.
 def get_connection():
+    if settings.db_type == "postgresql":
+        try:
+            conn = psycopg2.connect(
+                host=settings.db_host,
+                port=settings.db_port,
+                user=settings.db_user,
+                password=settings.db_password,
+                dbname=settings.db_name
+            )
+            return conn
+        except Exception as e:
+            logger.error(f"Failed to connect to PostgreSQL: {e}")
+            raise
+            
     db_path = settings.database_path
     conn = sqlite3.connect(db_path, timeout=30) # 🔹 Increased timeout for WAL
     
@@ -57,24 +74,33 @@ def get_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_cursor(conn):
+    if settings.db_type == "postgresql":
+        return conn.cursor(cursor_factory=RealDictCursor)
+    return conn.cursor()
+
+def get_placeholder():
+    return "%s" if settings.db_type == "postgresql" else "?"
+
+
 def init_db():
     conn = get_connection()
     
-    # 🔹 CRITICAL: Checkpoint the WAL on startup.
-    # If the WAL grows too large (e.g. 2MB+) it causes constant "database is locked"
-    # errors. TRUNCATE mode resets the WAL to zero after checkpointing.
-    try:
-        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        logger.info("WAL checkpoint completed on startup.")
-    except Exception as e:
-        logger.warning(f"WAL checkpoint failed (non-fatal): {e}")
+    # SQLite specific checkpointing
+    if settings.db_type == "sqlite":
+        try:
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            logger.info("WAL checkpoint completed on startup.")
+        except Exception as e:
+            logger.warning(f"WAL checkpoint failed (non-fatal): {e}")
     
-    cur = conn.cursor()
+    cur = get_cursor(conn)
+    pk_type = "SERIAL PRIMARY KEY" if settings.db_type == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
 
     # PRINT JOBS
-    cur.execute("""
+    cur.execute(f"""
     CREATE TABLE IF NOT EXISTS print_jobs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {pk_type},
         location TEXT,
         location_id TEXT,
         category TEXT,
@@ -97,9 +123,9 @@ def init_db():
     )
     """)
 
-    cur.execute("""
+    cur.execute(f"""
     CREATE TABLE IF NOT EXISTS print_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {pk_type},
         job_id INTEGER,
         printer TEXT,
         status TEXT,
@@ -109,9 +135,9 @@ def init_db():
     """)
 
     # MAPPING (STRICT ID-FIRST)
-    cur.execute("""
+    cur.execute(f"""
     CREATE TABLE IF NOT EXISTS mapping (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {pk_type},
         location TEXT,
         external_id TEXT UNIQUE,
         a4Primary TEXT,
@@ -122,49 +148,32 @@ def init_db():
     """)
 
     # CATEGORIES
-    cur.execute("""
+    cur.execute(f"""
     CREATE TABLE IF NOT EXISTS categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {pk_type},
         name TEXT
     )
     """)
 
-    cur.execute("""
+    cur.execute(f"""
     CREATE TABLE IF NOT EXISTS printers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {pk_type},
         name TEXT UNIQUE,
         ip TEXT,
         category TEXT,
         status TEXT DEFAULT 'Offline',
         language TEXT DEFAULT 'PS',
-        connection_type TEXT CHECK(connection_type IN ('IP', 'USB')) DEFAULT 'IP',
+        connection_type TEXT DEFAULT 'IP',
         last_updated TEXT,
         last_update_source TEXT,
         location_id TEXT
     )
     """)
 
-    # SAFE MIGRATIONS
-    try: cur.execute("ALTER TABLE printers ADD COLUMN location_id TEXT")
-    except: pass
-
     # LOCATIONS (STRICT ID-FIRST)
-    # Ensure name is not unique, external_id is UNIQUE
-    try:
-        cur.execute("PRAGMA index_list('locations')")
-        indices = cur.fetchall()
-        for idx in indices:
-            cur.execute(f"PRAGMA index_info('{idx['name']}')")
-            cols = cur.fetchall()
-            if any(c['name'] == 'name' for c in cols) and idx['unique'] == 1:
-                cur.execute("DROP TABLE locations")
-                break
-    except:
-        pass
-
-    cur.execute("""
+    cur.execute(f"""
     CREATE TABLE IF NOT EXISTS locations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {pk_type},
         name TEXT,
         block TEXT,
         external_id TEXT UNIQUE
@@ -172,9 +181,9 @@ def init_db():
     """)
 
     # AGENTS
-    cur.execute("""
+    cur.execute(f"""
     CREATE TABLE IF NOT EXISTS agents (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {pk_type},
         agent_id TEXT UNIQUE,
         location_id TEXT,
         status TEXT,
@@ -183,9 +192,9 @@ def init_db():
     )
     """)
 
-    cur.execute("""
+    cur.execute(f"""
     CREATE TABLE IF NOT EXISTS activation_codes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {pk_type},
         code TEXT UNIQUE NOT NULL,
         location_id TEXT NOT NULL,
         used INTEGER DEFAULT 0,
@@ -196,9 +205,9 @@ def init_db():
     """)
 
     # AUDIT LOG (HIPAA)
-    cur.execute("""
+    cur.execute(f"""
     CREATE TABLE IF NOT EXISTS audit_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {pk_type},
         timestamp TEXT NOT NULL,
         actor TEXT NOT NULL,
         actor_type TEXT NOT NULL,
@@ -213,7 +222,7 @@ def init_db():
     """)
 
     # ARCHIVED JOBS (Production Strategy)
-    cur.execute("""
+    cur.execute(f"""
     CREATE TABLE IF NOT EXISTS archived_jobs (
         id INTEGER,
         location TEXT,
@@ -244,27 +253,25 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_jobs_status ON print_jobs(status)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_jobs_location ON print_jobs(location_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_jobs_printer ON print_jobs(printer)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_jobs_status_location ON print_jobs(status, location_id)")
     
     # Print logs
     cur.execute("CREATE INDEX IF NOT EXISTS idx_logs_job_id ON print_logs(job_id)")
     
     # Agents
     cur.execute("CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_agents_last_seen ON agents(last_seen DESC)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_agents_last_seen ON agents(last_seen)")
 
     # Audit log
     cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp DESC)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_patient ON audit_log(patient_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)")
 
     # Activation codes
     cur.execute("CREATE INDEX IF NOT EXISTS idx_codes_used ON activation_codes(used)")
 
     # USERS
-    cur.execute("""
+    cur.execute(f"""
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {pk_type},
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'viewer',
