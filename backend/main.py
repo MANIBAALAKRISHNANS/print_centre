@@ -885,17 +885,19 @@ def get_print_logs(job_id: int, user: dict = Depends(get_current_user)):
 @app.get("/categories")
 def get_categories(user: dict = Depends(get_current_user)):
     conn = get_connection()
-    cur = conn.cursor()
+    cur = get_cursor(conn)
     cur.execute("SELECT name FROM categories")
-    rows = [r["name"] for r in cur.fetchall()]
+    rows = [get_row_value(r, "name", 0) for r in cur.fetchall()]
     conn.close()
     return rows
+
 
 @app.post("/categories")
 def add_category(data: CategoryRequest, admin: dict = Depends(require_admin)):
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO categories (name) VALUES (?)", (data.name,))
+    cur = get_cursor(conn)
+    placeholder = get_placeholder()
+    cur.execute(f"INSERT INTO categories (name) VALUES ({placeholder})", (data.name,))
     conn.commit()
     conn.close()
     log_audit(admin.get("sub", "unknown"), "user", "CREATE_CATEGORY", resource_type="category", resource_id=data.name)
@@ -904,12 +906,14 @@ def add_category(data: CategoryRequest, admin: dict = Depends(require_admin)):
 @app.delete("/categories/{name}")
 def delete_category(name: str, admin: dict = Depends(require_admin)):
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM categories WHERE name=?", (name,))
+    cur = get_cursor(conn)
+    placeholder = get_placeholder()
+    cur.execute(f"DELETE FROM categories WHERE name={placeholder}", (name,))
     conn.commit()
     conn.close()
     log_audit(admin.get("sub", "unknown"), "user", "DELETE_CATEGORY", resource_type="category", resource_id=name)
     return {"message": "Deleted"}
+
 
 @app.post("/print-job")
 def print_job(data: PrintJobRequest):

@@ -1,16 +1,18 @@
-from database import get_connection
+from database import get_connection, get_cursor, get_placeholder
 conn = get_connection()
-cur = conn.cursor()
+cur = get_cursor(conn)
+placeholder = get_placeholder()
 
 # Categories to seed
 default_categories = ["A4", "Barcode"]
 
 for cat in default_categories:
-    cur.execute("SELECT id FROM categories WHERE name=?", (cat,))
+    cur.execute(f"SELECT id FROM categories WHERE name={placeholder}", (cat,))
     if not cur.fetchone():
-        cur.execute("INSERT INTO categories (name) VALUES (?)", (cat,))
+        cur.execute(f"INSERT INTO categories (name) VALUES ({placeholder})", (cat,))
         print(f"Seeded category: {cat}")
 
 conn.commit()
 conn.close()
 print("Category seeding complete")
+
