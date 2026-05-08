@@ -407,8 +407,9 @@ class RoleUpdateRequest(BaseModel):
 @limiter.limit("10/minute")
 def login(request: Request, data: LoginRequest):
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM users WHERE username=?", (data.username,))
+    cur = get_cursor(conn)
+    placeholder = get_placeholder()
+    cur.execute(f"SELECT * FROM users WHERE username={placeholder}", (data.username,))
     row = cur.fetchone()
     conn.close()
     
@@ -416,27 +417,29 @@ def login(request: Request, data: LoginRequest):
         log_audit(data.username, "user", "LOGIN", status="FAILURE", ip_address=request.client.host)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    user = dict(row)
+    # Polymorphic access
+    username = get_row_value(row, "username", 0)
+    db_hash = get_row_value(row, "password_hash", 1) # index 1 usually
+    role = get_row_value(row, "role", 2)
     
-    # Constant-time comparison via verify_password
-    if not verify_password(data.password, user["password_hash"]):
-        log_audit(user["username"], "user", "LOGIN", status="FAILURE", ip_address=request.client.host)
-        # Generic error to prevent username enumeration
+    # Verify password
+    if not verify_password(data.password, db_hash):
+        log_audit(username, "user", "LOGIN", status="FAILURE", ip_address=request.client.host)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    log_audit(user["username"], "user", "LOGIN", status="SUCCESS", ip_address=request.client.host)
-    token = create_token(user["username"], user["role"])
+    log_audit(username, "user", "LOGIN", status="SUCCESS", ip_address=request.client.host)
+    token = create_token(username, role)
     
-    # Update last login — non-critical, must not crash a valid login
+    # Update last login
     try:
         conn = get_connection()
-        conn.execute("UPDATE users SET last_login=? WHERE username=?", (utcnow(), user["username"]))
+        cur = get_cursor(conn)
+        cur.execute(f"UPDATE users SET last_login={placeholder} WHERE username={placeholder}", (utcnow(), username))
         conn.commit()
+        conn.close()
     except Exception as e:
-        logger.warning(f"Could not update last_login for {user['username']}: {e}")
-    finally:
-        try: conn.close()
-        except: pass
+        logger.warning(f"Could not update last_login for {username}: {e}")
+
 
     return {
         "access_token": token,
@@ -452,28 +455,34 @@ def get_me(user: dict = Depends(get_current_user)):
 
 @app.post("/auth/change-password")
 def change_password(data: ChangePasswordRequest, current_user: dict = Depends(get_current_user)):
-    username = current_user["sub"]
+    username = current_user.get("sub") or current_user.get("username")
     conn = get_connection()
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT password_hash FROM users WHERE username=?", (username,))
-        user = cur.fetchone()
+        cur = get_cursor(conn)
+        placeholder = get_placeholder()
+        cur.execute(f"SELECT password_hash FROM users WHERE username={placeholder}", (username,))
+        row = cur.fetchone()
         
-        if not user or not verify_password(data.current_password, user["password_hash"]):
+        db_hash = get_row_value(row, "password_hash", 0)
+        
+        if not db_hash or not verify_password(data.current_password, db_hash):
             conn.close()
             raise HTTPException(401, "Invalid current password")
         
         validate_password_complexity(data.new_password)
         
         new_hash = hash_password(data.new_password)
-        cur.execute("UPDATE users SET password_hash=?, force_password_change=0 WHERE username=?", 
+        cur.execute(f"UPDATE users SET password_hash={placeholder}, force_password_change=0 WHERE username={placeholder}", 
                    (new_hash, username))
         conn.commit()
-    finally:
         conn.close()
-    
-    log_audit(username, "user", "PASSWORD_CHANGE", status="SUCCESS")
-    return {"message": "Password changed successfully"}
+        log_audit(username, "user", "CHANGE_PASSWORD", resource_type="user", resource_id=username)
+        return {"message": "Password changed successfully"}
+    except Exception as e:
+        if conn: conn.close()
+        if isinstance(e, HTTPException): raise e
+        logger.error(f"Password change error: {e}")
+        raise HTTPException(500, str(e))
 
 # ━━━ USER MANAGEMENT (ADMIN ONLY) ━━━
 
