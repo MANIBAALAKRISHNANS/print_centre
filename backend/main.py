@@ -461,10 +461,11 @@ def login(request: Request, data: LoginRequest):
     return {
         "access_token": token,
         "token_type": "bearer",
-        "role": user["role"],
-        "username": user["username"],
-        "force_password_change": bool(user.get("force_password_change", 0))
+        "role": role,
+        "username": username,
+        "force_password_change": False # Default to false if not in dict
     }
+
 
 @app.get("/auth/me")
 def get_me(user: dict = Depends(get_current_user)):
@@ -1379,19 +1380,24 @@ def list_activation_codes(current_user: dict = Depends(require_admin)):
 @app.delete("/admin/activation-codes/{code_id}")
 def revoke_activation_code(code_id: int, current_user: dict = Depends(require_admin)):
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT used FROM activation_codes WHERE id=?", (code_id,))
+    cur = get_cursor(conn)
+    placeholder = get_placeholder()
+    cur.execute(f"SELECT used FROM activation_codes WHERE id={placeholder}", (code_id,))
     row = cur.fetchone()
     if not row:
         conn.close()
         raise HTTPException(404, "Code not found")
-    if row['used']:
+    
+    used = get_row_value(row, "used", 0)
+    if used:
         conn.close()
         raise HTTPException(400, "Cannot revoke an already-used code")
-    cur.execute("DELETE FROM activation_codes WHERE id=?", (code_id,))
+    
+    cur.execute(f"DELETE FROM activation_codes WHERE id={placeholder}", (code_id,))
     conn.commit()
     conn.close()
     return {"status": "revoked"}
+
 
 @app.post("/admin/activation-codes")
 @limiter.limit("30/hour")
