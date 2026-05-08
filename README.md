@@ -239,7 +239,8 @@ On the destination workstation:
 | :--- | :--- |
 | **"Failed to Fetch"** | Ensure the Backend is running on `127.0.0.1:8000` and check CORS settings in `main.py`. |
 | **"ModuleNotFoundError: wmi"** | Ensure you are running the agent with the virtual environment: `.\venv\Scripts\python.exe agent.py`. |
-| **Printer shows "Offline"** | Verify the USB connection. Check `debug_wmi.py` to see the hardware-level state reporting. |
+| **"WinError 10013"** | Port 8000 is blocked or in use. Run the terminal as **Administrator** or kill the process using `netstat -ano \| findstr :8000`. |
+| **"Connection Timeout"** | The server is not listening on `0.0.0.0` or Windows Firewall is blocking Port 8000. |
 | **DOCX/PDF failing** | Verify LibreOffice (`soffice`) is installed and available in the terminal by typing `soffice --version`. |
 
 ---
