@@ -3,7 +3,7 @@ import zipfile
 
 def zip_folder(folder_path, output_path):
     # Folders and files to exclude
-    exclude = {'venv', '__pycache__', 'agent_config.json', '.git', '.venv'}
+    exclude = {'venv', '__pycache__', 'agent_config.json', '.git', '.venv', 'PrintHub_Agent.zip'}
     
     with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(folder_path):
