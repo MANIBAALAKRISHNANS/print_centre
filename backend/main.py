@@ -73,20 +73,24 @@ def health_check():
     # 1. Database check
     try:
         conn = get_connection()
-        conn.execute("SELECT 1")
+        cur = get_cursor(conn)
+        cur.execute("SELECT 1")
         conn.close()
         checks["database"] = "ok"
     except Exception as e:
         checks["database"] = f"error: {str(e)}"
         overall = "critical"
+
     
     # 2. Active agents check
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cur = get_cursor(conn)
         cur.execute("SELECT COUNT(*) FROM agents WHERE status='Online'")
-        online_agents = cur.fetchone()[0]
+        row = cur.fetchone()
+        online_agents = get_row_value(row, 'count', 0) or 0
         conn.close()
+
         checks["agents_online"] = online_agents
         if online_agents == 0:
             checks["agents_warning"] = "No agents online"
@@ -98,9 +102,11 @@ def health_check():
     # 3. Stuck jobs check
     try:
         conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM print_jobs WHERE status IN ('Printing', 'Agent Printing')")
-        stuck = cur.fetchone()[0]
+        cur = get_cursor(conn)
+        cur.execute("SELECT COUNT(*) FROM print_jobs WHERE status='Printing' AND locked_at < ?", 
+                    ((datetime.now(timezone.utc) - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S UTC"),))
+        row = cur.fetchone()
+        stuck = get_row_value(row, 'count', 0) or 0
         conn.close()
         checks["stuck_jobs"] = stuck
         if stuck > 10:
@@ -595,28 +601,29 @@ def get_dashboard(user: dict = Depends(get_current_user)):
 
     conn = get_connection()
     try:
-        cur = conn.cursor()
+        cur = get_cursor(conn)
         
         cur.execute("SELECT COUNT(*) FROM printers")
-        total = cur.fetchone()[0]
+        total = get_row_value(cur.fetchone(), 'count', 0) or 0
         
         cur.execute("SELECT COUNT(*) FROM printers WHERE status='Online'")
-        live = cur.fetchone()[0]
+        live = get_row_value(cur.fetchone(), 'count', 0) or 0
         
         cur.execute("SELECT COUNT(*) FROM printers WHERE status='Offline'")
-        offline = cur.fetchone()[0]
+        offline = get_row_value(cur.fetchone(), 'count', 0) or 0
         
         cur.execute("SELECT COUNT(*) FROM print_jobs")
-        job_total = cur.fetchone()[0]
+        job_total = get_row_value(cur.fetchone(), 'count', 0) or 0
         
         cur.execute("SELECT COUNT(*) FROM print_jobs WHERE status='Completed'")
-        job_completed = cur.fetchone()[0]
+        job_completed = get_row_value(cur.fetchone(), 'count', 0) or 0
         
         cur.execute("SELECT COUNT(*) FROM print_jobs WHERE status='Failed'")
-        job_failed = cur.fetchone()[0]
+        job_failed = get_row_value(cur.fetchone(), 'count', 0) or 0
         
         cur.execute("SELECT COUNT(*) FROM print_jobs WHERE retry_count > 0")
-        job_retried = cur.fetchone()[0]
+        job_retried = get_row_value(cur.fetchone(), 'count', 0) or 0
+
 
         cur.execute("""
             SELECT printer, 
@@ -1152,29 +1159,33 @@ def get_audit_logs(
         params.append(to_date)
         
     # Total count
-    cur.execute(query.replace("SELECT *", "SELECT COUNT(*)"), params)
-    total = cur.fetchone()[0]
+    placeholder = get_placeholder()
+    count_query = query.replace("SELECT *", "SELECT COUNT(*)").replace("?", placeholder)
+    cur.execute(count_query, params)
+    total = get_row_value(cur.fetchone(), 'count', 0) or 0
     
-    query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+    final_query = query.replace("?", placeholder) + " ORDER BY timestamp DESC LIMIT " + placeholder + " OFFSET " + placeholder
     params.extend([limit, offset])
-    cur.execute(query, params)
+    cur.execute(final_query, params)
     logs = [dict(row) for row in cur.fetchall()]
     conn.close()
     return {"logs": logs, "total": total}
 
+
 @app.get("/admin/archive-stats")
 def get_archive_stats(current_user: dict = Depends(require_admin)):
     conn = get_connection()
-    cur = conn.cursor()
+    cur = get_cursor(conn)
     
     cur.execute("SELECT COUNT(*) FROM print_jobs")
-    active_count = cur.fetchone()[0]
+    active_count = get_row_value(cur.fetchone(), 'count', 0) or 0
     
     cur.execute("SELECT COUNT(*) FROM archived_jobs")
-    archived_count = cur.fetchone()[0]
+    archived_count = get_row_value(cur.fetchone(), 'count', 0) or 0
     
     cur.execute("SELECT MIN(time) FROM print_jobs")
-    oldest_job = cur.fetchone()[0]
+    oldest_job = get_row_value(cur.fetchone(), 'min', 0)
+
     
     db_size = os.path.getsize(settings.database_path) / (1024 * 1024) # MB
     

@@ -46,6 +46,23 @@ class PrinterStatus:
 VALID_STATUSES = {PrinterStatus.ONLINE, PrinterStatus.OFFLINE, PrinterStatus.ERROR}
 
 # Future: PostgreSQL migration planned. See db_adapter.py (archived) for DBManager stub.
+def get_row_value(row, key, index=0):
+    """🔹 Helper to extract a value from a row regardless of DB type (dict or tuple)"""
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        # Case insensitive check for Postgres vs SQLite keys
+        val = row.get(key)
+        if val is None:
+            val = row.get(key.lower())
+        if val is None:
+            val = row.get(key.upper())
+        return val
+    try:
+        return row[index]
+    except:
+        return None
+
 def get_connection():
     if settings.db_type == "postgresql":
         try:
@@ -62,15 +79,9 @@ def get_connection():
             raise
             
     db_path = settings.database_path
-    conn = sqlite3.connect(db_path, timeout=30) # 🔹 Increased timeout for WAL
-    
-    # 🔹 PRODUCTION OPTIMIZATIONS (WAL MODE)
+    conn = sqlite3.connect(db_path, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA cache_size=-64000")  # 64MB cache
-    conn.execute("PRAGMA temp_store=MEMORY")
-    conn.execute("PRAGMA busy_timeout=5000")  # 5s busy wait instead of instant fail
-    
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -81,6 +92,7 @@ def get_cursor(conn):
 
 def get_placeholder():
     return "%s" if settings.db_type == "postgresql" else "?"
+
 
 
 def init_db():
@@ -371,46 +383,49 @@ def init_db():
 
 def seed_admin(username, password_hash):
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM users WHERE username=?", (username,))
-    if not cur.fetchone():
-        cur.execute("""
+    cur = get_cursor(conn)
+    placeholder = get_placeholder()
+    cur.execute(f"SELECT COUNT(*) FROM users WHERE username={placeholder}", (username,))
+    row = cur.fetchone()
+    count = get_row_value(row, 'count', 0) or 0
+    if count == 0:
+        cur.execute(f"""
             INSERT INTO users (username, password_hash, role, created_at)
-            VALUES (?, ?, 'admin', ?)
+            VALUES ({placeholder}, {placeholder}, 'admin', {placeholder})
         """, (username, password_hash, utcnow()))
         conn.commit()
     conn.close()
 
+
 def archive_old_jobs(days_to_keep: int = 30):
     """Move completed/failed jobs to archive to keep print_jobs table lean."""
     conn = get_connection()
-    cur = conn.cursor()
+    cur = get_cursor(conn)
+    placeholder = get_placeholder()
     try:
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days_to_keep)).strftime("%Y-%m-%d %H:%M:%S UTC")
         
-        # Start Transaction
-        cur.execute("BEGIN TRANSACTION")
-        
         # 1. Copy to archive
-        cur.execute("""
+        cur.execute(f"""
             INSERT INTO archived_jobs 
-            SELECT *, ? FROM print_jobs 
+            SELECT *, {placeholder} FROM print_jobs 
             WHERE status IN ('Completed', 'Failed', 'Failed Agent')
-            AND time < ?
+            AND time < {placeholder}
         """, (utcnow(), cutoff))
         
         deleted = cur.rowcount
         
         # 2. Delete from active table
-        cur.execute("""
+        cur.execute(f"""
             DELETE FROM print_jobs 
             WHERE status IN ('Completed', 'Failed', 'Failed Agent')
-            AND time < ?
+            AND time < {placeholder}
         """, (cutoff,))
         
         conn.commit()
         logger.info(f"[ARCHIVE] Successfully moved {deleted} jobs to archived_jobs table.")
         return deleted
+
     except Exception as e:
         conn.rollback()
         logger.error(f"[ARCHIVE ERROR] {e}")
