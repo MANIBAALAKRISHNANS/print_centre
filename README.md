@@ -180,6 +180,41 @@ Once activated, the agent uses its unique ID and Token for every request:
 
 ---
 
+## 🌐 Remote Deployment Guide
+
+To run the Backend on a central server and the Print Agent on nursing workstations:
+
+### **1. Server Preparation**
+1.  Run the Backend on your central server.
+2.  Find the server's local IP address (Run `ipconfig` on Windows or `ifconfig` on Linux).
+3.  Ensure the server's firewall allows incoming traffic on port **8000**.
+
+### **2. Agent Deployment**
+1.  **Package the Agent:** Zip the `/agent` folder from this repository.
+2.  **Transfer:** Move `agent.zip` to the destination workstation.
+3.  **Extract:** Unzip to a location like `C:\PrintAgent`.
+
+### **3. Remote Setup**
+On the destination workstation:
+1.  **Install Python 3.10+**.
+2.  **Initialize Environment:**
+    ```powershell
+    python -m venv venv
+    .\venv\Scripts\activate
+    pip install -r requirements.txt
+    ```
+3.  **Activate & Connect:**
+    *(Replace `192.168.1.50` with your Server's IP)*
+    ```powershell
+    python agent_setup.py --code YOUR_CODE --server http://192.168.1.50:8000
+    ```
+4.  **Launch:**
+    ```powershell
+    python agent.py
+    ```
+
+---
+
 ## 🛠️ Common Troubleshooting
 
 | Issue | Solution |

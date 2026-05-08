@@ -35,14 +35,20 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger("PrintAgent")
 
 # 🔹 Configuration
-SERVER_URL = os.environ.get("SERVER_URL", "http://127.0.0.1:8000")
+# First try config file, then environment variable, then default localhost
+_config = load_config()
+SERVER_URL = _config.get("server_url") or os.environ.get("SERVER_URL", "http://127.0.0.1:8000")
 
 def ensure_registered():
     config = load_config()
+    # Update global SERVER_URL if it's found in the config (case where it's saved after setup)
+    global SERVER_URL
+    if config.get("server_url"):
+        SERVER_URL = config["server_url"]
     
     # 1. Already registered
     if config.get("agent_id") and config.get("token"):
-        logger.info(f"[AGENT] Loaded credentials for {config['agent_id']}")
+        logger.info(f"[AGENT] Loaded credentials for {config['agent_id']} connecting to {SERVER_URL}")
         return config["agent_id"], config["token"], config.get("location_id", "")
     
     # 2. Check for pending activation code written by setup tool
