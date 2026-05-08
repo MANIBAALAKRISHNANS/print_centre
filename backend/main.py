@@ -1738,12 +1738,13 @@ def cleanup_logs(days: int = 30, admin_token: str = None):
     cur = get_cursor(conn)
     placeholder = get_placeholder()
     # Calculate threshold based on current time
-    threshold_dt = datetime.now(timezone.utc).timestamp() - (days * 86400)
+    threshold_dt = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff_str = threshold_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
     
     # Logs use utcnow() which is formatted string. We need to handle comparison.
     # Simplified: DELETE WHERE time < (current_time - days)
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S UTC")
-    cur.execute(f"DELETE FROM print_logs WHERE time < {placeholder}", (cutoff,))
+    # Using python date functions ensures polymorphic compatibility.
+    cur.execute(f"DELETE FROM print_logs WHERE time < {placeholder}", (cutoff_str,))
     count = cur.rowcount
     conn.commit()
     conn.close()
@@ -1830,10 +1831,10 @@ def monitor_loop():
             conn = get_connection()
             cur = get_cursor(conn)
             placeholder = get_placeholder()
-            cutoff = (datetime.now(timezone.utc) - timedelta(seconds=settings.stale_threshold_seconds)).strftime("%Y-%m-%d %H:%M:%S UTC")
             
             # 1. HEARTBEAT ENFORCEMENT (Mark agents Offline if > threshold)
-            cur.execute(f"SELECT agent_id, hostname, location_id FROM agents WHERE status='Online' AND last_seen < {placeholder}", (cutoff,))
+            stale_cutoff = (datetime.now(timezone.utc) - timedelta(seconds=settings.stale_threshold_seconds)).strftime("%Y-%m-%d %H:%M:%S UTC")
+            cur.execute(f"SELECT agent_id, hostname, location_id FROM agents WHERE status='Online' AND last_seen < {placeholder}", (stale_cutoff,))
             dead_agents = cur.fetchall()
             for agent in dead_agents:
                 logger.warning(f"Agent {agent['agent_id']} TIMED OUT. Marking Offline.")
@@ -1849,7 +1850,7 @@ def monitor_loop():
                 SELECT name, location_id FROM printers 
                 WHERE connection_type='USB' AND status='Online'
                 AND last_updated < {placeholder}
-            """, (cutoff,))
+            """, (stale_cutoff,))
             timed_out = cur.fetchall()
             for p in timed_out:
                 logger.warning(f"TIMEOUT: USB Printer '{p['name']}' stale (>45s). Marking Offline.")
