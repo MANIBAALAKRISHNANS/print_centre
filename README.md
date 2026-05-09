@@ -1,6 +1,6 @@
 # PrintHub — Clinical-Grade Hospital Print Management System
 
-**PrintHub** is a production-level, high-reliability hybrid printing infrastructure designed for modern hospital environments. It connects a central FastAPI server to local USB and network printers across multiple nursing workstations, with a full React admin dashboard, HIPAA-compliant audit logging, and cross-platform print agents (Windows & macOS).
+**PrintHub** is a production-level, real-time hospital print management infrastructure. It connects a central FastAPI backend to local USB and network printers across nursing workstations via persistent WebSocket agent connections — delivering near-instant job execution instead of polling delays. Includes a full React admin dashboard, HIPAA-compliant audit logging, and cross-platform agents for Windows & macOS.
 
 ---
 
@@ -14,7 +14,7 @@
    - [Frontend Setup](#2-frontend-setup)
 5. [Agent Installation — Windows](#agent-installation--windows)
 6. [Agent Installation — macOS](#agent-installation--macos)
-7. [How the Agent Connects to the Server](#how-the-agent-connects-to-the-server)
+7. [How the Agent Connects to the Server (Real-time)](#how-the-agent-connects-to-the-server)
 8. [Firewall Configuration](#firewall-configuration)
 9. [PostgreSQL Setup](#postgresql-setup)
 10. [Environment Variables Reference](#environment-variables-reference)
@@ -30,34 +30,44 @@
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     HOSPITAL NETWORK                            │
-│                                                                 │
-│  ┌──────────────────┐        ┌──────────────────────────────┐  │
-│  │   React Frontend │◄──WS──►│    FastAPI Backend           │  │
-│  │   (Admin UI)     │◄─HTTP─►│    + PostgreSQL Pool         │  │
-│  │   Port 5173      │        │    + APScheduler             │  │
-│  └──────────────────┘        │    Port 8000                 │  │
-│                               └──────────┬───────────────────┘  │
-│                                          │ REST API (outbound)  │
-│                               ┌──────────▼───────────────────┐  │
-│                               │  Print Agents (Windows/Mac)  │  │
-│                               │  Polling /agents/poll        │  │
-│                               │  every 8 seconds             │  │
-│                               └──────────┬───────────────────┘  │
-│                                          │ USB / LAN            │
-│                               ┌──────────▼───────────────────┐  │
-│                               │  Physical Printers           │  │
-│                               │  USB + Network               │  │
-│                               └──────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                        HOSPITAL NETWORK                             │
+│                                                                     │
+│  ┌──────────────────┐         ┌──────────────────────────────────┐ │
+│  │  React Dashboard │◄──WS───►│  FastAPI Backend                 │ │
+│  │  (Admin UI)      │◄─HTTP──►│  + PostgreSQL Pool               │ │
+│  │  Port 5173       │         │  + APScheduler                   │ │
+│  └──────────────────┘         │  Port 8000                       │ │
+│                                └──────────┬───────────────────────┘ │
+│                                           │                         │
+│              ┌────────────────────────────┤                         │
+│              │ /ws/agent (WebSocket)       │ /agent/jobs (HTTP)     │
+│              │ instant job push            │ 30s safety-net poll    │
+│              ▼                             ▼                         │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │            Print Agents  (Windows / macOS)                    │  │
+│  │                                                               │  │
+│  │  ┌──────────────────┐    ┌──────────────────────────────────┐ │  │
+│  │  │  WebSocket Thread│    │  Main Poll Loop                  │ │  │
+│  │  │  (daemon)        │    │  _job_trigger.wait(timeout=30s)  │ │  │
+│  │  │  on job_available│───►│  Wakes immediately on WS push    │ │  │
+│  │  │  → sets trigger  │    │  Falls back to 30s poll if WS    │ │  │
+│  │  └──────────────────┘    │  is temporarily disconnected     │ │  │
+│  │                           └──────────────────────────────────┘ │  │
+│  └────────────────────────────────────────┬──────────────────────┘  │
+│                                           │ USB / Network            │
+│                               ┌───────────▼──────────────┐          │
+│                               │  Physical Printers       │          │
+│                               │  USB + Network           │          │
+│                               └──────────────────────────┘          │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Data Flow:**
-1. Clinical staff submits print job via React UI → FastAPI queues job in PostgreSQL
-2. Print agent polls `/agents/poll` → receives pending job → sends to local printer
-3. Agent reports result via `/agents/report` → FastAPI updates DB + broadcasts WebSocket event
-4. React dashboard receives WebSocket event → updates in real-time (no page refresh needed)
+**Why Real-time WebSocket for Agents?**
+- **Before**: Agent polled `/agent/jobs` every 5 seconds → up to 5s delay before printing starts
+- **Now**: Server pushes `job_available` via `/ws/agent` → agent wakes in milliseconds
+- **Safety-net**: If WebSocket disconnects, agent falls back to 30s HTTP polling automatically
+- **No inbound ports**: Agent initiates outbound WS connection — firewall rules unchanged
 
 ---
 
@@ -66,36 +76,33 @@
 | Layer | Technology |
 |---|---|
 | **Backend** | Python 3.11+, FastAPI, APScheduler, psycopg2 |
-| **Database** | PostgreSQL 14+ (with ThreadedConnectionPool) |
+| **Database** | PostgreSQL 14+ (ThreadedConnectionPool) |
 | **Frontend** | React 18, Vite, React Router v6 |
-| **Real-time** | WebSocket (native FastAPI + custom React hook) |
-| **Auth** | JWT (HS256), HTTP-only cookie session |
-| **Agent (Windows)** | Python 3.11+, win32print, pywin32, WMI |
-| **Agent (macOS)** | Python 3.11+, CUPS via lpstat/lp subprocess |
-| **Process Manager** | Windows: NSSM service / Task Scheduler; macOS: launchd plist |
-| **Styling** | Pure CSS (no Tailwind), CSS custom properties |
+| **Real-time (Dashboard)** | WebSocket `/ws` — dashboard clients |
+| **Real-time (Agents)** | WebSocket `/ws/agent` — print agents |
+| **Auth** | JWT (HS256), HTTP-only cookie |
+| **Agent (Windows)** | Python 3.11+, win32print, pywin32, WMI, websocket-client |
+| **Agent (macOS)** | Python 3.11+, CUPS (lpstat/lp), websocket-client |
+| **Service (Windows)** | pywin32 Windows Service (`agent_service.py`) |
+| **Service (macOS)** | launchd plist (`install_agent.sh`) |
+| **Service (Linux)** | systemd unit (`install_agent.sh`) |
 
 ---
 
 ## Prerequisites
 
-Install these on **every machine** (server + workstations):
+Install on **every machine** (server + workstations):
 
 - **Python 3.11+** — [python.org/downloads](https://www.python.org/downloads/)
 - **Node.js 18+** — [nodejs.org](https://nodejs.org/)
 - **PostgreSQL 14+** — [postgresql.org/download](https://www.postgresql.org/download/)
 - **Git** — [git-scm.com](https://git-scm.com/)
 
-On Windows workstations (agent only):
-- **pywin32** (installed automatically by agent installer)
-
 ---
 
 ## Step-by-Step: Running the Project
 
 ### 1. Backend Setup
-
-> Run these commands on your **server machine** (the machine running the FastAPI backend).
 
 **Step 1 — Clone the repository:**
 ```bash
@@ -114,14 +121,12 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-**Step 3 — Install Python dependencies:**
+**Step 3 — Install dependencies:**
 ```bash
 pip install -r backend/requirements.txt
 ```
 
-**Step 4 — Configure environment variables:**
-
-Create a file called `.env` inside the `backend/` folder:
+**Step 4 — Create `backend/.env`:**
 ```env
 DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/printhub
 SECRET_KEY=your-very-long-random-secret-key-change-this
@@ -131,8 +136,7 @@ STALE_THRESHOLD_SECONDS=45
 PG_POOL_MIN=2
 PG_POOL_MAX=20
 ```
-
-> Generate a strong SECRET_KEY with: `python -c "import secrets; print(secrets.token_hex(32))"`
+> Generate `SECRET_KEY`: `python -c "import secrets; print(secrets.token_hex(32))"`
 
 **Step 5 — Initialize the database:**
 ```bash
@@ -140,95 +144,56 @@ cd backend
 python init_db.py
 ```
 
-This creates all tables and seeds the default admin user.
-
-**Step 6 — Start the backend server:**
+**Step 6 — Start the backend:**
 ```bash
-# From the backend/ directory
+# Development
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-# Production (no --reload):
+# Production
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-The API is now running at `http://YOUR_SERVER_IP:8000`
-
-> Verify it works: open `http://localhost:8000/health` in your browser — you should see `{"status":"ok",...}`
+Verify: `http://localhost:8000/health` → `{"status":"ok", "ws_agents": 0, ...}`
 
 ---
 
 ### 2. Frontend Setup
 
-> Run these commands on the **same machine** as the backend (or any machine on the same network).
-
-**Step 1 — Navigate to the frontend directory:**
+**Step 1 — Install Node.js dependencies:**
 ```bash
 cd frontend
-```
-
-**Step 2 — Install Node.js dependencies:**
-```bash
 npm install
 ```
 
-**Step 3 — Configure the API URL:**
-
-Create a file called `.env` inside the `frontend/` folder:
+**Step 2 — Create `frontend/.env`:**
 ```env
 VITE_API_URL=http://YOUR_SERVER_IP:8000
 ```
 
-Replace `YOUR_SERVER_IP` with the actual IP address of your backend server (e.g., `192.168.1.100`).
-
-For local development:
-```env
-VITE_API_URL=http://127.0.0.1:8000
-```
-
-**Step 4 — Start the development server:**
+**Step 3 — Start the dev server:**
 ```bash
 npm run dev
 ```
 
-The dashboard is now at `http://localhost:5173`
+Dashboard at `http://localhost:5173`
 
-**Step 5 — Build for production (optional):**
+**Step 4 — Production build:**
 ```bash
 npm run build
-# Serve the dist/ folder with nginx or any static host
+# Serve frontend/dist/ with nginx or any static host
 ```
 
 ---
 
 ## Agent Installation — Windows
 
-> Perform these steps on **each Windows workstation** that has a printer attached.
+> Run on each **Windows workstation** connected to a printer.
 
-### Prerequisites
-- Python 3.11+ installed and added to PATH
-- The workstation can reach the server on port 8000 (check firewall)
+### Quick Install (Recommended)
 
-### Step-by-Step Installation
+**Step 1 — Extract `PrintHub_Agent.zip` to `C:\PrintHubAgent\`.**
 
-**Step 1 — Copy the agent to the workstation.**
-
-Option A — USB drive: Copy `PrintHub_Agent.zip` to the workstation and extract to `C:\PrintHubAgent\`
-
-Option B — Network share: Copy from `\\SERVER\share\PrintHub_Agent.zip`
-
-After extraction you should have:
-```
-C:\PrintHubAgent\
-  agent.py
-  agent_config.py
-  agent_setup.py
-  requirements.txt
-  install_agent.bat
-```
-
-**Step 2 — Open Command Prompt as Administrator.**
-
-Press `Win + R`, type `cmd`, press `Ctrl+Shift+Enter`.
+**Step 2 — Open Command Prompt as Administrator** (`Win+R` → `cmd` → `Ctrl+Shift+Enter`).
 
 **Step 3 — Run the installer:**
 ```cmd
@@ -237,118 +202,97 @@ install_agent.bat
 ```
 
 The installer will:
-- Check Python is installed
-- Install Python packages (`requests`, `pywin32`, `wmi`, `urllib3`)
-- Prompt you for the server URL (`http://SERVER_IP:8000`)
-- Prompt you for a registration code (get this from the admin dashboard under **Agents → Generate Code**)
-- Save config securely to `C:\PrintHubAgent\agent_config.json`
-- Install the agent as a **Windows Service** using Task Scheduler
+1. Check Python 3.11+ is installed
+2. Create a virtual environment and install all dependencies (including `websocket-client`)
+3. Prompt for server IP, port, HTTPS option, and activation code
+4. Install the agent as a **Windows Service** (`PrintHubAgent`) that auto-starts on boot
 
-**Step 4 — Verify the agent registered.**
+**Step 4 — Verify** in the PrintHub dashboard → **Agents** → should show "Connected" within 15 seconds.
 
-In the PrintHub admin dashboard, go to **Agents**. Within 30 seconds you should see a new agent appear with status "Connected" showing this workstation's hostname.
+### Manual Install
 
-**Step 5 — (Optional) Run manually to see logs:**
 ```cmd
 cd C:\PrintHubAgent
-python agent.py
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+
+:: First-time setup
+python agent_setup.py --code A3F9B2C1 --server http://192.168.1.50:8000
+
+:: Install and start service
+python agent_service.py --startup auto install
+python agent_service.py start
 ```
 
-Logs are written to `C:\PrintHubAgent\agent.log` (rotating, max 5 MB × 3 files).
+### Service Management
 
-**Step 6 — Manage the service:**
 ```cmd
-# Check status
-schtasks /query /tn "PrintHubAgent" /fo LIST
+python agent_service.py start
+python agent_service.py stop
+python agent_service.py restart
+python agent_service.py remove
 
-# Stop the agent
-schtasks /end /tn "PrintHubAgent"
+:: Check status
+python agent_setup.py --status
 
-# Start the agent
-schtasks /run /tn "PrintHubAgent"
+:: View logs
+type C:\PrintHubAgent\agent.log
 
-# Remove the agent service
-schtasks /delete /tn "PrintHubAgent" /f
-```
-
-**Step 7 — Update the agent (when a new version is released):**
-```cmd
-# Stop the service first
-schtasks /end /tn "PrintHubAgent"
-
-# Overwrite agent.py and agent_config.py with new versions
-# Your config (server URL, credentials) is preserved in agent_config.json
-
-# Restart
-schtasks /run /tn "PrintHubAgent"
+:: Re-register (if server changes)
+python agent_setup.py --reset
+python agent_setup.py --code NEWCODE --server http://NEW_SERVER:8000
+python agent_service.py restart
 ```
 
 ### Security on Windows
-- `agent_config.json` permissions are set to the current user only (via `icacls`)
-- The agent never opens inbound ports — outbound HTTP only
-- All credentials are stored in the local config file, not in the registry or environment
-- TLS verification is enabled by default; disable only for self-signed certificates with `python agent_setup.py --no-verify`
+- `agent_config.json` permissions locked to current user only via `icacls` (owner read/write)
+- Agent never opens inbound ports — outbound WebSocket + HTTP only
+- Rotating logs (5 MB × 3 files) at `C:\PrintHubAgent\agent.log`
+- TLS verification enabled by default; for self-signed certs: `agent_setup.py --no-verify`
 
 ---
 
 ## Agent Installation — macOS
 
-> Perform these steps on **each macOS workstation** that has a printer attached.
+> Run on each **macOS workstation** connected to a printer.
 
-### Prerequisites
-- Python 3.11+ (`brew install python` or [python.org](https://www.python.org/downloads/))
-- CUPS enabled (enabled by default on macOS)
-- Terminal access
-
-### Step-by-Step Installation
-
-**Step 1 — Copy and extract the agent:**
+**Step 1 — Extract and enter the agent directory:**
 ```bash
-cp /Volumes/USB/PrintHub_Agent.zip ~/Downloads/
-cd ~/Downloads
 unzip PrintHub_Agent.zip -d ~/PrintHubAgent
 cd ~/PrintHubAgent
 ```
 
-**Step 2 — Install Python dependencies:**
-```bash
-pip3 install -r requirements.txt
-```
-
-**Step 3 — Run the setup wizard:**
-```bash
-python3 agent_setup.py
-```
-
-Enter when prompted:
-- **Server URL**: `http://SERVER_IP:8000`
-- **Registration code**: from admin dashboard under **Agents → Generate Code**
-
-The config is saved to `~/.printhub/agent_config.json` with `chmod 600` permissions.
-
-**Step 4 — Install as a background service (launchd):**
+**Step 2 — Run the installer:**
 ```bash
 bash install_agent.sh
 ```
 
-This creates a launchd plist at `~/Library/LaunchAgents/com.printhub.agent.plist` and loads it immediately.
-
-**Verify it is running:**
-```bash
-launchctl list | grep printhub
-# Should show: -  0  com.printhub.agent
-```
+The installer:
+1. Creates a Python virtual environment
+2. Installs all dependencies including `websocket-client`
+3. Prompts for server URL and activation code
+4. Creates a **launchd plist** at `~/Library/LaunchAgents/com.printhub.agent.plist`
+5. Loads it as a background service (auto-starts at login)
 
 **Manage the service:**
 ```bash
+# View live logs
+tail -f ~/Library/Logs/PrintHubAgent/agent.log
+
 # Stop
 launchctl unload ~/Library/LaunchAgents/com.printhub.agent.plist
 
 # Start
 launchctl load ~/Library/LaunchAgents/com.printhub.agent.plist
 
-# View live logs
-tail -f ~/Library/Logs/PrintHubAgent/agent.log
+# Restart
+launchctl kickstart -k gui/$(id -u)/com.printhub.agent
+
+# Re-register
+python3 agent_setup.py --reset
+python3 agent_setup.py --code NEWCODE --server http://SERVER:8000
+launchctl kickstart -k gui/$(id -u)/com.printhub.agent
 
 # Remove permanently
 launchctl unload ~/Library/LaunchAgents/com.printhub.agent.plist
@@ -356,82 +300,80 @@ rm ~/Library/LaunchAgents/com.printhub.agent.plist
 ```
 
 ### Security on macOS
-- Config file at `~/.printhub/agent_config.json` has `chmod 600` (owner read/write only)
-- Log directory `~/Library/Logs/PrintHubAgent/` is user-private
-- Agent uses CUPS `lp` and `lpstat` commands — no root access required
-- Outbound HTTP only — no inbound ports opened
-- TLS verification enabled by default
+- Config file `agent_config.json` has `chmod 600` (owner-only)
+- Log directory `~/Library/Logs/PrintHubAgent/` has `chmod 700`
+- CUPS `lp`/`lpstat` commands used — no root required
+- Outbound-only WebSocket + HTTP, no inbound ports
 
 ---
 
 ## How the Agent Connects to the Server
 
-The agent uses **outbound-only HTTP polling**. It never opens any ports or accepts inbound connections.
+The agent uses **two communication channels** — both outbound-only (no inbound ports):
 
 ```
-WORKSTATION                         SERVER (port 8000)
-    │                                       │
-    │──── POST /agents/register ───────────►│  (once, on first run)
-    │◄─── { agent_id, token } ─────────────│
-    │                                       │
-    │  ┌─── Every 8 seconds ───────────┐   │
-    │  │                               │   │
-    │  │──── GET /agents/poll ────────►│   │
-    │  │◄─── { job_id, pdf_url, ... } ─│   │
-    │  │                               │   │
-    │  │  [sends job to local printer] │   │
-    │  │                               │   │
-    │  │──── POST /agents/report ─────►│   │
-    │  │◄─── { ok: true } ────────────│   │
-    │  └───────────────────────────────┘   │
-    │                                       │
-    │──── POST /agents/heartbeat ──────────►│  (every 30 seconds)
-    │◄─── { ok: true } ─────────────────────│
+WORKSTATION                             SERVER (port 8000)
+    │                                          │
+    │── POST /agent/register ────────────────►│  (once, on first start)
+    │◄─ { agent_id, token } ─────────────────│
+    │                                          │
+    │   ┌── Persistent WebSocket ─────────────┤
+    │   │   wss://SERVER/ws/agent             │
+    │   │   ?agent_id=X&token=Y               │
+    │   │                                      │
+    │   │   Server → Agent: job_available  ──►│  (instant, milliseconds)
+    │   │   Agent → Server: ping/pong      ──►│  (keepalive every 30s)
+    │   │                                      │
+    │   │   On reconnect: exponential backoff  │
+    │   │   1s → 2s → 4s → ... → 60s cap      │
+    │   └─────────────────────────────────────┘
+    │                                          │
+    │   ┌── HTTP Safety-Net Poll ─────────────┤
+    │   │   GET /agent/jobs every 30s         │
+    │   │   (fallback if WS disconnected)      │
+    │   └─────────────────────────────────────┘
+    │                                          │
+    │── POST /agent/heartbeat ───────────────►│  (every 15s)
+    │── GET  /agent/config ──────────────────►│  (every 5 min)
+    │── POST /agent/printer-status ─────────►│  (every 15s)
+    │── GET  /agent/job/{id}/file ──────────►│  (streaming, on job)
+    │── POST /agent/confirm ────────────────►│  (after success)
+    │── POST /agent/fail ───────────────────►│  (after failure)
 ```
 
-**Authentication flow:**
-1. Agent calls `/agents/register` with a one-time registration code (generated in admin dashboard)
-2. Server returns a permanent `agent_token` stored in `agent_config.json`
-3. All subsequent requests include `Authorization: Bearer <agent_token>`
-4. The token never expires unless the agent is deleted from the dashboard
+**Job execution timeline (real-time mode):**
+1. Clinical staff submits print job → FastAPI saves to DB → **pushes `job_available` to agent via WebSocket** → `_job_trigger.set()`
+2. Agent's `_job_trigger.wait()` wakes immediately — starts processing in **< 100 ms**
+3. Agent downloads file → validates printer → sends to USB/network printer
+4. Agent reports result → server broadcasts WebSocket event to dashboard → UI updates in real-time
 
-**Job execution flow:**
-1. Agent polls `/agents/poll` — if a job is queued for its location, the server returns job details
-2. Agent downloads the PDF (if remote URL) or uses already-queued data
-3. Agent sends the file to the local printer via win32print (Windows) or CUPS `lp` (macOS)
-4. Agent reports success/failure to `/agents/report`
-5. Server broadcasts a WebSocket event to all connected dashboard clients
-
-**Error handling:**
-- On network error: agent waits 5s, then retries with exponential backoff (max 60s delay)
-- On printer error: reported to server, job marked as failed, self-healing scheduler retries eligible jobs
-- On server unavailable (500/502/503/504): HTTP adapter retries up to 3 times automatically
+**Job execution timeline (fallback mode — WebSocket disconnected):**
+1. Clinical staff submits print job → saved to DB
+2. Agent polls `/agent/jobs` every 30 seconds → picks up the job
+3. Maximum delay: 30 seconds (vs 5 seconds in old polling architecture)
 
 ---
 
 ## Firewall Configuration
 
-The agent only needs **outbound** access. No inbound rules are required on workstations.
+The agent only needs **outbound** access. No inbound rules required on workstations.
 
 | Machine | Direction | Protocol | Port | Purpose |
 |---|---|---|---|---|
-| Workstation | **Outbound** | TCP | 8000 | Agent → Server API |
-| Server | Inbound | TCP | 8000 | Accept agent + dashboard connections |
-| Server | Inbound | TCP | 5173 | Accept frontend dev server (dev only) |
-| Server | Inbound | TCP | 80/443 | Accept frontend (production with nginx) |
+| Workstation | **Outbound** | TCP | 8000 | Agent → Server (HTTP + WebSocket) |
+| Server | Inbound | TCP | 8000 | Accept agents + dashboard |
+| Server | Inbound | TCP | 5173 | Dev frontend (development only) |
+| Server | Inbound | TCP | 80/443 | Production frontend (nginx) |
 
-### Windows Firewall — Allow outbound to server
+### Windows — Allow outbound to server
 ```cmd
-# Run as Administrator
 netsh advfirewall firewall add rule name="PrintHub Agent" dir=out action=allow protocol=TCP remoteport=8000
 ```
 
 ### macOS Firewall
-macOS Application Firewall blocks **inbound** by default but allows all **outbound**.
-No changes needed — the agent will work with the firewall enabled as long as the server is reachable.
+macOS blocks inbound by default but allows all outbound — **no configuration needed**.
 
-### Corporate / Hospital Network
-If the workstation is behind a web proxy, set these environment variables before running the agent:
+### Corporate Proxy
 ```bash
 # Windows
 set HTTPS_PROXY=http://proxy.hospital.local:3128
@@ -444,60 +386,42 @@ export HTTPS_PROXY=http://proxy.hospital.local:3128
 
 ## PostgreSQL Setup
 
-**Step 1 — Install PostgreSQL 14+:**
-- Windows: [postgresql.org/download/windows](https://www.postgresql.org/download/windows/)
-- macOS: `brew install postgresql@14`
-- Ubuntu: `sudo apt install postgresql postgresql-contrib`
-
-**Step 2 — Create the database and user:**
-```sql
--- Connect as postgres superuser
+```bash
+# Connect as postgres superuser
 psql -U postgres
 
 CREATE DATABASE printhub;
 CREATE USER printhub_user WITH PASSWORD 'strong_password_here';
 GRANT ALL PRIVILEGES ON DATABASE printhub TO printhub_user;
 \q
-```
 
-**Step 3 — Update .env:**
-```env
-DATABASE_URL=postgresql://printhub_user:strong_password_here@localhost:5432/printhub
-```
-
-**Step 4 — Run migrations:**
-```bash
-cd backend
-python init_db.py
+# Then run migrations
+cd backend && python init_db.py
 ```
 
 ---
 
 ## Environment Variables Reference
 
-Create `backend/.env` with these variables:
-
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `DATABASE_URL` | ✅ | — | Full PostgreSQL connection string |
-| `SECRET_KEY` | ✅ | — | JWT signing key (min 32 chars) |
+| `DATABASE_URL` | ✅ | — | PostgreSQL connection string |
+| `SECRET_KEY` | ✅ | — | JWT signing secret (min 32 chars) |
 | `ALGORITHM` | ❌ | `HS256` | JWT algorithm |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | ❌ | `1440` | Token lifetime (24h) |
 | `STALE_THRESHOLD_SECONDS` | ❌ | `45` | Seconds before agent marked offline |
-| `PG_POOL_MIN` | ❌ | `2` | Minimum DB connections in pool |
-| `PG_POOL_MAX` | ❌ | `20` | Maximum DB connections in pool |
+| `PG_POOL_MIN` | ❌ | `2` | Min DB connections in pool |
+| `PG_POOL_MAX` | ❌ | `20` | Max DB connections in pool |
 
 ---
 
 ## Default Credentials
 
-> **Change these immediately after first login.**
+> **Change immediately after first login.**
 
 | Username | Password | Role |
 |---|---|---|
-| `admin` | `admin123` | Super Admin |
-
-Login at `http://localhost:5173` → use the credentials above → go to **Settings → Change Password**.
+| `admin` | `Admin@PrintHub2026` | Super Admin |
 
 ---
 
@@ -507,16 +431,18 @@ Login at `http://localhost:5173` → use the credentials above → go to **Setti
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/auth/login` | Login, returns JWT cookie |
-| `POST` | `/auth/logout` | Clear session cookie |
+| `POST` | `/auth/logout` | Clear session |
 | `GET` | `/auth/me` | Current user info |
+| `POST` | `/auth/change-password` | Change password |
 
 ### Dashboard & Health
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/health` | System health check |
+| `GET` | `/health` | System health (includes `ws_agents` count) |
 | `GET` | `/dashboard` | Stats (printers, jobs, agents) |
 | `GET` | `/admin/job-health` | Stale job warnings |
-| `WS` | `/ws?token=JWT` | Real-time WebSocket stream |
+| `WS` | `/ws?token=JWT` | Real-time dashboard WebSocket |
+| `WS` | `/ws/agent?agent_id=X&token=Y` | Real-time agent WebSocket |
 
 ### Printers
 | Method | Endpoint | Description |
@@ -525,14 +451,12 @@ Login at `http://localhost:5173` → use the credentials above → go to **Setti
 | `POST` | `/printers` | Add printer |
 | `PUT` | `/printers/{id}` | Update printer |
 | `DELETE` | `/printers/{id}` | Delete printer |
-| `GET` | `/printers/{id}/jobs` | Jobs for a specific printer |
 
 ### Print Jobs
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/print-jobs` | List jobs (with filters) |
-| `POST` | `/print-job` | Submit new print job |
-| `GET` | `/print-jobs/{id}` | Job details |
+| `GET` | `/print-jobs` | List jobs with filters |
+| `POST` | `/print-job` | Submit job (triggers WS push to agent) |
 | `POST` | `/print-jobs/{id}/retry` | Retry failed job |
 | `DELETE` | `/print-jobs/{id}` | Delete job |
 
@@ -540,94 +464,97 @@ Login at `http://localhost:5173` → use the credentials above → go to **Setti
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/agents` | List all registered agents |
-| `POST` | `/agents/register` | Agent self-registration |
-| `GET` | `/agents/poll` | Agent polls for work |
-| `POST` | `/agents/report` | Agent reports job result |
-| `POST` | `/agents/heartbeat` | Agent sends heartbeat |
+| `POST` | `/agent/register` | Agent self-registration |
+| `GET` | `/agent/jobs` | Agent polls for work (HTTP fallback) |
+| `GET` | `/agent/job/{id}/file` | Stream job file to agent |
+| `POST` | `/agent/confirm` | Agent reports success |
+| `POST` | `/agent/fail` | Agent reports failure |
+| `POST` | `/agent/heartbeat` | Agent keepalive |
+| `POST` | `/agent/printer-status` | Agent reports USB printer status |
+| `GET` | `/agent/config` | Agent fetches mapped printers |
 | `DELETE` | `/agents/{id}` | Deregister agent |
-| `POST` | `/agents/generate-code` | Generate registration code |
+| `POST` | `/agents/generate-code` | Generate activation code |
 
 ### Locations & Categories
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/locations` | List hospital locations |
-| `POST` | `/locations` | Add location |
-| `DELETE` | `/locations/{id}` | Delete location |
-| `GET` | `/categories` | List printer categories |
-| `POST` | `/categories` | Add category |
+| `GET/POST/DELETE` | `/locations` | Manage hospital locations |
+| `GET/POST` | `/categories` | Manage printer categories |
 
 ### Users (Admin only)
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/users` | List all users |
-| `POST` | `/users` | Create user |
-| `PUT` | `/users/{id}` | Update user |
-| `DELETE` | `/users/{id}` | Delete user |
+| `GET/POST/PUT/DELETE` | `/users` | Full user management |
 | `POST` | `/users/{id}/reset-password` | Reset user password |
-
-### Audit Logs
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/audit-logs` | Paginated audit trail |
 
 ---
 
 ## RBAC Roles
 
-| Role | Dashboard | Print Jobs | Printers | Users | Agents | Audit Logs |
-|---|---|---|---|---|---|---|
-| **Super Admin** | ✅ | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ |
-| **Admin** | ✅ | ✅ Full | ✅ Full | ✅ View | ✅ View | ✅ |
-| **Clinical Professional** | ✅ Read | ✅ Submit only | ✅ View | ❌ | ❌ | ❌ |
-| **Agent** | ❌ | Poll/Report only | ❌ | ❌ | ❌ | ❌ |
+| Role | Dashboard | Print Jobs | Printers | Users | Agents |
+|---|---|---|---|---|---|
+| **Super Admin** | ✅ | Full | Full | Full | Full |
+| **Admin** | ✅ | Full | Full | View | View |
+| **Clinical** | Read | Submit | View | ❌ | ❌ |
+| **Agent** | ❌ | Poll/Report | ❌ | ❌ | ❌ |
 
 ---
 
 ## WebSocket Events
 
-Connect to `ws://SERVER:8000/ws?token=YOUR_JWT_TOKEN`
+### Dashboard WebSocket (`/ws?token=JWT`)
 
-| Event Type | Triggered When | Payload |
+| Event Type | Triggered When |
+|---|---|
+| `job_update` | A print job status changes |
+| `printer_update` | A printer status changes |
+| `agent_update` | An agent connects / goes offline |
+| `dashboard_refresh` | General stats changed |
+
+### Agent WebSocket (`/ws/agent?agent_id=X&token=Y`)
+
+| Event Type | Direction | Description |
 |---|---|---|
-| `job_update` | A print job status changes | `{ job_id, status, printer_id }` |
-| `printer_update` | A printer status changes | `{ printer_id, status }` |
-| `agent_update` | An agent connects/disconnects | `{ agent_id, status }` |
-| `dashboard_refresh` | General stats changed | `{}` |
-
-**Frontend usage (auto-handled):**
-The `useWebSocket` hook in `frontend/src/hooks/useWebSocket.js` automatically reconnects with exponential backoff (1s → 30s cap) and delivers events to the registered handler function.
+| `job_available` | Server → Agent | New job queued at agent's location |
+| `ping` | Agent → Server | Keepalive |
+| `pong` | Server → Agent | Keepalive response |
 
 ---
 
 ## Troubleshooting
 
-### ❌ "Database is locked" or connection errors
-**Cause:** PostgreSQL pool exhausted or SQLite leftover config.  
-**Fix:** Increase `PG_POOL_MAX` in `.env`. Restart the backend. Confirm `DATABASE_URL` points to PostgreSQL, not SQLite.
+### Agent shows "Offline" immediately after connecting
+**Cause:** Workstation clock skewed or heartbeat blocked by firewall.  
+**Fix:** `w32tm /resync` on Windows. Check outbound TCP 8000 is allowed.
 
-### ❌ Agent shows "Offline" immediately after registering
-**Cause:** Workstation clock skewed, or firewall blocking outbound 8000.  
-**Fix:** Sync workstation time (`w32tm /resync` on Windows). Check firewall outbound rule for port 8000.
+### Agent WebSocket stays disconnected (backoff loop in logs)
+**Cause:** Nginx proxy missing WebSocket upgrade headers.  
+**Fix:** Add to nginx config:
+```nginx
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+```
 
-### ❌ "Registration code invalid or expired"
+### "Registration code invalid or expired"
 **Cause:** Codes expire after 10 minutes.  
-**Fix:** Generate a new code from **Agents → Generate Code** in the dashboard and re-run `agent_setup.py`.
+**Fix:** Generate new code in dashboard → **Agents → Generate Code**.
 
-### ❌ Print job stays "Pending" forever
-**Cause:** No agent is online for that location, or agent crashed.  
-**Fix:** Check **Agents** page — verify the agent for that location shows "Connected". Check `C:\PrintHubAgent\agent.log` for errors.
+### Print job stays "Pending" — never picked up
+**Cause:** No agent online for that location, or agent crashed.  
+**Fix:** Check **Agents** page. View `C:\PrintHubAgent\agent.log` for errors.
 
-### ❌ WebSocket keeps reconnecting (dashboard shows "connecting...")
-**Cause:** Backend WebSocket endpoint not reachable (nginx proxy missing `Upgrade` header, or port blocked).  
-**Fix:** In nginx, add: `proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";`
+### `ModuleNotFoundError: No module named 'websocket'`
+**Cause:** `websocket-client` not installed (different from the `websocket` package).  
+**Fix:** `pip install websocket-client>=1.6.0` — note the package name includes `-client`.
 
-### ❌ `ModuleNotFoundError: No module named 'win32print'`
-**Cause:** pywin32 not installed or not installed for the correct Python version.  
-**Fix:** `pip install pywin32` then run `python Scripts/pywin32_postinstall.py -install` from the Python install directory as Administrator.
+### `ModuleNotFoundError: No module named 'win32print'`
+**Cause:** pywin32 not installed for this Python version.  
+**Fix:** `pip install pywin32` then `python Scripts/pywin32_postinstall.py -install` as Administrator.
 
-### ❌ Frontend shows blank page / "Cannot connect to API"
-**Cause:** `VITE_API_URL` in `frontend/.env` is wrong, or backend is not running.  
-**Fix:** Confirm backend is running (`curl http://SERVER:8000/health`). Update `VITE_API_URL` and restart `npm run dev`.
+### Frontend blank / "Cannot connect to API"
+**Cause:** `VITE_API_URL` wrong or backend not running.  
+**Fix:** `curl http://SERVER:8000/health` — if that fails, restart backend.
 
 ---
 
@@ -636,46 +563,54 @@ The `useWebSocket` hook in `frontend/src/hooks/useWebSocket.js` automatically re
 ```
 print_centre/
 ├── backend/
-│   ├── main.py              # FastAPI app, lifespan, WebSocket, routes
-│   ├── database.py          # PostgreSQL connection pool
-│   ├── models.py            # Pydantic request/response models
-│   ├── auth.py              # JWT authentication helpers
-│   ├── config.py            # Settings (loaded from .env)
-│   ├── init_db.py           # Database schema init + admin seed
-│   ├── requirements.txt     # Python dependencies
-│   └── .env                 # (you create this — not in git)
+│   ├── main.py              # FastAPI app — routes, WebSocket (dashboard + agent), lifespan
+│   ├── database.py          # PostgreSQL ThreadedConnectionPool
+│   ├── models.py            # Pydantic models
+│   ├── auth.py              # JWT helpers
+│   ├── config.py            # Settings from .env
+│   ├── init_db.py           # Schema init + admin seed
+│   ├── requirements.txt
+│   ├── services/
+│   │   ├── recovery.py      # Stuck job auto-recovery
+│   │   ├── alerts.py        # Operator alert system
+│   │   ├── routing_service.py
+│   │   ├── barcode_service.py
+│   │   └── auth.py
+│   └── .env                 # (create this — not in git)
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx          # Root layout + routing
+│   │   ├── App.jsx
 │   │   ├── App.css          # Component styles
-│   │   ├── index.css        # Global design tokens + utilities
+│   │   ├── index.css        # Design tokens + utilities
 │   │   ├── config.js        # API_BASE_URL + WS_BASE_URL
 │   │   ├── context/
-│   │   │   ├── AuthContext.jsx   # JWT + authFetch hook
-│   │   │   └── AppData.jsx       # Global printers/locations/categories
+│   │   │   ├── AuthContext.jsx
+│   │   │   └── AppData.jsx       # Global data + WS printer updates
 │   │   ├── hooks/
 │   │   │   └── useWebSocket.js   # Auto-reconnecting WS hook
-│   │   ├── pages/
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── Printers.jsx
-│   │   │   ├── PrintJobs.jsx
-│   │   │   ├── Agents.jsx
-│   │   │   ├── Users.jsx
-│   │   │   ├── AuditLogs.jsx
-│   │   │   └── Login.jsx
-│   │   └── components/
-│   │       └── Skeleton.jsx
-│   ├── .env                 # (you create this — not in git)
+│   │   └── pages/
+│   │       ├── Dashboard.jsx
+│   │       ├── Printers.jsx
+│   │       ├── PrintJobs.jsx
+│   │       ├── Agents.jsx
+│   │       ├── Users.jsx
+│   │       ├── AuditLogs.jsx
+│   │       └── Login.jsx
+│   ├── .env                 # (create this — not in git)
 │   └── package.json
 │
-└── PrintHub_Agent.zip       # Distributable agent package
-    ├── agent.py             # Main agent loop
-    ├── agent_config.py      # Config read/write with secure permissions
-    ├── agent_setup.py       # Interactive setup wizard
-    ├── requirements.txt     # Agent dependencies
-    ├── install_agent.bat    # Windows installer
-    └── install_agent.sh     # macOS/Linux installer
+├── agent/
+│   ├── agent.py             # Main agent loop + WebSocket client (AgentWebSocket)
+│   ├── agent_config.py      # Config R/W with secure permissions (chmod 600 / icacls)
+│   ├── agent_setup.py       # Setup wizard (--code, --server, --no-verify, --reset)
+│   ├── agent_service.py     # Windows Service wrapper (pywin32)
+│   ├── agent_macos.py       # macOS CUPS integration
+│   ├── requirements.txt     # requests, websocket-client, pywin32, wmi
+│   ├── install_agent.bat    # Windows installer (prompts, installs service)
+│   └── install_agent.sh     # macOS (launchd) + Linux (systemd) installer
+│
+└── PrintHub_Agent.zip       # Distributable agent package (all agent/ files)
 ```
 
 ---

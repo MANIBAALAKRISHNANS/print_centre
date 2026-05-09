@@ -1,10 +1,15 @@
 import socket
 import platform
-import logging
 import time
-import requests
 import os
 import threading
+import logging
+import json
+from logging.handlers import RotatingFileHandler
+
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 _OS = platform.system()
 _WIN32_AVAILABLE = False
@@ -14,7 +19,7 @@ if _OS == "Windows":
         import win32print
         _WIN32_AVAILABLE = True
     except ImportError:
-        logging.warning("win32print not available — USB printing disabled")
+        logging.warning("win32print not available — USB printing disabled on Windows")
 elif _OS == "Darwin":
     try:
         from agent_macos import (
@@ -22,105 +27,225 @@ elif _OS == "Darwin":
             print_raw as _macos_print_raw,
             list_local_printers as _macos_list,
             _get_usb_port as _macos_get_port,
-            print_direct as _macos_print_direct
+            print_direct as _macos_print_direct,
         )
     except ImportError:
-        logging.error("agent_macos.py missing or incomplete — macOS printing will fail")
+        logging.error("agent_macos.py missing — macOS printing will fail")
 else:
     logging.error(f"Unsupported OS: {_OS}")
+
 from agent_config import load_config, save_config
 
-# 🔹 Logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# ── Logging: rotating file + console ─────────────────────────────────────────
+if _OS == "Windows":
+    _LOG_DIR = r"C:\PrintHubAgent"
+elif _OS == "Darwin":
+    _LOG_DIR = os.path.expanduser("~/Library/Logs/PrintHubAgent")
+else:
+    _LOG_DIR = os.path.expanduser("~/.printhub/logs")
+
+os.makedirs(_LOG_DIR, exist_ok=True)
+_LOG_FILE = os.path.join(_LOG_DIR, "agent.log")
+
+_handler_file = RotatingFileHandler(_LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3)
+_handler_file.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+_handler_console = logging.StreamHandler()
+_handler_console.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+logging.basicConfig(level=logging.INFO, handlers=[_handler_file, _handler_console])
 logger = logging.getLogger("PrintAgent")
 
-# 🔹 Configuration
-# First try config file, then environment variable, then default localhost
+# ── Config & HTTP session ─────────────────────────────────────────────────────
 _config = load_config()
 SERVER_URL = _config.get("server_url") or os.environ.get("SERVER_URL", "http://127.0.0.1:8000")
+_TLS_VERIFY = _config.get("tls_verify", True)
+
+_retry_adapter = HTTPAdapter(
+    max_retries=Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+)
+_session = requests.Session()
+_session.mount("http://", _retry_adapter)
+_session.mount("https://", _retry_adapter)
+
+# ── Global state ──────────────────────────────────────────────────────────────
+POLL_INTERVAL  = 30   # safety-net fallback poll (WebSocket handles real-time)
+HEARTBEAT_INTERVAL = 15
+
+# Event set by WebSocket when server pushes job_available — wakes the poll loop immediately
+_job_trigger = threading.Event()
+_ws_connected = threading.Event()  # signals that WS is currently alive
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# REGISTRATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def ensure_registered():
     config = load_config()
-    # Update global SERVER_URL if it's found in the config (case where it's saved after setup)
-    global SERVER_URL
+    global SERVER_URL, _TLS_VERIFY
     if config.get("server_url"):
         SERVER_URL = config["server_url"]
-    
-    # 1. Already registered
+    _TLS_VERIFY = config.get("tls_verify", True)
+
     if config.get("agent_id") and config.get("token"):
-        logger.info(f"[AGENT] Loaded credentials for {config['agent_id']} connecting to {SERVER_URL}")
+        logger.info(f"[AGENT] Credentials loaded for {config['agent_id']} → {SERVER_URL}")
         return config["agent_id"], config["token"], config.get("location_id", "")
-    
-    # 2. Check for pending activation code written by setup tool
+
     pending_code = config.get("pending_activation_code")
     if not pending_code:
-        logger.critical("[AGENT] No credentials and no pending_activation_code found.")
-        logger.critical("[AGENT] Run: python agent_setup.py --code YOUR_ACTIVATION_CODE")
-        logger.critical("[AGENT] Then restart the service.")
+        logger.critical("[AGENT] No credentials and no pending_activation_code.")
+        logger.critical("[AGENT] Run: python agent_setup.py --code YOUR_CODE --server SERVER_URL")
         raise SystemExit(1)
-    
-    logger.info(f"[AGENT] Found pending activation code — attempting registration...")
+
+    logger.info("[AGENT] Attempting registration with activation code…")
     hostname = socket.gethostname()
     server_url = config.get("server_url", SERVER_URL)
-    
-    try:
-        res = requests.post(
-            f"{server_url}/agent/register", 
-            json={"activation_code": pending_code, "hostname": hostname}, 
-            timeout=15
-        )
-        if res.status_code == 200:
-            data = res.json()
-            
-            # Save new credentials and CLEAR the pending code
-            new_config = {
-                "agent_id": data["agent_id"],
-                "token": data["token"],
-                "location_id": data["location_id"],
-                "server_url": server_url
-            }
-            save_config(new_config)
-            
-            logger.info(f"[AGENT] Registered successfully as {data['agent_id']}")
-            return data["agent_id"], data["token"], data["location_id"]
-        else:
-            logger.critical(f"[AGENT] Registration failed: {res.status_code} {res.text}")
+
+    for attempt in range(5):
+        try:
+            res = _session.post(
+                f"{server_url}/agent/register",
+                json={"activation_code": pending_code, "hostname": hostname},
+                timeout=15,
+                verify=_TLS_VERIFY,
+            )
+            if res.status_code == 200:
+                data = res.json()
+                save_config({
+                    "agent_id": data["agent_id"],
+                    "token": data["token"],
+                    "location_id": data["location_id"],
+                    "server_url": server_url,
+                    "tls_verify": _TLS_VERIFY,
+                })
+                logger.info(f"[AGENT] Registered as {data['agent_id']}")
+                return data["agent_id"], data["token"], data["location_id"]
+            else:
+                logger.error(f"[AGENT] Registration failed ({res.status_code}): {res.text}")
+                if res.status_code in (400, 403, 404):
+                    raise SystemExit(1)  # bad code — no point retrying
+        except requests.exceptions.SSLError:
+            logger.critical("[AGENT] TLS error — re-run setup with --no-verify for self-signed certs")
             raise SystemExit(1)
-    except requests.RequestException as e:
-        logger.critical(f"[AGENT] Cannot reach server at {server_url}: {e}")
-        raise SystemExit(1)
+        except SystemExit:
+            raise
+        except Exception as e:
+            logger.warning(f"[AGENT] Registration attempt {attempt+1}/5 failed: {e}")
+        time.sleep(2 ** attempt)
+
+    logger.critical("[AGENT] Exhausted registration retries.")
+    raise SystemExit(1)
+
 
 AGENT_ID, TOKEN, LOCATION_ID = ensure_registered()
-POLL_INTERVAL = 5 
-HEARTBEAT_INTERVAL = 15 # 🔹 Reduced interval for better monitoring
 
-# ── OS DISPATCH WRAPPERS ──────────────────────────────────────────────────
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# REAL-TIME WEBSOCKET CLIENT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class AgentWebSocket:
+    """
+    Persistent WebSocket connection to the server.
+    Runs in its own daemon thread. On `job_available` message, wakes the
+    main poll loop immediately so jobs execute in ~milliseconds instead of
+    waiting up to POLL_INTERVAL seconds.
+    Auto-reconnects with exponential backoff (1 s → 60 s cap).
+    """
+
+    def __init__(self, server_url: str, agent_id: str, token: str):
+        ws_url = server_url.replace("https://", "wss://").replace("http://", "ws://")
+        self._url = f"{ws_url}/ws/agent?agent_id={agent_id}&token={token}"
+        self._stop = threading.Event()
+        self._ws = None
+
+    def start(self):
+        t = threading.Thread(target=self._run, daemon=True, name="AgentWS")
+        t.start()
+
+    def stop(self):
+        self._stop.set()
+        if self._ws:
+            try:
+                self._ws.close()
+            except Exception:
+                pass
+
+    def _run(self):
+        import websocket as _ws_lib  # websocket-client
+
+        backoff = 1
+        while not self._stop.is_set():
+            try:
+                ws = _ws_lib.WebSocketApp(
+                    self._url,
+                    on_open=self._on_open,
+                    on_message=self._on_message,
+                    on_error=self._on_error,
+                    on_close=self._on_close,
+                )
+                self._ws = ws
+                ws.run_forever(
+                    ping_interval=30,
+                    ping_timeout=10,
+                    sslopt={"cert_reqs": 0} if not _TLS_VERIFY else {},
+                )
+            except Exception as e:
+                logger.debug(f"[WS] Connection error: {e}")
+
+            _ws_connected.clear()
+            if not self._stop.is_set():
+                logger.info(f"[WS] Reconnecting in {backoff}s…")
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 60)
+
+    def _on_open(self, ws):
+        global _ws_connected
+        _ws_connected.set()
+        logger.info("[WS] Connected to server")
+
+    def _on_message(self, ws, raw):
+        try:
+            msg = json.loads(raw)
+            mtype = msg.get("type")
+            if mtype == "job_available":
+                logger.info("[WS] Server pushed job_available — waking poll loop")
+                _job_trigger.set()
+            elif mtype == "ping":
+                ws.send(json.dumps({"type": "pong"}))
+        except Exception as e:
+            logger.debug(f"[WS] Message parse error: {e}")
+
+    def _on_error(self, ws, error):
+        logger.warning(f"[WS] Error: {error}")
+
+    def _on_close(self, ws, code, msg):
+        _ws_connected.clear()
+        logger.info(f"[WS] Closed (code={code})")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# OS DISPATCH WRAPPERS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def check_printer_status(printer_name: str) -> str:
-    """Dispatches printer status check based on OS."""
     if _OS == "Darwin":
         return _macos_check(printer_name)
-    
-    # Existing Windows logic
     if not _WIN32_AVAILABLE:
         return "Offline"
 
-    # ── Layer 1: Physical presence (win32print) ──────────────────────────
+    # Layer 1 — physical presence
     try:
         enumerated = {p[2].lower() for p in win32print.EnumPrinters(2)}
     except Exception as e:
-        logger.error(f"[HARDWARE VALIDATION FAIL] EnumPrinters failed: {e}")
+        logger.error(f"[HARDWARE] EnumPrinters failed: {e}")
         return "Offline"
-
     if printer_name.lower() not in enumerated:
-        logger.warning(f"[HARDWARE VALIDATION FAIL] '{printer_name}' not found in EnumPrinters list")
         return "Offline"
 
-    # ── Layer 2: WMI Validation (More reliable for Offline/Disconnected) ──
+    # Layer 2 — WMI validation
     try:
         import pythoncom
         from wmi import WMI
-        # Initialize COM for the current thread (Mandatory for background threads)
         pythoncom.CoInitialize()
         try:
             c = WMI()
@@ -128,105 +253,75 @@ def check_printer_status(printer_name: str) -> str:
             if wmi_printers:
                 wp = wmi_printers[0]
                 if getattr(wp, "WorkOffline", False):
-                    logger.warning(f"[HARDWARE VALIDATION FAIL] WMI reports '{printer_name}' is WorkOffline")
                     return "Offline"
-                
-                p_status = getattr(wp, "PrinterStatus", 0)
-                if p_status in [1, 2, 7]:
-                    logger.warning(f"[HARDWARE VALIDATION FAIL] WMI reports '{printer_name}' PrinterStatus: {p_status}")
+                if getattr(wp, "PrinterStatus", 0) in [1, 2, 7]:
                     return "Offline"
-            # Cleanup COM objects before return/finally
-            if 'wp' in locals(): del wp
-            del wmi_printers
-            del c
-            import gc
-            gc.collect()
+            del wmi_printers, c
+            import gc; gc.collect()
         finally:
             pythoncom.CoUninitialize()
     except ImportError:
-        logger.debug("[WMI DEBUG] wmi or pythoncom module not installed. Skipping WMI check.")
+        pass
     except Exception as e:
-        logger.debug(f"[WMI DEBUG] WMI check failed: {e}")
+        logger.debug(f"[WMI] Check failed: {e}")
 
-    # ── Layer 3: Handle & Attribute inspection (win32print) ────────────────
+    # Layer 3 — handle inspection
     try:
         handle = win32print.OpenPrinter(printer_name)
         try:
-            info = win32print.GetPrinter(handle, 2)
+            info   = win32print.GetPrinter(handle, 2)
             status = info.get("Status", 0)
-            attributes = info.get("Attributes", 0)
-            
-            # 🔹 DEBUG: Log raw details to diagnose "ghost" online states
-            logger.info(f"[HARDWARE DEBUG] '{printer_name}' | Status: 0x{status:08X} | Attr: 0x{attributes:08X}")
-
-            if attributes & 0x00000400: # PRINTER_ATTRIBUTE_WORK_OFFLINE
-                logger.warning(f"[HARDWARE VALIDATION FAIL] '{printer_name}' has WORK_OFFLINE attribute")
-                return "Offline"
-            
-            if status & 0x00000080: # PRINTER_STATUS_OFFLINE
-                return "Offline"
-                
-            if status & 0x00001000: # PRINTER_STATUS_NOT_AVAILABLE
-                return "Offline"
-
-            if status & (0x00000002 | 0x00000008 | 0x00000010 | 0x00004000):
-                return "Error"
-
-            return "Online" 
+            attrs  = info.get("Attributes", 0)
+            logger.info(f"[HARDWARE] '{printer_name}' status=0x{status:08X} attrs=0x{attrs:08X}")
+            if attrs  & 0x00000400: return "Offline"   # WORK_OFFLINE
+            if status & 0x00000080: return "Offline"   # PRINTER_STATUS_OFFLINE
+            if status & 0x00001000: return "Offline"   # NOT_AVAILABLE
+            if status & 0x00004016: return "Error"
+            return "Online"
         finally:
             win32print.ClosePrinter(handle)
     except Exception as e:
-        logger.error(f"[HARDWARE VALIDATION FAIL] win32print handle check failed: {e}")
+        logger.error(f"[HARDWARE] Handle check failed: {e}")
         return "Offline"
 
+
 def _get_usb_port(printer_name: str):
-    """Dispatches port retrieval based on OS."""
     if _OS == "Darwin":
         return _macos_get_port(printer_name)
-    
-    # Existing Windows logic
     if not _WIN32_AVAILABLE:
         return None
     try:
         handle = win32print.OpenPrinter(printer_name)
         try:
-            info = win32print.GetPrinter(handle, 2)
-            port = info.get("pPortName")
-            return port
+            return win32print.GetPrinter(handle, 2).get("pPortName")
         finally:
             win32print.ClosePrinter(handle)
     except Exception as e:
-        logger.error(f"[USB PORT] Failed to get port for '{printer_name}': {e}")
+        logger.error(f"[USB PORT] {printer_name}: {e}")
         return None
 
+
 def print_direct(port_name: str, data: bytes) -> bool:
-    """Dispatches direct port printing based on OS."""
     if _OS == "Darwin":
         return _macos_print_direct(port_name, data)
-        
-    # Existing Windows logic
     try:
-        device_path = f"\\\\.\\{port_name}"
-        logger.info(f"[DIRECT PRINT] Opening {device_path} for raw write ({len(data)} bytes)")
-        with open(device_path, "wb") as f:
+        with open(f"\\\\.\\{port_name}", "wb") as f:
             f.write(data)
         return True
     except Exception as e:
-        logger.error(f"[DIRECT PRINT] Failed to write to {port_name}: {e}")
+        logger.error(f"[DIRECT] Write to {port_name} failed: {e}")
         return False
 
+
 def print_raw(printer_name: str, data: bytes) -> bool:
-    """Dispatches raw spooler printing based on OS."""
     if _OS == "Darwin":
         return _macos_print_raw(printer_name, data)
-        
-    # Existing Windows logic
     if not _WIN32_AVAILABLE:
-        logger.error("[PRINT_RAW] win32print not available")
+        logger.error("[PRINT_RAW] win32print unavailable")
         return False
     try:
         handle = win32print.OpenPrinter(printer_name)
-        job = win32print.StartDocPrinter(handle, 1, ("Agent Job", None, "RAW"))
+        win32print.StartDocPrinter(handle, 1, ("Agent Job", None, "RAW"))
         win32print.StartPagePrinter(handle)
         win32print.WritePrinter(handle, data)
         win32print.EndPagePrinter(handle)
@@ -234,228 +329,264 @@ def print_raw(printer_name: str, data: bytes) -> bool:
         win32print.ClosePrinter(handle)
         return True
     except Exception as e:
-        logger.error(f"[PRINT_RAW] Local print error on '{printer_name}': {e}")
+        logger.error(f"[PRINT_RAW] '{printer_name}': {e}")
         return False
 
-def status_reporting_loop():
-    """🔹 Periodically report local printer status to backend"""
-    logger.info("Status reporting loop started")
-    mapped_printers = []
-    last_config_sync = 0
-    
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# BACKGROUND LOOPS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def heartbeat_loop():
+    hostname = socket.gethostname()
+    _consec_errors = 0
     while True:
         try:
-            # 1. Sync Config every 5 mins
+            _session.post(
+                f"{SERVER_URL}/agent/heartbeat",
+                params={
+                    "agent_id": AGENT_ID,
+                    "token": TOKEN,
+                    "location_id": LOCATION_ID,
+                    "hostname": hostname,
+                },
+                timeout=5,
+                verify=_TLS_VERIFY,
+            )
+            _consec_errors = 0
+        except Exception as e:
+            _consec_errors += 1
+            logger.warning(f"[HEARTBEAT] Failed ({_consec_errors}): {e}")
+        delay = min(HEARTBEAT_INTERVAL * (1 + _consec_errors // 3), 60)
+        time.sleep(delay)
+
+
+def status_reporting_loop():
+    """Periodically report local USB printer status to the backend."""
+    mapped_printers: list = []
+    last_config_sync = 0
+    _consec_errors = 0
+
+    while True:
+        try:
+            # Sync printer config every 5 minutes
             if time.time() - last_config_sync > 300:
                 try:
-                    res = requests.get(
+                    res = _session.get(
                         f"{SERVER_URL}/agent/config",
-                        params={"agent_id": AGENT_ID, "token": TOKEN, "location_id": LOCATION_ID},
-                        timeout=10
+                        params={
+                            "agent_id": AGENT_ID,
+                            "token": TOKEN,
+                            "location_id": LOCATION_ID,
+                        },
+                        timeout=10,
+                        verify=_TLS_VERIFY,
                     )
                     if res.status_code == 200:
                         mapped_printers = res.json().get("printers", [])
-                        logger.info(f"Synced config. Mapped USB printers: {mapped_printers}")
+                        logger.info(f"[STATUS] Mapped USB printers: {mapped_printers}")
                         last_config_sync = time.time()
                     elif res.status_code == 401:
-                        logger.error("Config sync failed: Unauthorized")
+                        logger.error("[STATUS] Config sync: Unauthorized")
                 except Exception as e:
-                    logger.warning(f"Failed to sync config with server: {e}")
+                    logger.warning(f"[STATUS] Config sync failed: {e}")
 
-            if not win32print:
+            # Skip reporting if no printer APIs available
+            if not _WIN32_AVAILABLE and _OS != "Darwin":
                 time.sleep(60)
                 continue
-                
-            # 2. Enum local printers
-            if _OS == "Darwin":
-                local_printers = {p: {} for p in _macos_list()}
-            else:
-                printers = win32print.EnumPrinters(2)
-                local_printers = {p[2]: p for p in printers}
-            
-            # 3. Report for all mapped printers
-            for p_name in mapped_printers:
-                status = "Offline"
-                if p_name in local_printers:
-                    status = check_printer_status(p_name)
-                else:
-                    logger.warning(f"⚠️  Mapped printer '{p_name}' NOT FOUND on this PC!")
 
-                # Always send status to refresh last_updated on server
+            # Enumerate local printers
+            if _OS == "Darwin":
+                local_printers = set(_macos_list())
+            else:
                 try:
-                    logger.info(f"Reporting Status: '{p_name}' -> {status}")
-                    requests.post(
+                    local_printers = {p[2] for p in win32print.EnumPrinters(2)}
+                except Exception:
+                    local_printers = set()
+
+            # Report status for each mapped printer
+            for p_name in mapped_printers:
+                status = check_printer_status(p_name) if p_name in local_printers else "Offline"
+                if p_name not in local_printers:
+                    logger.warning(f"[STATUS] Mapped printer '{p_name}' not found on this machine")
+                try:
+                    _session.post(
                         f"{SERVER_URL}/agent/printer-status",
                         params={"agent_id": AGENT_ID, "token": TOKEN},
                         json={"printer_name": p_name, "status": status},
-                        timeout=5
+                        timeout=5,
+                        verify=_TLS_VERIFY,
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to report status for '{p_name}': {e}")
-                    
-        except Exception as e:
-            logger.error(f"Status reporting loop error: {e}")
-            
-        time.sleep(15)
+                    logger.warning(f"[STATUS] Report failed for '{p_name}': {e}")
 
-def heartbeat_loop():
-    """Background heartbeat loop"""
-    hostname = socket.gethostname()
-    while True:
+            _consec_errors = 0
+
+        except Exception as e:
+            _consec_errors += 1
+            logger.error(f"[STATUS] Loop error: {e}")
+
+        delay = min(15 * (1 + _consec_errors // 3), 120)
+        time.sleep(delay)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# JOB PROCESSING
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def _fetch_jobs() -> list:
+    res = _session.get(
+        f"{SERVER_URL}/agent/jobs",
+        params={"agent_id": AGENT_ID, "token": TOKEN, "location_id": LOCATION_ID},
+        timeout=10,
+        verify=_TLS_VERIFY,
+    )
+    if res.status_code == 200:
+        return res.json()
+    if res.status_code == 401:
+        logger.error("[POLL] Authentication failed — check agent token")
+        time.sleep(30)
+    return []
+
+
+def _process_job(job: dict):
+    jid     = job["id"]
+    printer = job["printer"]
+    retries = job.get("retry_count", 0)
+    logger.info(f"[JOB] START id={jid} printer={printer} retry={retries}")
+
+    # Download with 3-attempt integrity check
+    content = None
+    for attempt in range(3):
         try:
-            requests.post(
-                f"{SERVER_URL}/agent/heartbeat",
-                params={"agent_id": AGENT_ID, "token": TOKEN, "location_id": LOCATION_ID, "hostname": hostname},
-                timeout=5
+            with _session.get(
+                f"{SERVER_URL}/agent/job/{jid}/file",
+                params={"agent_id": AGENT_ID, "token": TOKEN},
+                stream=True,
+                timeout=60,
+                verify=_TLS_VERIFY,
+            ) as r:
+                r.raise_for_status()
+                expected = int(r.headers["Content-Length"]) if "Content-Length" in r.headers else None
+                buf = bytearray()
+                for chunk in r.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        buf.extend(chunk)
+                if len(buf) == 0:
+                    raise ValueError("Empty file received")
+                if expected and len(buf) != expected:
+                    raise ValueError(f"Partial download ({len(buf)}/{expected} bytes)")
+                content = buf
+                logger.info(f"[JOB] Downloaded {len(content)} bytes for id={jid}")
+                break
+        except Exception as e:
+            logger.warning(f"[JOB] Download attempt {attempt+1}/3 failed: {e}")
+            if attempt < 2:
+                time.sleep(2)
+            else:
+                logger.error(f"[JOB] Download exhausted retries for id={jid}")
+                return  # leave lease to expire naturally
+
+    try:
+        try:
+            logger.info(f"[ZPL] id={jid}\n{content.decode('utf-8', errors='replace')}")
+        except Exception:
+            pass
+
+        # Pre-print status check (double-checked with 1 s settle)
+        time.sleep(1)
+        if check_printer_status(printer) != "Online":
+            status = check_printer_status(printer)
+            logger.error(f"[JOB] ABORT id={jid}: printer {printer} is {status}")
+            _session.post(
+                f"{SERVER_URL}/agent/fail",
+                params={"job_id": jid, "agent_id": AGENT_ID, "token": TOKEN,
+                        "error": f"Printer is {status}"},
+                timeout=5, verify=_TLS_VERIFY,
             )
-        except: pass
-        time.sleep(HEARTBEAT_INTERVAL)
+            return
+
+        # Print: direct USB port first, spooler fallback
+        printed = False
+        port = _get_usb_port(printer)
+        if port and (port.upper().startswith("USB") or port.upper().startswith("COM")):
+            if print_direct(port, bytes(content)):
+                time.sleep(1)
+                if check_printer_status(printer) != "Error":
+                    logger.info(f"[JOB] SUCCESS id={jid} via direct port {port}")
+                    printed = True
+                else:
+                    logger.warning(f"[JOB] Post-print error on {port}, trying spooler")
+
+        if not printed:
+            if print_raw(printer, bytes(content)):
+                logger.info(f"[JOB] SUCCESS id={jid} via spooler")
+                printed = True
+
+        if printed:
+            conf = _session.post(
+                f"{SERVER_URL}/agent/confirm",
+                params={"job_id": jid, "agent_id": AGENT_ID, "token": TOKEN},
+                timeout=15, verify=_TLS_VERIFY,
+            )
+            if conf.status_code == 200:
+                logger.info(f"[JOB] CONFIRMED id={jid}")
+            else:
+                try:
+                    err = conf.json().get("message", conf.text)
+                except Exception:
+                    err = conf.text
+                logger.error(f"[JOB] CONFIRM FAILED id={jid}: {conf.status_code} {err}")
+        else:
+            _session.post(
+                f"{SERVER_URL}/agent/fail",
+                params={"job_id": jid, "agent_id": AGENT_ID, "token": TOKEN,
+                        "error": "Hardware failure"},
+                timeout=5, verify=_TLS_VERIFY,
+            )
+            logger.error(f"[JOB] FAILED id={jid}")
+
+    except Exception as e:
+        logger.error(f"[JOB] Unexpected error for id={jid}: {e}")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# MAIN AGENT LOOP
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def agent_loop():
-    logger.info(f"Agent {AGENT_ID} started. Polling {SERVER_URL}")
-    
-    # Start Heartbeat & Status Threads
-    threading.Thread(target=heartbeat_loop, daemon=True).start()
-    threading.Thread(target=status_reporting_loop, daemon=True).start()
-    
+    logger.info(f"[AGENT] {AGENT_ID} starting — server: {SERVER_URL}")
+
+    # Start background threads
+    threading.Thread(target=heartbeat_loop, daemon=True, name="Heartbeat").start()
+    threading.Thread(target=status_reporting_loop, daemon=True, name="StatusReport").start()
+
+    # Start real-time WebSocket client
+    _ws = AgentWebSocket(SERVER_URL, AGENT_ID, TOKEN)
+    _ws.start()
+
+    _consec_errors = 0
     while True:
         try:
-            # 1. Poll for jobs (Ordered by Priority)
-            response = requests.get(
-                f"{SERVER_URL}/agent/jobs",
-                params={"agent_id": AGENT_ID, "token": TOKEN, "location_id": LOCATION_ID},
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                jobs = response.json()
+            jobs = _fetch_jobs()
+            if jobs:
+                _consec_errors = 0
                 for job in jobs:
-                    jid = job['id']
-                    prio = job['priority']
-                    retries = job.get('retry_count', 0)
-                    
-                    logger.info(f"[JOB START] ID: {jid} | Prio: {prio} | Retry: {retries}")
-                    
-                    # 2. Robust Binary Fetch (Handling Partial Downloads with Retries)
-                    content = None
-                    for attempt in range(3):
-                        try:
-                            with requests.get(
-                                f"{SERVER_URL}/agent/job/{jid}/file",
-                                params={"agent_id": AGENT_ID, "token": TOKEN},
-                                stream=True,
-                                timeout=60
-                            ) as r:
-                                r.raise_for_status()
-                                
-                                # 🔹 Download Integrity Metadata
-                                expected_size = r.headers.get('Content-Length')
-                                if expected_size:
-                                    expected_size = int(expected_size)
-                                    
-                                temp_content = bytearray()
-                                for chunk in r.iter_content(chunk_size=1024*1024): # 1MB chunks
-                                    if chunk:
-                                        temp_content.extend(chunk)
-                                
-                                # ── INTEGRITY CHECKS ─────────────────────────────────────
-                                if len(temp_content) == 0:
-                                    raise ValueError("REJECTED: Empty file received from server")
-                                    
-                                if expected_size and len(temp_content) != expected_size:
-                                    raise ValueError(f"REJECTED: Partial download (Expected: {expected_size}, Got: {len(temp_content)})")
+                    _process_job(job)
+            else:
+                _consec_errors = 0
 
-                                content = temp_content
-                                logger.info(f"[DOWNLOAD OK] ID: {jid} | Size: {len(content)} bytes")
-                                break # Success!
-                        except Exception as e:
-                            logger.warning(f"[DOWNLOAD ATTEMPT {attempt+1}/3 FAIL] ID: {jid} | Error: {e}")
-                            if attempt < 2:
-                                time.sleep(2)
-                            else:
-                                raise # Exhausted retries
-
-                    try:
-                        # ── SAFE ZPL DEBUG LOGGING ────────────────────────────────
-                        # We use a nested try/except to ensure terminal encoding 
-                        # errors don't crash the agent.
-                        try:
-                            decoded_content = content.decode('utf-8', errors='replace')
-                            logger.info(f"[ZPL DEBUG] (ID: {jid})\n{decoded_content}")
-                        except Exception as log_err:
-                            logger.info(f"[BINARY DATA] (ID: {jid}) - Non-text or encoding issue: {log_err}")
-                                
-                        # ── FORCE FRESH STATUS BEFORE PRINT ──────────────────────────
-                        current_status = check_printer_status(job['printer'])
-                        # Added: 1s sleep allows printer hardware to settle before the final status check
-                        time.sleep(1)
-                        current_status = check_printer_status(job['printer'])
-                        if current_status != "Online":
-                            logger.error(f"[VALIDATION FAIL] Aborting Job {jid}: Printer is {current_status}")
-                            requests.post(
-                                f"{SERVER_URL}/agent/fail",
-                                params={"job_id": jid, "agent_id": AGENT_ID, "token": TOKEN, "error": f"Printer is {current_status}"},
-                                timeout=5
-                            )
-                            continue
-
-                        # ── PRINT & CONFIRM IMMEDIATELY ────────────────────
-                        # 🔹 Bypassing Driver Rendering for USB/COM Ports
-                        printed = False
-                        port_name = _get_usb_port(job['printer'])
-                        if port_name and (port_name.upper().startswith("USB") or port_name.upper().startswith("COM")):
-                            if print_direct(port_name, bytes(content)):
-                                logger.info(f"[POST-PRINT CHECK] Direct write done. Waiting 1s for hardware settle...")
-                                time.sleep(1)
-                                post_status = check_printer_status(job['printer'])
-                                if post_status != "Error":
-                                    logger.info(f"[JOB SUCCESS] ID: {jid} via direct port {port_name} | post_status={post_status}")
-                                    printed = True
-                                else:
-                                    logger.error(f"[POST-PRINT CHECK FAIL] ID: {jid} | Hardware error after direct write")
-                                    # Fall through to spooler fallback attempt
-                            else:
-                                logger.warning(f"[JOB RETRY] Direct write failed for {port_name}, falling back to spooler")
-
-                        if not printed:
-                            if print_raw(job['printer'], bytes(content)):
-                                logger.info(f"[JOB SUCCESS] ID: {jid} via spooler fallback")
-                                printed = True
-
-                        if printed:
-                            conf_res = requests.post(
-                                f"{SERVER_URL}/agent/confirm",
-                                params={"job_id": jid, "agent_id": AGENT_ID, "token": TOKEN},
-                                timeout=15
-                            )
-                            if conf_res.status_code == 200:
-                                logger.info(f"[CONFIRM OK] ID: {jid}")
-                            else:
-                                try:
-                                    err_msg = conf_res.json().get("message", "Unknown error")
-                                except:
-                                    err_msg = conf_res.text
-                                logger.error(f"[CONFIRM FAIL] ID: {jid} | Status: {conf_res.status_code} | Error: {err_msg}")
-                        else:
-                            requests.post(
-                                f"{SERVER_URL}/agent/fail",
-                                params={"job_id": jid, "agent_id": AGENT_ID, "token": TOKEN, "error": "Hardware failure"},
-                                timeout=5
-                            )
-                            logger.error(f"[JOB FAILURE] ID: {jid}")
-                                
-                    except Exception as download_err:
-                        logger.error(f"[DOWNLOAD ERROR] Job {jid}: {download_err}")
-                        # Leave job as 'Agent Printing' - lease will expire and reclaim naturally
-                        
-            elif response.status_code == 401:
-                logger.error("Authentication failed. Check TOKEN.")
-                time.sleep(30)
-                
         except Exception as e:
-            logger.error(f"Polling error: {e}")
-            
-        time.sleep(POLL_INTERVAL)
+            _consec_errors += 1
+            logger.error(f"[AGENT] Poll error: {e}")
+
+        # Wait for WebSocket push or fall back to safety-net poll interval.
+        # _job_trigger.wait() returns True immediately if the event is already set.
+        delay = min(POLL_INTERVAL * (1 + _consec_errors // 5), 120)
+        _job_trigger.wait(timeout=delay)
+        _job_trigger.clear()
+
 
 if __name__ == "__main__":
     agent_loop()

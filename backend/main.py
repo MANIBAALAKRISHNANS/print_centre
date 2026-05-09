@@ -33,6 +33,7 @@ from services.audit import log_audit
 from config import settings
 from queue import PriorityQueue
 import shutil
+import json
 from threading import Lock
 import logging
 import concurrent.futures
@@ -85,6 +86,69 @@ def broadcast_sync(event_type: str, data: dict):
             ws_manager.broadcast({"type": event_type, "data": data}),
             _ws_loop,
         )
+
+
+# ━━━ AGENT WEBSOCKET MANAGER ━━━
+
+class AgentConnectionManager:
+    """Manages persistent WebSocket connections from print agents (one per agent_id)."""
+    def __init__(self):
+        self._connections: dict = {}  # agent_id -> WebSocket
+        self._lock = threading.Lock()
+
+    async def connect(self, agent_id: str, ws: WebSocket):
+        await ws.accept()
+        with self._lock:
+            self._connections[agent_id] = ws
+
+    def disconnect(self, agent_id: str):
+        with self._lock:
+            self._connections.pop(agent_id, None)
+
+    async def send_to_agent(self, agent_id: str, message: dict):
+        with self._lock:
+            ws = self._connections.get(agent_id)
+        if ws:
+            try:
+                await ws.send_json(message)
+            except Exception:
+                self.disconnect(agent_id)
+
+    async def broadcast_to_agents(self, agent_ids: list, message: dict):
+        for aid in agent_ids:
+            await self.send_to_agent(aid, message)
+
+    def connected_count(self) -> int:
+        with self._lock:
+            return len(self._connections)
+
+
+agent_ws_manager = AgentConnectionManager()
+
+
+def notify_agents_at_location_sync(location_id: str):
+    """Push job_available to all WebSocket-connected agents at a location (sync-safe)."""
+    if not (_ws_loop and not _ws_loop.is_closed()):
+        return
+    try:
+        conn = get_connection()
+        cur = get_cursor(conn)
+        placeholder = get_placeholder()
+        cur.execute(
+            f"SELECT agent_id FROM agents WHERE location_id={placeholder} AND status='Online'",
+            (location_id,)
+        )
+        rows = cur.fetchall()
+        conn.close()
+        agent_ids = [get_row_value(r, "agent_id", 0) for r in rows]
+    except Exception:
+        return
+    if not agent_ids:
+        return
+    asyncio.run_coroutine_threadsafe(
+        agent_ws_manager.broadcast_to_agents(agent_ids, {"type": "job_available"}),
+        _ws_loop,
+    )
 
 
 # ━━━ LIFESPAN: CLEAN STARTUP / SHUTDOWN ━━━
@@ -229,6 +293,7 @@ def health_check():
     
     checks["queue_depth"] = print_queue.qsize()
     checks["ws_clients"] = len(ws_manager.active)
+    checks["ws_agents"] = agent_ws_manager.connected_count()
 
     status_code = 200 if overall in ("healthy", "warning") else 503
     return JSONResponse(
@@ -580,10 +645,49 @@ async def websocket_endpoint(websocket: WebSocket, token: str = None):
     await ws_manager.connect(websocket)
     try:
         while True:
-            # Keep the connection alive; client may send pings
             await websocket.receive_text()
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)
+
+
+@app.websocket("/ws/agent")
+async def agent_websocket_endpoint(websocket: WebSocket, agent_id: str = None, token: str = None):
+    """Persistent real-time channel for print agents."""
+    if not agent_id or not token:
+        await websocket.close(code=1008, reason="Missing agent_id or token")
+        return
+    # Authenticate agent credentials against DB
+    row = None
+    try:
+        conn = get_connection()
+        cur = get_cursor(conn)
+        ph = get_placeholder()
+        cur.execute(
+            f"SELECT agent_id FROM agents WHERE agent_id={ph} AND token={ph}",
+            (agent_id, token)
+        )
+        row = cur.fetchone()
+        conn.close()
+    except Exception:
+        pass
+    if not row:
+        await websocket.close(code=1008, reason="Invalid agent credentials")
+        return
+    await agent_ws_manager.connect(agent_id, websocket)
+    logger.info(f"[WS-AGENT] {agent_id} connected via WebSocket")
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            try:
+                msg = json.loads(raw)
+                if msg.get("type") == "ping":
+                    await websocket.send_json({"type": "pong"})
+            except Exception:
+                pass
+    except WebSocketDisconnect:
+        agent_ws_manager.disconnect(agent_id)
+        logger.info(f"[WS-AGENT] {agent_id} disconnected")
+
 
 @app.post("/auth/change-password")
 def change_password(data: ChangePasswordRequest, current_user: dict = Depends(get_current_user)):
@@ -1118,6 +1222,8 @@ def print_job(data: PrintJobRequest, user: dict = Depends(get_current_user)):
             "category": category,
             "payload": payload
         }))
+    # Push real-time notification to agent(s) at this location
+    notify_agents_at_location_sync(location_id)
     return {"job_id": job_id, "status": "Queued"}
 
 @app.get("/mapping-validate")
