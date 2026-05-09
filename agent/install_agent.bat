@@ -82,10 +82,14 @@ if %errorLevel% neq 0 (
 echo [OK] Dependencies installed.
 
 :: Run pywin32 post-install (always - required for Windows Service DLL registration)
+:: Use hardcoded path since we know venv lives at INSTALL_DIR\venv
 echo [INFO] Running pywin32 post-install...
-for /f "delims=" %%i in ('"%VENV_PY%" -c "import sys; print(sys.prefix)"') do set VENV_PREFIX=%%i
-"%VENV_PY%" "!VENV_PREFIX!\Scripts\pywin32_postinstall.py" -install >nul 2>&1
-echo [OK] pywin32 post-install complete.
+"%VENV_PY%" "%INSTALL_DIR%\venv\Scripts\pywin32_postinstall.py" -install
+if %errorLevel% neq 0 (
+    echo [WARNING] pywin32 post-install returned an error - service may not work
+) else (
+    echo [OK] pywin32 post-install complete.
+)
 
 :: First-time setup (only if no config exists in install dir)
 if not exist "agent_config.json" (
