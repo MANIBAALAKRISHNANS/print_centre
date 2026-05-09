@@ -17,10 +17,11 @@ def restrict_config_permissions():
         if _OS == "Windows":
             username = os.environ.get("USERNAME", "")
             if username:
-                # Remove inherited permissions, grant current user Full Control only
+                # Remove inherited permissions, grant current user + SYSTEM (service account)
                 subprocess.run(
                     ["icacls", CONFIG_PATH, "/inheritance:r",
-                     "/grant:r", f"{username}:(R,W)"],
+                     "/grant:r", f"{username}:(R,W)",
+                     "/grant:r", "SYSTEM:(R,W)"],
                     check=True, capture_output=True
                 )
         else:
