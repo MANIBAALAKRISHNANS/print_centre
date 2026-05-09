@@ -111,20 +111,20 @@ VALID_STATUSES = {PrinterStatus.ONLINE, PrinterStatus.OFFLINE, PrinterStatus.ERR
 
 # Future: PostgreSQL migration planned. See db_adapter.py (archived) for DBManager stub.
 def get_row_value(row, key, index=0):
-    """🔹 Helper to extract a value from a row regardless of DB type (dict or tuple)"""
+    """Extract a value from a row regardless of DB type (dict, sqlite3.Row, or tuple)."""
     if row is None:
         return None
+    # Postgres RealDictCursor returns plain dicts
     if isinstance(row, dict):
-        # Case insensitive check for Postgres vs SQLite keys
-        val = row.get(key)
-        if val is None:
-            val = row.get(key.lower())
-        if val is None:
-            val = row.get(key.upper())
-        return val
+        return row.get(key) or row.get(key.lower()) or row.get(key.upper())
+    # sqlite3.Row supports key-based access — try name first, index as fallback
+    try:
+        return row[key]
+    except (IndexError, KeyError):
+        pass
     try:
         return row[index]
-    except:
+    except Exception:
         return None
 
 def get_connection():
