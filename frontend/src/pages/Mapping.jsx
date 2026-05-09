@@ -111,8 +111,8 @@ function Mapping() {
         ) : (
           <table>
             <thead>
-              <tr><th rowSpan="2">Location</th><th rowSpan="2">ID</th><th colSpan="2">A4</th><th colSpan="2">Barcode</th><th rowSpan="2">Actions</th></tr>
-              <tr><th>Primary</th><th>Secondary</th><th>Primary</th><th>Secondary</th></tr>
+              <tr><th rowSpan="2">Location</th><th rowSpan="2">ID</th><th colSpan="2">A4</th><th colSpan="2" style={{ borderLeft: "2px solid #c7d2fe" }}>Barcode</th><th rowSpan="2">Actions</th></tr>
+              <tr><th>Primary</th><th>Secondary</th><th style={{ borderLeft: "2px solid #c7d2fe" }}>Primary</th><th>Secondary</th></tr>
             </thead>
             <tbody>
               {rows.map((row) => (
@@ -120,7 +120,7 @@ function Mapping() {
                   <td>{row.location}</td>
                   <td><code style={{ fontSize: "0.75rem" }}>{row.external_id}</code></td>
                   <td>{row.a4Primary}</td><td>{row.a4Secondary}</td>
-                  <td>{row.barPrimary}</td><td>{row.barSecondary}</td>
+                  <td style={{ borderLeft: "2px solid #e0e7ff" }}>{row.barPrimary}</td><td>{row.barSecondary}</td>
                   <td>
                     <button className="btn" onClick={() => editMapping(row)}>Edit</button>
                     <div style={{ marginTop: "5px", display: "flex", gap: "5px" }}>
