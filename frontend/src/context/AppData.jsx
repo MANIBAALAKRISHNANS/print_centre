@@ -1,6 +1,7 @@
-import React, { createContext, useState, useEffect, useCallback, useMemo } from "react";
-import { useFetch } from "./AuthContext";
+import { createContext, useState, useEffect, useCallback, useMemo } from "react";
+import { useFetch, useAuth } from "./AuthContext";
 import { API_BASE_URL } from "../config";
+import { useWebSocket } from "../hooks/useWebSocket";
 
 export const AppData = createContext();
 
@@ -22,6 +23,7 @@ function AppDataProvider({ children }) {
   });
 
   const authFetch = useFetch();
+  const { token } = useAuth();
 
   const fetchResource = useCallback(async (url, setter, key, silent = false) => {
     if (!silent) {
@@ -55,7 +57,7 @@ function AppDataProvider({ children }) {
   }, [loadPrinters, loadLocations, loadCategories]);
 
   useEffect(() => {
-    // ONLY fetch if we have a token. 
+    // ONLY fetch if we have a token.
     // This prevents unauthorized calls (401) on the login screen.
     const hasToken = document.cookie.includes("print_hub_session");
     if (hasToken) {
@@ -65,7 +67,16 @@ function AppDataProvider({ children }) {
     }
   }, [loadPrinters, loadLocations, loadCategories]);
 
-  const value = React.useMemo(() => ({
+  // Real-time: refresh printers silently when the server pushes an update
+  const handleWsMessage = useCallback((msg) => {
+    if (msg.type === "printer_update") {
+      loadPrinters(true);
+    }
+  }, [loadPrinters]);
+
+  useWebSocket(handleWsMessage, !!token);
+
+  const value = useMemo(() => ({
     printers, setPrinters,
     locations, setLocations,
     categories, setCategories,

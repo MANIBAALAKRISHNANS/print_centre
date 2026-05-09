@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useFetch } from "../context/AuthContext";
+import { useFetch, useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { SkeletonTable, SkeletonTableRow } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import { API_BASE_URL } from "../config";
+import { useWebSocket } from "../hooks/useWebSocket";
 
 function PrintJobs() {
   const [jobs, setJobs] = useState([]);
@@ -25,6 +26,7 @@ function PrintJobs() {
   const logCache = useRef({});
   const CACHE_TTL_MS = 10000; // 10 seconds TTL for active jobs; stable jobs cached forever
   const authFetch = useFetch();
+  const { token } = useAuth();
 
   const loadJobs = useCallback(async (pageNum = 0, currentFilter = filter, search = searchQuery) => {
     try {
@@ -80,11 +82,20 @@ function PrintJobs() {
     if (page > 0) loadJobs(page, filter, searchQuery);
   }, [page]); // eslint-disable-line
 
+  // Safety-net poll — WebSocket handles real-time updates; this catches missed events
   useEffect(() => {
-    // 🔹 CLINICAL UPGRADE: 5-second real-time heartbeat for job tracking
-    const interval = setInterval(() => loadJobs(page, filter, searchQuery), 5000);
+    const interval = setInterval(() => loadJobs(page, filter, searchQuery), 30000);
     return () => clearInterval(interval);
   }, [page, filter, searchQuery]); // eslint-disable-line
+
+  // Real-time: refresh job list instantly on server push
+  const handleWsMessage = useCallback((msg) => {
+    if (msg.type === "job_update" || msg.type === "dashboard_refresh") {
+      loadJobs(page, filter, searchQuery);
+    }
+  }, [loadJobs, page, filter, searchQuery]);
+
+  useWebSocket(handleWsMessage, !!token);
 
   const clearJobs = async () => {
     try {

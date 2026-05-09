@@ -16,8 +16,8 @@ def recover_stuck_jobs():
     cur = get_cursor(conn)
     placeholder = get_placeholder()
     try:
-        # Use standard timestamp string for cross-dialect compatibility
-        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=STUCK_JOB_TIMEOUT_MINUTES)).strftime("%Y-%m-%d %H:%M:%S UTC")
+        # Unix float string matches the format locked_at is stored in (set by datetime.timestamp())
+        cutoff = str((datetime.now(timezone.utc) - timedelta(minutes=STUCK_JOB_TIMEOUT_MINUTES)).timestamp())
         
         # Find stuck jobs
         cur.execute(f"""
@@ -76,7 +76,7 @@ def check_database_integrity():
     Runs integrity checks. Skips for Postgres as it's handled at engine level.
     """
     from config import settings
-    if settings.DB_TYPE != "sqlite":
+    if settings.db_type != "sqlite":
         return
 
     conn = get_connection()

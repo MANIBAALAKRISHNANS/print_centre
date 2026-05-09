@@ -1,46 +1,92 @@
-/* 🏥 Clinical PrintHub Professional Design System */
+/* ═══════════════════════════════════════════════════════════════
+   PrintHub  –  Clinical Design System  (Global Variables & Tokens)
+   ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --secondary: #0ea5e9;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --neutral: #64748b;
-  --bg-main: #f8fafc;
-  --bg-card: #ffffff;
+  /* Brand */
+  --primary:        #2563eb;
+  --primary-hover:  #1d4ed8;
+  --primary-light:  #eff6ff;
+  --secondary:      #0ea5e9;
+
+  /* Semantic */
+  --success:  #10b981;
+  --warning:  #f59e0b;
+  --danger:   #ef4444;
+  --neutral:  #64748b;
+
+  /* Surfaces */
+  --bg-main:  #f0f4f8;
+  --bg-card:  #ffffff;
+
+  /* Sidebar */
   --sidebar-bg: #0f172a;
-  --text-main: #1e293b;
+
+  /* Text */
+  --text-main:  #1e293b;
   --text-muted: #64748b;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --glass: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.2);
+  --text-light: #94a3b8;
+
+  /* Elevation */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 24px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.04);
+
+  /* Borders */
+  --border: #e2e8f0;
+  --border-focus: #3b82f6;
+
+  /* Radius */
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  20px;
+
+  /* Glass */
+  --glass:        rgba(255,255,255,0.7);
+  --glass-border: rgba(255,255,255,0.2);
 }
 
+/* ── Animations ─────────────────────────────────────────────── */
+
 @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }
 
 @keyframes pulse-live {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  0%   { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16,185,129,0.7); }
+  70%  { transform: scale(1);    box-shadow: 0 0 0 7px rgba(16,185,129,0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}
+
+@keyframes pulse-warn {
+  0%   { box-shadow: 0 0 0 0 rgba(245,158,11,0.5); }
+  70%  { box-shadow: 0 0 0 8px rgba(245,158,11,0); }
+  100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
 }
 
 @keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-5px); }
-  100% { transform: translateY(0px); }
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-4px); }
 }
 
-* {
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Base ────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
   box-sizing: border-box;
   scrollbar-width: thin;
-  scrollbar-color: var(--neutral) transparent;
+  scrollbar-color: #94a3b8 transparent;
 }
 
 html, body, #root {
@@ -48,137 +94,215 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Outfit', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   background-color: var(--bg-main);
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Sidebar Styling */
+/* ── Sidebar Components ─────────────────────────────────────── */
+
 .sidebar-divider {
-  margin: 24px 20px 12px 20px;
+  margin: 20px 14px 10px;
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255,255,255,0.07);
 }
 
 .sidebar-header {
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.35);
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  margin: 0 0 12px 24px;
+  letter-spacing: 0.16em;
+  margin: 0 0 8px 22px;
   font-weight: 800;
 }
 
 .sidebarProfile {
   margin-top: auto;
-  padding: 24px 20px;
-  background: rgba(0, 0, 0, 0.2);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 16px 18px;
+  background: rgba(0,0,0,0.2);
+  border-top: 1px solid rgba(255,255,255,0.05);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .profileAvatar {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, #3b82f6, #0ea5e9);
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: bold;
-  font-size: 0.9rem;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(59,130,246,0.35);
 }
 
 .profileInfo {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
 }
 
 .profileInfo .username {
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: white;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: #fff;
   letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .profileInfo .role {
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.67rem;
+  color: rgba(255,255,255,0.45);
   text-transform: uppercase;
   font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-top: 1px;
 }
 
 .logoutBtn {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(239,68,68,0.12);
   border: none;
-  color: #ef4444;
+  color: #f87171;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 10px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 7px;
+  border-radius: 8px;
+  transition: all 0.18s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .logoutBtn:hover {
-  background: var(--danger);
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  background: #ef4444;
+  color: #fff;
+  transform: scale(1.05);
+  box-shadow: 0 3px 10px rgba(239,68,68,0.35);
 }
 
-/* Professional Card Components */
+/* ── Clinical Card ──────────────────────────────────────────── */
+
 .clinical-card {
   background: var(--bg-card);
-  border-radius: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(226,232,240,0.8);
   box-shadow: var(--shadow-sm);
-  transition: all 0.3s ease;
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
 }
 
 .clinical-card:hover {
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
-  border-color: var(--primary);
+  border-color: #bfdbfe;
 }
 
-/* Heartbeat Indicator */
+/* ── Live Monitor Badge ──────────────────────────────────────── */
+
 .live-monitor-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
+  gap: 7px;
+  padding: 6px 14px;
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.2);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
   color: #059669;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .live-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--success);
+  width: 7px;
+  height: 7px;
+  background: #10b981;
   border-radius: 50%;
   animation: pulse-live 2s infinite;
+  flex-shrink: 0;
 }
 
-/* Premium Typography */
+/* ── Typography ─────────────────────────────────────────────── */
+
 h1, h2, h3 {
   letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
 .clinical-title {
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
   font-weight: 800;
 }
+
+/* ── Skeleton Loader ────────────────────────────────────────── */
+
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e8edf4 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 6px;
+}
+
+/* ── Status Badge (clinical-table variant) ───────────────────── */
+
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.badge-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.badge-status.online  { background: #dcfce7; color: #15803d; }
+.badge-status.offline { background: #fee2e2; color: #991b1b; }
+.badge-status.error   { background: #ffedd5; color: #9a3412; }
+
+/* ── Page Fade-in ────────────────────────────────────────────── */
+
+.page {
+  animation: fadeIn 0.2s ease both;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Utility ─────────────────────────────────────────────────── */
+
+.pulse { animation: pulse-warn 2s infinite; }
+.float { animation: float 3s ease-in-out infinite; }
+.spin  { animation: spin 1s linear infinite; }
+
+.text-muted  { color: var(--text-muted); }
+.text-danger { color: var(--danger); }
+.text-success{ color: var(--success); }
+.font-mono   { font-family: 'Fira Code', 'Cascadia Code', monospace; }

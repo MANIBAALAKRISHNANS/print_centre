@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     db_name: str = "printhub"
     database_backup_path: str = "./backups/"
     stale_threshold_seconds: int = 45
+    pg_pool_min: int = 2
+    pg_pool_max: int = 20
 
     # ── Alerting (Optional) ───────────────────────────
     alert_webhook_url: Optional[str] = None

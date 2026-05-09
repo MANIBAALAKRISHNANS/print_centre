@@ -1,4 +1,6 @@
 import os
+import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 import uuid
@@ -7,33 +9,29 @@ import secrets
 import requests
 import threading
 import time
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Request
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Literal
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse
-import json
-import time
 from logging_config import setup_logging
 from database import (
-    init_db, get_connection, get_cursor, get_placeholder, get_row_value,
+    init_db, init_pool, close_pool,
+    get_connection, get_cursor, get_placeholder, get_row_value,
     utcnow, JobStatus, safe_delete, seed_admin, archive_old_jobs, backup_database
 )
 from services.recovery import recover_stuck_jobs, check_database_integrity
 from services.alerts import alert, alert_deduplicated
-from datetime import datetime, timezone
 from services.barcode_service import build_print_payload, generate_patient_id
-from services.routing_service import print_with_failover, mark_job, log_print_event
+from services.routing_service import print_with_failover
 from services.utils import is_usb_stale
 from services.auth import hash_password, verify_password, create_token, decode_token
 from services.audit import log_audit
 from config import settings
 from queue import PriorityQueue
-from apscheduler.schedulers.background import BackgroundScheduler
 import shutil
 from threading import Lock
 import logging
@@ -43,9 +41,92 @@ import concurrent.futures
 setup_logging()
 logger = logging.getLogger("Main")
 
+# ━━━ WEBSOCKET BROADCAST INFRASTRUCTURE ━━━
+
+_ws_loop: "asyncio.AbstractEventLoop | None" = None
+
+
+class ConnectionManager:
+    """Thread-safe WebSocket connection manager."""
+    def __init__(self):
+        self.active: list = []
+        self._lock = threading.Lock()
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        with self._lock:
+            self.active.append(ws)
+
+    def disconnect(self, ws: WebSocket):
+        with self._lock:
+            if ws in self.active:
+                self.active.remove(ws)
+
+    async def broadcast(self, message: dict):
+        dead = []
+        with self._lock:
+            targets = list(self.active)
+        for ws in targets:
+            try:
+                await ws.send_json(message)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(ws)
+
+
+ws_manager = ConnectionManager()
+
+
+def broadcast_sync(event_type: str, data: dict):
+    """Bridge from sync worker/monitor threads to async WebSocket broadcast."""
+    if _ws_loop and not _ws_loop.is_closed():
+        asyncio.run_coroutine_threadsafe(
+            ws_manager.broadcast({"type": event_type, "data": data}),
+            _ws_loop,
+        )
+
+
+# ━━━ LIFESPAN: CLEAN STARTUP / SHUTDOWN ━━━
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    global _ws_loop
+    _ws_loop = asyncio.get_event_loop()
+
+    # Ordered startup sequence
+    init_db()
+    init_pool()
+    check_dependencies()
+    startup_cleanup()
+    self_healing()
+    seed_admin("admin", hash_password("Admin@PrintHub2026"))
+    recover_queue()
+
+    for i in range(3):
+        threading.Thread(target=process_queue, args=(i,), daemon=True).start()
+    threading.Thread(target=monitor_loop, daemon=True).start()
+
+    scheduler.add_job(recover_stuck_jobs, "interval", minutes=1)
+    scheduler.add_job(check_database_integrity, "cron", hour=2, minute=0)
+    scheduler.start()
+    logger.info("PrintHub production system ready")
+
+    yield
+
+    # Ordered shutdown
+    try:
+        scheduler.shutdown(wait=False)
+    except Exception:
+        pass
+    close_pool()
+    logger.info("PrintHub shutdown complete")
+
+
 print_queue = PriorityQueue(maxsize=500)
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(
+    lifespan=lifespan,
     title="🏥 Clinical PrintHub Professional API",
     description="""
     Production-grade hospital print management infrastructure.
@@ -133,8 +214,8 @@ def health_check():
         conn = get_connection()
         cur = get_cursor(conn)
         placeholder = get_placeholder()
-        cur.execute(f"SELECT COUNT(*) FROM print_jobs WHERE status='Printing' AND locked_at < {placeholder}", 
-                    ((datetime.now(timezone.utc) - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S UTC"),))
+        cur.execute(f"SELECT COUNT(*) FROM print_jobs WHERE status='Printing' AND locked_at < {placeholder}",
+                    (str((datetime.now(timezone.utc) - timedelta(minutes=5)).timestamp()),))
         row = cur.fetchone()
         stuck = get_row_value(row, 'count', 0) or 0
         conn.close()
@@ -146,12 +227,15 @@ def health_check():
     except Exception as e:
         checks["stuck_jobs"] = f"error: {str(e)}"
     
+    checks["queue_depth"] = print_queue.qsize()
+    checks["ws_clients"] = len(ws_manager.active)
+
     status_code = 200 if overall in ("healthy", "warning") else 503
     return JSONResponse(
         content={
-            "status": overall, 
-            "checks": checks, 
-            "version": "1.0.0", 
+            "status": overall,
+            "checks": checks,
+            "version": "3.5.0-PRO",
             "timestamp": utcnow()
         },
         status_code=status_code
@@ -162,7 +246,7 @@ metrics_lock = Lock()
 _cache = {}
 cache_lock = Lock()
 
-def get_cached_data(key, ttl=10):
+def get_cached_data(key):
     now = time.time()
     with cache_lock:
         if key in _cache:
@@ -193,10 +277,6 @@ def check_dependencies():
         logger.critical(f"⚠️  MISSING DEPENDENCIES: {', '.join(missing)}")
         logger.critical("Document conversion (PDF/DOCX) will fail until these are installed and added to PATH.")
 
-# 🔹 Initialize Database
-init_db()
-
-check_dependencies()
 
 def self_healing():
     """🔹 Classify and fix printer data on startup"""
@@ -277,12 +357,9 @@ def recover_queue():
     conn.close()
     logger.info(f"RECOVERY COMPLETE: {len(all_to_queue)} jobs re-queued.")
 
-startup_cleanup()
-self_healing()
-
 @app.get("/metrics")
 def get_metrics():
-    cached = get_cached_data("metrics", 10)
+    cached = get_cached_data("metrics")
     if cached: return cached
     
     with metrics_lock:
@@ -319,6 +396,14 @@ def get_metrics():
         finally:
             conn.close()
 
+# 🔹 X-Request-ID Tracing Middleware
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = req_id
+    return response
+
 # 🔹 Security Headers Middleware
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -329,24 +414,16 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
-# 🔹 CORS SETUP - MUST BE OUTERMOST (Added Last)
-ALLOWED_ORIGINS = [
-    "http://localhost:5173", 
-    "http://localhost:5174", 
-    "http://127.0.0.1:5173", 
-    "http://127.0.0.1:5174"
-]
+# 🔹 CORS SETUP - origins are configurable via ALLOWED_ORIGINS env var
+_allowed_origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
-
-# 🔹 Seed Default Admin (Hospital-grade initial creds)
-seed_admin("admin", hash_password("Admin@PrintHub2026"))
 
 # 🔹 Authentication Dependencies
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -434,17 +511,6 @@ class ResetPasswordRequest(BaseModel):
 class RoleUpdateRequest(BaseModel):
     role: str
 
-class CategoryRequest(BaseModel):
-    name: str
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
-class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
-
 # ━━━ AUTH ENDPOINTS ━━━
 
 
@@ -499,6 +565,25 @@ def login(request: Request, data: LoginRequest):
 @app.get("/auth/me")
 def get_me(user: dict = Depends(get_current_user)):
     return user
+
+# ━━━ REAL-TIME WEBSOCKET ━━━
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket, token: str = None):
+    if not token:
+        await websocket.close(code=1008, reason="Missing token")
+        return
+    payload = decode_token(token)
+    if not payload:
+        await websocket.close(code=1008, reason="Invalid or expired token")
+        return
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            # Keep the connection alive; client may send pings
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
 
 @app.post("/auth/change-password")
 def change_password(data: ChangePasswordRequest, current_user: dict = Depends(get_current_user)):
@@ -657,7 +742,7 @@ class Category(BaseModel):
 
 @app.get("/dashboard")
 def get_dashboard(user: dict = Depends(get_current_user)):
-    cached = get_cached_data("dashboard", 10)
+    cached = get_cached_data("dashboard")
     if cached: return cached
 
     conn = get_connection()
@@ -795,11 +880,12 @@ def add_printer(data: Printer, admin: dict = Depends(require_admin)):
     cur = get_cursor(conn)
     placeholder = get_placeholder()
     cur.execute(f"""
-        INSERT INTO printers (name, ip, category, status, language, connection_type, last_updated, last_update_source) 
+        INSERT INTO printers (name, ip, category, status, language, connection_type, last_updated, last_update_source)
         VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+        RETURNING id
     """, (data.name, data.ip, data.category, data.status, data.language, data.connection_type, utcnow(), "Initial"))
+    new_id = get_row_value(cur.fetchone(), 'id', 0)
     conn.commit()
-    new_id = cur.lastrowid
     conn.close()
     invalidate_cache("dashboard")
     return {"id": new_id}
@@ -838,7 +924,7 @@ def delete_printer(printer_id: int, admin: dict = Depends(require_admin)):
 
 @app.get("/locations")
 def get_locations(user: dict = Depends(get_current_user)):
-    cached = get_cached_data("locations", 30)
+    cached = get_cached_data("locations")
     if cached: return cached
     conn = get_connection()
     cur = get_cursor(conn)
@@ -851,7 +937,7 @@ def get_locations(user: dict = Depends(get_current_user)):
 
 @app.get("/mapping")
 def get_mapping(user: dict = Depends(get_current_user)):
-    cached = get_cached_data("mapping", 10)
+    cached = get_cached_data("mapping")
     if cached: return cached
     conn = get_connection()
     cur = get_cursor(conn)
@@ -920,7 +1006,7 @@ def get_print_jobs(
     
     # Get Total Count
     cur.execute(f"SELECT COUNT(*) FROM print_jobs {where_sql}", params)
-    total = cur.fetchone()[0]
+    total = get_row_value(cur.fetchone(), 'count', 0) or 0
     
     # Get Results
     query = f"SELECT * FROM print_jobs {where_sql} ORDER BY id DESC LIMIT {placeholder} OFFSET {placeholder}"
@@ -937,7 +1023,7 @@ def delete_all_jobs(admin: dict = Depends(require_admin)):
     cur = get_cursor(conn)
     placeholder = get_placeholder()
     cur.execute(f"SELECT COUNT(*) FROM print_jobs")
-    count = cur.fetchone()[0]
+    count = get_row_value(cur.fetchone(), 'count', 0) or 0
     cur.execute(f"DELETE FROM print_jobs")
     cur.execute(f"DELETE FROM print_logs")
     conn.commit()
@@ -990,7 +1076,7 @@ def delete_category(name: str, admin: dict = Depends(require_admin)):
 
 
 @app.post("/print-job")
-def print_job(data: PrintJobRequest):
+def print_job(data: PrintJobRequest, user: dict = Depends(get_current_user)):
     location_id = data.location_id
     category = data.category
     if not location_id: raise HTTPException(400, "location_id is required")
@@ -1008,12 +1094,30 @@ def print_job(data: PrintJobRequest):
         conn.close()
         return {"error": "Invalid location_id"}
     patient_id = data.patient_id or generate_patient_id()
-    cur.execute(f"INSERT INTO print_jobs (location, location_id, category, printer, status, type, time, patient_name, age, gender, patient_id, tube_type, test_name) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})",
-            (loc["name"], location_id, category, "Pending", "Queued", "None", utcnow(), data.patient_name, data.age, data.gender, patient_id, data.tube_type, data.test_name))
+    loc_name = get_row_value(loc, "name", 0)
+    cur.execute(f"INSERT INTO print_jobs (location, location_id, category, printer, status, type, time, patient_name, age, gender, patient_id, tube_type, test_name) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}) RETURNING id",
+            (loc_name, location_id, category, "Pending", "Queued", "None", utcnow(), data.patient_name, data.age, data.gender, patient_id, data.tube_type, data.test_name))
+    job_id = get_row_value(cur.fetchone(), 'id', 0)
     conn.commit()
-    job_id = cur.lastrowid
     conn.close()
-    log_audit("system", "user", "CREATE_JOB", resource_type="print_job", resource_id=job_id, patient_id=patient_id, details={"category": category, "location": location_id})
+    log_audit(user.get("sub", "api"), "user", "CREATE_JOB", resource_type="print_job", resource_id=job_id, patient_id=patient_id, details={"category": category, "location": location_id})
+    if category == "Barcode":
+        payload = build_print_payload({
+            "patient_name": data.patient_name,
+            "age": data.age,
+            "gender": data.gender,
+            "patient_id": patient_id,
+            "tube_type": data.tube_type,
+            "test_name": data.test_name,
+            "category": category,
+            "location": loc_name,
+        })
+        print_queue.put((data.priority, {
+            "job_id": job_id,
+            "location_id": location_id,
+            "category": category,
+            "payload": payload
+        }))
     return {"job_id": job_id, "status": "Queued"}
 
 @app.get("/mapping-validate")
@@ -1102,10 +1206,10 @@ async def print_a4_file(location_id: str = Form(...), file: UploadFile = File(..
         conn.close()
         os.remove(file_path)
         return {"error": "Invalid location_id"}
-    cur.execute(f"INSERT INTO print_jobs (location, location_id, category, printer, status, type, time, file_path, file_type) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})",
+    cur.execute(f"INSERT INTO print_jobs (location, location_id, category, printer, status, type, time, file_path, file_type) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}) RETURNING id",
                 (loc["name"], location_id, "A4", "Pending", "Queued", "None", utcnow(), file_path, file.filename.split(".")[-1]))
+    job_id = get_row_value(cur.fetchone(), 'id', 0)
     conn.commit()
-    job_id = cur.lastrowid
     conn.close()
     print_queue.put((2, {"job_id": job_id, "location_id": location_id, "category": "A4", "payload": file_path}))
     return {"job_id": job_id, "status": "Queued"}
@@ -1157,11 +1261,9 @@ def get_agent_jobs(agent_id: str, token: str, location_id: str = None):
         
         # 🔹 2. Atomic Lease Mechanism
         # Fetch jobs that are Pending OR have a timed-out lease (older than 2 mins)
-        from config import settings
-        if getattr(settings, "db_type", "sqlite") == "sqlite":
+        if settings.db_type == "sqlite":
             cur.execute("BEGIN IMMEDIATE")
-        else:
-            cur.execute("BEGIN")
+        # PostgreSQL: psycopg2 auto-starts a transaction on first query — no BEGIN needed
         try:
             reclaim_threshold = datetime.now(timezone.utc).timestamp() - 300 # 5 mins
             
@@ -1320,8 +1422,7 @@ def test_alert(current_user: dict = Depends(require_admin)):
 def fail_agent_job(job_id: int, agent_id: str, token: str, error: str):
     conn = get_connection()
     cur = get_cursor(conn)
-    from config import settings
-    if getattr(settings, "db_type", "sqlite") == "sqlite":
+    if settings.db_type == "sqlite":
         cur.execute("BEGIN IMMEDIATE")
     placeholder = get_placeholder()
     # Security
@@ -1358,8 +1459,7 @@ def fail_agent_job(job_id: int, agent_id: str, token: str, error: str):
 def get_agent_job_file(job_id: int, agent_id: str, token: str):
     conn = get_connection()
     cur = get_cursor(conn)
-    from config import settings
-    if getattr(settings, "db_type", "sqlite") == "sqlite":
+    if settings.db_type == "sqlite":
         cur.execute("BEGIN IMMEDIATE")
     placeholder = get_placeholder()
     # 🔹 1. Validate Agent Token & Job Ownership
@@ -1393,8 +1493,7 @@ def get_agent_job_file(job_id: int, agent_id: str, token: str):
 def agent_heartbeat(agent_id: str, token: str, location_id: str = None, hostname: str = None):
     conn = get_connection()
     cur = get_cursor(conn)
-    from config import settings
-    if getattr(settings, "db_type", "sqlite") == "sqlite":
+    if settings.db_type == "sqlite":
         cur.execute("BEGIN IMMEDIATE")
     placeholder = get_placeholder()
     
@@ -1542,8 +1641,7 @@ def register_agent(request: Request, data: AgentRegisterRequest):
 def get_agent_config(agent_id: str, token: str, location_id: str = None):
     conn = get_connection()
     cur = get_cursor(conn)
-    from config import settings
-    if getattr(settings, "db_type", "sqlite") == "sqlite":
+    if settings.db_type == "sqlite":
         cur.execute("BEGIN IMMEDIATE")
     placeholder = get_placeholder()
     
@@ -1590,8 +1688,7 @@ def get_agent_config(agent_id: str, token: str, location_id: str = None):
 def confirm_agent_job(job_id: int, agent_id: str, token: str):
     conn = get_connection()
     cur = get_cursor(conn)
-    from config import settings
-    if getattr(settings, "db_type", "sqlite") == "sqlite":
+    if settings.db_type == "sqlite":
         cur.execute("BEGIN IMMEDIATE")
     placeholder = get_placeholder()
 
@@ -1815,16 +1912,22 @@ def process_queue(worker_id):
                 future = executor.submit(print_with_failover, job["job_id"], job["location_id"], job["category"], job["payload"])
                 try:
                     future.result(timeout=60)
+                    broadcast_sync("job_update", {"job_id": job["job_id"]})
+                    broadcast_sync("dashboard_refresh", {})
                 except concurrent.futures.TimeoutError:
                     logger.error(f"Worker-{worker_id} job {job['job_id']} TIMED OUT after 60s")
-            
+                    broadcast_sync("job_update", {"job_id": job["job_id"]})
+
         except Exception as e:
             if "RETRY" in str(e) and job_item:
                 logger.warning(f"Worker-{worker_id} retrying job {job_item['job_id']} in 2s")
                 time.sleep(2)
                 print_queue.put((2, job_item))
+                broadcast_sync("job_update", {"job_id": job_item["job_id"]})
             else:
                 logger.error(f"Worker-{worker_id} error: {e}")
+                if job_item:
+                    broadcast_sync("job_update", {"job_id": job_item["job_id"]})
         finally:
             if job_item:
                 print_queue.task_done()
@@ -1834,12 +1937,6 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host=settings.host, port=settings.port)
 
-# 🔹 Startup: Recover jobs BEFORE starting workers
-recover_queue()
-
-# 🔹 Scale: 3 Parallel Workers
-for i in range(3):
-    threading.Thread(target=process_queue, args=(i,), daemon=True).start()
 
 # 🔹 BACKGROUND TASKS: Monitoring & Maintenance
 def monitor_loop():
@@ -1858,7 +1955,7 @@ def monitor_loop():
             for agent in dead_agents:
                 logger.warning(f"Agent {agent['agent_id']} TIMED OUT. Marking Offline.")
                 cur.execute(f"UPDATE agents SET status='Offline' WHERE agent_id={placeholder}", (agent["agent_id"],))
-                
+                broadcast_sync("agent_update", {"agent_id": agent["agent_id"], "status": "Offline"})
                 # 🔹 ALERT: Agent disconnected
                 alert_deduplicated(f"agent_offline_{agent['agent_id']}",
                   f"Agent Offline: {agent['hostname']}",
@@ -1874,9 +1971,9 @@ def monitor_loop():
             for p in timed_out:
                 logger.warning(f"TIMEOUT: USB Printer '{p['name']}' stale (>45s). Marking Offline.")
                 cur.execute(f"UPDATE printers SET status='Offline', last_update_source='Server:USBTimeout' WHERE name={placeholder}", (p["name"],))
-                
+                broadcast_sync("printer_update", {"name": p["name"], "status": "Offline"})
                 # 🔹 ALERT: Printer offline
-                alert_deduplicated(f"printer_offline_{p['name']}", 
+                alert_deduplicated(f"printer_offline_{p['name']}",
                   f"Printer Offline: {p['name']}",
                   f"<p>Printer <b>{p['name']}</b> at location <b>{p['location_id']}</b> went offline at {utcnow()}.</p>")
                 
@@ -1891,10 +1988,11 @@ def monitor_loop():
                 if p["status"] != new_status:
                     logger.info(f"STATUS UPDATE: '{p['name']}' [IP] | Source: Server | {p['status']} -> {new_status}")
                     cur.execute(f"""
-                        UPDATE printers 
-                        SET status={placeholder}, last_updated={placeholder}, last_update_source={placeholder} 
+                        UPDATE printers
+                        SET status={placeholder}, last_updated={placeholder}, last_update_source={placeholder}
                         WHERE id={placeholder}
                     """, (new_status, utcnow(), "Server:IPMonitor", p["id"]))
+                    broadcast_sync("printer_update", {"name": p["name"], "status": new_status})
                 
             # 4. AUTOMATED LOG CLEANUP (Daily)
             placeholder = get_placeholder()
@@ -1902,14 +2000,16 @@ def monitor_loop():
             cur.execute(f"DELETE FROM print_logs WHERE time < {placeholder}", (thirty_days_ago,))
             
             conn.commit()
-            
+            if dead_agents or timed_out:
+                broadcast_sync("dashboard_refresh", {})
+
         except Exception as e:
             logger.error(f"Monitoring Loop error: {e}")
         finally:
             if conn:
                 try: conn.close()
                 except: pass
-            
+
         time.sleep(60)
 
 
@@ -1933,9 +2033,3 @@ def clinical_daily_cleanup():
     conn.commit()
     conn.close()
 
-# Real-time recovery
-scheduler.add_job(recover_stuck_jobs, 'interval', minutes=1)
-scheduler.start()
-
-
-threading.Thread(target=monitor_loop, daemon=True).start()

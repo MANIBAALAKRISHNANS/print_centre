@@ -1,9 +1,10 @@
 import { useState, useEffect, useContext, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppData } from "../context/AppData";
-import { useFetch } from "../context/AuthContext";
+import { useFetch, useAuth } from "../context/AuthContext";
 import { SkeletonLine, SkeletonTable } from "../components/Skeleton";
 import { API_BASE_URL } from "../config";
+import { useWebSocket } from "../hooks/useWebSocket";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ function Dashboard() {
   const [health, setHealth] = useState({ warnings: [] });
 
   const authFetch = useFetch();
+  const { token } = useAuth();
 
   const loadStats = useCallback(async () => {
     try {
@@ -46,8 +48,8 @@ function Dashboard() {
   useEffect(() => {
     loadStats();
     loadHealth();
-    // 🔹 CLINICAL HEARTBEAT
-    const interval = setInterval(loadStats, 5000);
+    // Safety-net poll — WebSocket handles real-time; this catches any missed events
+    const interval = setInterval(loadStats, 30000);
     const healthInterval = setInterval(loadHealth, 30000);
     return () => {
       clearInterval(interval);
@@ -55,19 +57,32 @@ function Dashboard() {
     };
   }, [loadStats, loadHealth]);
 
-  useEffect(() => {
-    const loadAgents = async () => {
-      try {
-        const res = await authFetch(`${API_BASE_URL}/agents`);
-        setAgents(await res.json());
-      } catch (e) {
-        /* silent */
-      }
-    };
-    loadAgents();
-    const t = setInterval(loadAgents, 10000);
-    return () => clearInterval(t);
+  // Real-time: refresh dashboard instantly when server pushes events
+  const handleWsMessage = useCallback((msg) => {
+    if (["dashboard_refresh", "printer_update", "agent_update", "job_update"].includes(msg.type)) {
+      loadStats();
+    }
+    if (["agent_update", "dashboard_refresh"].includes(msg.type)) {
+      loadAgents();
+    }
+  }, [loadStats, loadAgents]);
+
+  useWebSocket(handleWsMessage, !!token);
+
+  const loadAgents = useCallback(async () => {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/agents`);
+      setAgents(await res.json());
+    } catch (e) {
+      /* silent */
+    }
   }, [authFetch]);
+
+  useEffect(() => {
+    loadAgents();
+    const t = setInterval(loadAgents, 30000);
+    return () => clearInterval(t);
+  }, [loadAgents]);
 
   const getStatusColor = (status) => {
     const s = (status || "").toLowerCase();
