@@ -232,7 +232,7 @@ class AgentWebSocket:
     def _on_error(self, ws, error):
         logger.warning(f"[WS] Error: {error}")
 
-    def _on_close(self, ws, code, msg):
+    def _on_close(self, ws, code=None, msg=None):
         _ws_connected.clear()
         logger.info(f"[WS] Closed (code={code})")
 
