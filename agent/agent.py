@@ -36,7 +36,7 @@ else:
 
 from agent_config import load_config, save_config
 
-# ── Logging: rotating file + console ─────────────────────────────────────────
+# -- Logging: rotating file + console -----------------------------------------
 import sys
 
 if _OS == "Windows":
@@ -65,7 +65,7 @@ _handler_console.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(mes
 logging.basicConfig(level=logging.INFO, handlers=[_handler_file, _handler_console])
 logger = logging.getLogger("PrintAgent")
 
-# ── Config & HTTP session ─────────────────────────────────────────────────────
+# -- Config & HTTP session -----------------------------------------------------
 _config = load_config()
 SERVER_URL = _config.get("server_url") or os.environ.get("SERVER_URL", "http://127.0.0.1:8000")
 _TLS_VERIFY = _config.get("tls_verify", True)
@@ -77,18 +77,18 @@ _session = requests.Session()
 _session.mount("http://", _retry_adapter)
 _session.mount("https://", _retry_adapter)
 
-# ── Global state ──────────────────────────────────────────────────────────────
+# -- Global state --------------------------------------------------------------
 POLL_INTERVAL  = 30   # safety-net fallback poll (WebSocket handles real-time)
 HEARTBEAT_INTERVAL = 15
 
-# Event set by WebSocket when server pushes job_available — wakes the poll loop immediately
+# Event set by WebSocket when server pushes job_available - wakes the poll loop immediately
 _job_trigger = threading.Event()
 _ws_connected = threading.Event()  # signals that WS is currently alive
 
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 # REGISTRATION
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 
 def ensure_registered():
     config = load_config()
@@ -133,7 +133,7 @@ def ensure_registered():
             else:
                 logger.error(f"[AGENT] Registration failed ({res.status_code}): {res.text}")
                 if res.status_code in (400, 403, 404):
-                    raise SystemExit(1)  # bad code — no point retrying
+                    raise SystemExit(1)  # bad code - no point retrying
         except requests.exceptions.SSLError:
             logger.critical("[AGENT] TLS error - re-run setup with --no-verify for self-signed certs")
             raise SystemExit(1)
@@ -150,9 +150,9 @@ def ensure_registered():
 AGENT_ID, TOKEN, LOCATION_ID = ensure_registered()
 
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 # REAL-TIME WEBSOCKET CLIENT
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 
 class AgentWebSocket:
     """
@@ -160,7 +160,7 @@ class AgentWebSocket:
     Runs in its own daemon thread. On `job_available` message, wakes the
     main poll loop immediately so jobs execute in ~milliseconds instead of
     waiting up to POLL_INTERVAL seconds.
-    Auto-reconnects with exponential backoff (1 s → 60 s cap).
+    Auto-reconnects with exponential backoff (1 s -> 60 s cap).
     """
 
     def __init__(self, server_url: str, agent_id: str, token: str):
@@ -234,9 +234,9 @@ class AgentWebSocket:
         logger.info(f"[WS] Closed (code={code})")
 
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 # OS DISPATCH WRAPPERS
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 
 def check_printer_status(printer_name: str) -> str:
     if _OS == "Darwin":
@@ -244,7 +244,7 @@ def check_printer_status(printer_name: str) -> str:
     if not _WIN32_AVAILABLE:
         return "Offline"
 
-    # Layer 1 — physical presence
+    # Layer 1 - physical presence
     try:
         enumerated = {p[2].lower() for p in win32print.EnumPrinters(2)}
     except Exception as e:
@@ -253,7 +253,7 @@ def check_printer_status(printer_name: str) -> str:
     if printer_name.lower() not in enumerated:
         return "Offline"
 
-    # Layer 2 — WMI validation
+    # Layer 2 - WMI validation
     try:
         import pythoncom
         from wmi import WMI
@@ -276,7 +276,7 @@ def check_printer_status(printer_name: str) -> str:
     except Exception as e:
         logger.debug(f"[WMI] Check failed: {e}")
 
-    # Layer 3 — handle inspection
+    # Layer 3 - handle inspection
     try:
         handle = win32print.OpenPrinter(printer_name)
         try:
@@ -344,9 +344,9 @@ def print_raw(printer_name: str, data: bytes) -> bool:
         return False
 
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 # BACKGROUND LOOPS
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 
 def heartbeat_loop():
     hostname = socket.gethostname()
@@ -442,9 +442,9 @@ def status_reporting_loop():
         time.sleep(delay)
 
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 # JOB PROCESSING
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 
 def _fetch_jobs() -> list:
     res = _session.get(
@@ -562,9 +562,9 @@ def _process_job(job: dict):
         logger.error(f"[JOB] Unexpected error for id={jid}: {e}")
 
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 # MAIN AGENT LOOP
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ============================================================================
 
 def agent_loop():
     logger.info(f"[AGENT] {AGENT_ID} starting - server: {SERVER_URL}")
