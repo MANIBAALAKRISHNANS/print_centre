@@ -227,22 +227,36 @@ python agent_service.py start
 
 ### Service Management
 
-```cmd
-python agent_service.py start
-python agent_service.py stop
-python agent_service.py restart
-python agent_service.py remove
+Always use the venv Python when managing the service:
 
-:: Check status
-python agent_setup.py --status
+```cmd
+cd C:\PrintHubAgent
+
+:: Start / stop / restart
+venv\Scripts\python.exe agent_service.py start
+venv\Scripts\python.exe agent_service.py stop
+venv\Scripts\python.exe agent_service.py restart
+
+:: Check status (from anywhere)
+sc query PrintHubAgent
 
 :: View logs
 type C:\PrintHubAgent\agent.log
 
 :: Re-register (if server changes)
-python agent_setup.py --reset
-python agent_setup.py --code NEWCODE --server http://NEW_SERVER:8000
-python agent_service.py restart
+venv\Scripts\python.exe agent_setup.py --reset
+venv\Scripts\python.exe agent_setup.py --code NEWCODE --server http://NEW_SERVER:8000
+venv\Scripts\python.exe agent_service.py restart
+```
+
+**After updating `agent_service.py` or `agent.py`** you must do a full reinstall (restart alone is not enough):
+```cmd
+cd C:\PrintHubAgent
+venv\Scripts\python.exe agent_service.py stop
+venv\Scripts\python.exe agent_service.py remove
+venv\Scripts\python.exe agent_service.py --startup auto install
+venv\Scripts\python.exe agent_service.py start
+sc query PrintHubAgent
 ```
 
 ### Security on Windows
@@ -543,6 +557,35 @@ proxy_set_header Connection "upgrade";
 ### Print job stays "Pending" — never picked up
 **Cause:** No agent online for that location, or agent crashed.  
 **Fix:** Check **Agents** page. View `C:\PrintHubAgent\agent.log` for errors.
+
+### Windows Service "did not respond to the start or control request in a timely fashion"
+**Cause:** Old `agent_service.py` called `agent_thread.join(timeout=30)` inside `SvcDoRun`, blocking the service thread for 30 s before reporting `SERVICE_RUNNING`. SCM times out after ~30 s and marks the service as failed.  
+**Fix:** `agent_service.py` now reports `SERVICE_RUNNING` **immediately** at the start of `SvcDoRun` and uses `WaitForSingleObject(hWaitStop, INFINITE)` for clean shutdown. After pulling the latest code, reinstall the service:
+```cmd
+cd C:\PrintHubAgent
+venv\Scripts\python.exe agent_service.py stop
+venv\Scripts\python.exe agent_service.py remove
+venv\Scripts\python.exe agent_service.py --startup auto install
+venv\Scripts\python.exe agent_service.py start
+sc query PrintHubAgent
+```
+Expected: `STATE: 4 RUNNING`.
+
+### `UnicodeEncodeError: 'charmap' codec can't encode character` on Windows Service start
+**Cause:** Windows default console encoding is `cp1252`, which cannot represent Unicode characters (`→`, `—`, `…`). The logging `StreamHandler` writes to this stream, crashing the service on startup before any log file is created.  
+**Fix:** `agent.py` now calls `sys.stdout.reconfigure(encoding="utf-8", errors="replace")` on Windows at startup, opens the `RotatingFileHandler` with `encoding="utf-8"`, and replaces all Unicode characters in log strings with ASCII equivalents (`->`, `-`, `...`). Pull the latest version — no manual config change needed.
+
+### Dashboard shows "Something went wrong" error boundary on every load
+**Cause:** JavaScript Temporal Dead Zone (TDZ) — `handleWsMessage` useCallback referenced `loadAgents` in its `deps` array, but `loadAgents` was declared with `const` 11 lines **below** that reference. Every render synchronously threw `ReferenceError: Cannot access 'loadAgents' before initialization`, which the React ErrorBoundary caught and replaced with the error screen.  
+**Fix:** `Dashboard.jsx` now declares `loadAgents` and its `useEffect` before `handleWsMessage`. Pull the latest version.
+
+### Loading skeleton animations not playing (static gray blocks, no shimmer)
+**Cause:** `Skeleton.jsx` used `className="skeleton-shimmer"` but the shimmer keyframe animation in `index.css` is attached to `.skeleton`, not `.skeleton-shimmer`. The animation was never applied.  
+**Fix:** Changed to `className="skeleton"` and removed duplicate inline background styles. Pull the latest version.
+
+### Sidebar brand section has excessive dead space at the top
+**Cause:** A `marginBottom: "30px"` inline style was applied to the inner flex div inside the `.brand` container, creating visible dead space. The `<nav>` element also lacked `flex: 1; overflow-y: auto`, causing content layout issues.  
+**Fix:** Removed the `marginBottom`, added `flex: 1; overflow-y: auto` to `<nav>`, set `flex-shrink: 0` on `.brand`, and added `overflow: hidden` to `.sidebar`. Pull the latest version.
 
 ### `ModuleNotFoundError: No module named 'websocket'`
 **Cause:** `websocket-client` not installed (different from the `websocket` package).  

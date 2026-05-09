@@ -14,20 +14,20 @@ function Sidebar() {
   return (
     <div className="sidebar">
       <div className="brand">
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "30px" }}>
-          <img 
-            src={logo} 
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <img
+            src={logo}
             alt="logo"
-            style={{ width: "42px", height: "42px", filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.3))" }}
+            style={{ width: "40px", height: "40px", filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.3))", flexShrink: 0 }}
           />
           <div>
-            <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 800, letterSpacing: "-0.02em" }}>PrintHub</h2>
-            <small style={{ opacity: 0.6, fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase" }}>Clinical Professional</small>
+            <h2 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 800, letterSpacing: "-0.02em", color: "#fff" }}>PrintHub</h2>
+            <small style={{ opacity: 0.55, fontSize: "0.68rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "#fff" }}>Clinical Professional</small>
           </div>
         </div>
       </div>
 
-      <nav>
+      <nav style={{ flex: 1, overflowY: "auto", paddingTop: "10px", paddingBottom: "8px" }}>
         <p className="sidebar-header">Monitoring</p>
         <NavLink to="/" end className={({ isActive }) => isActive ? "active" : ""}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: "12px" }}><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>

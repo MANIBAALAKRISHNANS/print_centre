@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useFetch, useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { SkeletonTable, SkeletonTableRow } from "../components/Skeleton";
+import { SkeletonTableRow } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import { API_BASE_URL } from "../config";
 import { useWebSocket } from "../hooks/useWebSocket";
@@ -290,21 +290,20 @@ function PrintJobs() {
                   </td>
                   <td style={{ fontSize: "0.8rem", color: "#666", whiteSpace: "nowrap" }}>
                     {job.time ? (() => {
-                      // Standardize: If it's just a time like "01:15 PM", we assume it was today UTC
-                      let timeStr = job.time;
-                      if (!timeStr.includes("-") && (timeStr.includes("AM") || timeStr.includes("PM"))) {
-                        const todayPrefix = new Date().toISOString().split("T")[0];
-                        timeStr = `${todayPrefix} ${timeStr}`;
-                      }
-                      
-                      const d = new Date(timeStr.includes("UTC") ? timeStr : timeStr + " UTC");
-                      if (isNaN(d.getTime())) return job.time;
-                      
-                      const today = new Date();
-                      const isToday = d.toDateString() === today.toDateString();
-                      return isToday 
-                        ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
-                        : d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                      try {
+                        let timeStr = String(job.time);
+                        if (!timeStr.includes("-") && (timeStr.includes("AM") || timeStr.includes("PM"))) {
+                          const todayPrefix = new Date().toISOString().split("T")[0];
+                          timeStr = `${todayPrefix} ${timeStr}`;
+                        }
+                        const d = new Date(timeStr.includes("UTC") ? timeStr : timeStr + " UTC");
+                        if (isNaN(d.getTime())) return String(job.time);
+                        const today = new Date();
+                        const isToday = d.toDateString() === today.toDateString();
+                        return isToday
+                          ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+                          : d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                      } catch { return String(job.time); }
                     })() : "—"}
                   </td>
                 </tr>
@@ -386,8 +385,7 @@ function PrintJobs() {
                 <>
                   {/* Retry Timeline — shown only if retries exist */}
                   {(selectedJob?.retry_count || 0) > 0 && (() => {
-                    const retryLogs = jobLogs.filter(l => l.status === "Retrying" || l.message?.toLowerCase().includes("retry"));
-                    const failLogs  = jobLogs.filter(l => l.status === "Failed");
+                    const failLogs = jobLogs.filter(l => l.status === "Failed");
                     return (
                       <div style={{
                         background: "rgba(255,165,0,0.06)",

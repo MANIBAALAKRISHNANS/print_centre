@@ -1,16 +1,79 @@
-# React + Vite
+# PrintHub Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 18 + Vite admin dashboard for the PrintHub hospital print management system.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| | |
+|---|---|
+| Framework | React 18, Vite |
+| Routing | React Router v6 |
+| Real-time | WebSocket (`useWebSocket` hook, auto-reconnecting) |
+| Auth | JWT via HTTP-only cookie, `AuthContext` |
+| Styling | Plain CSS — `App.css` (components), `index.css` (tokens + utilities) |
 
-## React Compiler
+## Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+```
 
-## Expanding the ESLint configuration
+Create `frontend/.env`:
+```env
+VITE_API_URL=http://YOUR_SERVER_IP:8000
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Start the dev server:
+```bash
+npm run dev
+# → http://localhost:5173
+```
+
+Production build:
+```bash
+npm run build
+# Output: frontend/dist/ — serve with nginx or any static host
+```
+
+## Key Files
+
+```
+src/
+├── config.js               # API_BASE_URL + WS_BASE_URL (from VITE_API_URL)
+├── context/
+│   ├── AuthContext.jsx     # JWT login/logout, useFetch() helper
+│   └── AppData.jsx         # Global printers list, shared across pages
+├── hooks/
+│   └── useWebSocket.js     # Auto-reconnecting WS hook with exponential backoff
+├── components/
+│   ├── Sidebar.jsx         # Navigation sidebar
+│   ├── Skeleton.jsx        # Loading skeleton (use className="skeleton" in index.css)
+│   └── ErrorBoundary.jsx   # Catches synchronous render errors
+└── pages/
+    ├── Dashboard.jsx       # Live stats + hardware table
+    ├── Printers.jsx        # Printer CRUD
+    ├── PrintJobs.jsx       # Job queue + retry
+    ├── Agents.jsx          # Connected workstation agents
+    ├── Users.jsx           # User management (Admin+)
+    ├── AuditLogs.jsx       # HIPAA audit trail
+    └── Login.jsx
+```
+
+## Real-time Architecture
+
+The dashboard maintains a persistent WebSocket to `/ws?token=JWT`. The `useWebSocket` hook handles connection lifecycle (auto-reconnect with backoff). Pages subscribe via the `handleWsMessage` callback and call their data-loading functions in response to server-pushed events:
+
+| Event | Pages that react |
+|---|---|
+| `job_update` | Dashboard, PrintJobs |
+| `printer_update` | Dashboard, Printers |
+| `agent_update` | Dashboard, Agents |
+| `dashboard_refresh` | Dashboard |
+
+**Important:** Any `useCallback` that appears in `handleWsMessage`'s dependency array must be declared **before** `handleWsMessage` in the component — React `const` declarations are subject to JavaScript's Temporal Dead Zone (TDZ). Accessing a `const` before its declaration throws `ReferenceError` synchronously during render and triggers the ErrorBoundary.
+
+## Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `VITE_API_URL` | ✅ | Backend base URL e.g. `http://192.168.1.14:8000` |

@@ -57,18 +57,6 @@ function Dashboard() {
     };
   }, [loadStats, loadHealth]);
 
-  // Real-time: refresh dashboard instantly when server pushes events
-  const handleWsMessage = useCallback((msg) => {
-    if (["dashboard_refresh", "printer_update", "agent_update", "job_update"].includes(msg.type)) {
-      loadStats();
-    }
-    if (["agent_update", "dashboard_refresh"].includes(msg.type)) {
-      loadAgents();
-    }
-  }, [loadStats, loadAgents]);
-
-  useWebSocket(handleWsMessage, !!token);
-
   const loadAgents = useCallback(async () => {
     try {
       const res = await authFetch(`${API_BASE_URL}/agents`);
@@ -83,6 +71,18 @@ function Dashboard() {
     const t = setInterval(loadAgents, 30000);
     return () => clearInterval(t);
   }, [loadAgents]);
+
+  // Real-time: refresh dashboard instantly when server pushes events
+  const handleWsMessage = useCallback((msg) => {
+    if (["dashboard_refresh", "printer_update", "agent_update", "job_update"].includes(msg.type)) {
+      loadStats();
+    }
+    if (["agent_update", "dashboard_refresh"].includes(msg.type)) {
+      loadAgents();
+    }
+  }, [loadStats, loadAgents]);
+
+  useWebSocket(handleWsMessage, !!token);
 
   const getStatusColor = (status) => {
     const s = (status || "").toLowerCase();

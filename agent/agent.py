@@ -19,7 +19,7 @@ if _OS == "Windows":
         import win32print
         _WIN32_AVAILABLE = True
     except ImportError:
-        logging.warning("win32print not available — USB printing disabled on Windows")
+        logging.warning("win32print not available - USB printing disabled on Windows")
 elif _OS == "Darwin":
     try:
         from agent_macos import (
@@ -30,13 +30,15 @@ elif _OS == "Darwin":
             print_direct as _macos_print_direct,
         )
     except ImportError:
-        logging.error("agent_macos.py missing — macOS printing will fail")
+        logging.error("agent_macos.py missing - macOS printing will fail")
 else:
     logging.error(f"Unsupported OS: {_OS}")
 
 from agent_config import load_config, save_config
 
 # ── Logging: rotating file + console ─────────────────────────────────────────
+import sys
+
 if _OS == "Windows":
     _LOG_DIR = r"C:\PrintHubAgent"
 elif _OS == "Darwin":
@@ -47,10 +49,19 @@ else:
 os.makedirs(_LOG_DIR, exist_ok=True)
 _LOG_FILE = os.path.join(_LOG_DIR, "agent.log")
 
-_handler_file = RotatingFileHandler(_LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3)
+_handler_file = RotatingFileHandler(_LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
 _handler_file.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-_handler_console = logging.StreamHandler()
+
+# On Windows the default console stream uses cp1252 which cannot encode Unicode symbols.
+# Reconfigure stdout to UTF-8 (Python 3.7+); fall back to errors='replace' if unsupported.
+if _OS == "Windows" and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+_handler_console = logging.StreamHandler(sys.stdout)
 _handler_console.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+
 logging.basicConfig(level=logging.INFO, handlers=[_handler_file, _handler_console])
 logger = logging.getLogger("PrintAgent")
 
@@ -87,7 +98,7 @@ def ensure_registered():
     _TLS_VERIFY = config.get("tls_verify", True)
 
     if config.get("agent_id") and config.get("token"):
-        logger.info(f"[AGENT] Credentials loaded for {config['agent_id']} → {SERVER_URL}")
+        logger.info(f"[AGENT] Credentials loaded for {config['agent_id']} -> {SERVER_URL}")
         return config["agent_id"], config["token"], config.get("location_id", "")
 
     pending_code = config.get("pending_activation_code")
@@ -96,7 +107,7 @@ def ensure_registered():
         logger.critical("[AGENT] Run: python agent_setup.py --code YOUR_CODE --server SERVER_URL")
         raise SystemExit(1)
 
-    logger.info("[AGENT] Attempting registration with activation code…")
+    logger.info("[AGENT] Attempting registration with activation code...")
     hostname = socket.gethostname()
     server_url = config.get("server_url", SERVER_URL)
 
@@ -124,7 +135,7 @@ def ensure_registered():
                 if res.status_code in (400, 403, 404):
                     raise SystemExit(1)  # bad code — no point retrying
         except requests.exceptions.SSLError:
-            logger.critical("[AGENT] TLS error — re-run setup with --no-verify for self-signed certs")
+            logger.critical("[AGENT] TLS error - re-run setup with --no-verify for self-signed certs")
             raise SystemExit(1)
         except SystemExit:
             raise
@@ -194,7 +205,7 @@ class AgentWebSocket:
 
             _ws_connected.clear()
             if not self._stop.is_set():
-                logger.info(f"[WS] Reconnecting in {backoff}s…")
+                logger.info(f"[WS] Reconnecting in {backoff}s...")
                 time.sleep(backoff)
                 backoff = min(backoff * 2, 60)
 
@@ -208,7 +219,7 @@ class AgentWebSocket:
             msg = json.loads(raw)
             mtype = msg.get("type")
             if mtype == "job_available":
-                logger.info("[WS] Server pushed job_available — waking poll loop")
+                logger.info("[WS] Server pushed job_available - waking poll loop")
                 _job_trigger.set()
             elif mtype == "ping":
                 ws.send(json.dumps({"type": "pong"}))
@@ -445,7 +456,7 @@ def _fetch_jobs() -> list:
     if res.status_code == 200:
         return res.json()
     if res.status_code == 401:
-        logger.error("[POLL] Authentication failed — check agent token")
+        logger.error("[POLL] Authentication failed - check agent token")
         time.sleep(30)
     return []
 
@@ -556,7 +567,7 @@ def _process_job(job: dict):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def agent_loop():
-    logger.info(f"[AGENT] {AGENT_ID} starting — server: {SERVER_URL}")
+    logger.info(f"[AGENT] {AGENT_ID} starting - server: {SERVER_URL}")
 
     # Start background threads
     threading.Thread(target=heartbeat_loop, daemon=True, name="Heartbeat").start()
