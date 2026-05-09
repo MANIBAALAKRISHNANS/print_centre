@@ -12,13 +12,15 @@ function AuditLogs() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
 
-  // Filters
+  const todayISO = new Date().toISOString().split("T")[0];
+
+  // Filters — default to today so records appear on first load
   const [filters, setFilters] = useState({
     actor: "",
     action: "",
     patient_id: "",
-    from_date: "",
-    to_date: ""
+    from_date: todayISO,
+    to_date: todayISO
   });
 
   const fetchLogs = useCallback(async () => {
@@ -69,7 +71,7 @@ function AuditLogs() {
       <p className="sub">HIPAA Compliance: Immutable record of all PHI-adjacent activity.</p>
 
       <div className="card" style={{ marginBottom: "20px", padding: "15px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px", alignItems: "end" }}>
           <div>
             <label style={{ fontSize: "0.75rem", fontWeight: "bold", display: "block", marginBottom: "4px" }}>Action Type</label>
             <select 
@@ -109,12 +111,22 @@ function AuditLogs() {
           </div>
           <div>
             <label style={{ fontSize: "0.75rem", fontWeight: "bold", display: "block", marginBottom: "4px" }}>To Date</label>
-            <input 
-              type="date" 
-              value={filters.to_date} 
+            <input
+              type="date"
+              value={filters.to_date}
               onChange={e => { setPage(0); setFilters({ ...filters, to_date: e.target.value }); }}
               style={{ width: "100%", padding: "8px" }}
             />
+          </div>
+          <div>
+            <label style={{ fontSize: "0.75rem", fontWeight: "bold", display: "block", marginBottom: "4px" }}>&nbsp;</label>
+            <button
+              className="btn outline sm"
+              style={{ width: "100%", padding: "8px" }}
+              onClick={() => { setPage(0); setFilters({ actor: "", action: "", patient_id: "", from_date: "", to_date: "" }); }}
+            >
+              Clear Filters
+            </button>
           </div>
         </div>
       </div>

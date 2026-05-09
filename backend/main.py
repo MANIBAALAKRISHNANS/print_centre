@@ -1449,10 +1449,10 @@ def get_audit_logs(
         params.append(action)
     if from_date:
         query += " AND timestamp >= {placeholder}"
-        params.append(from_date)
+        params.append(from_date + " 00:00:00 UTC")
     if to_date:
         query += " AND timestamp <= {placeholder}"
-        params.append(to_date)
+        params.append(to_date + " 23:59:59 UTC")
         
     # Total count
     placeholder = get_placeholder()
