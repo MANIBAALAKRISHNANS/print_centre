@@ -9,6 +9,7 @@ import { API_BASE_URL } from "../config";
 function Agents() {
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
   const authFetch = useFetch();
   const toast = useToast();
   const navigate = useNavigate();
@@ -25,6 +26,22 @@ function Agents() {
       setLoading(false);
     }
   }, [authFetch]);
+
+  const deleteAgent = async (agentId) => {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/agents/${agentId}`, { method: "DELETE" });
+      if (res.ok) {
+        setDeletingId(null);
+        toast.success("Agent removed");
+        fetchAgents();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.detail || "Failed to delete agent");
+      }
+    } catch {
+      toast.error("Failed to delete agent");
+    }
+  };
 
   useEffect(() => {
     fetchAgents();
@@ -84,6 +101,7 @@ function Agents() {
                 <th>Location ID</th>
                 <th>Status</th>
                 <th>Last Seen</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -93,7 +111,7 @@ function Agents() {
                 const statusClass = displayStatus === "Online" ? "green" : "red";
 
                 return (
-                  <tr key={agent.id}>
+                  <tr key={agent.agent_id}>
                     <td>
                       <code>{agent.agent_id}</code>
                     </td>
@@ -110,6 +128,34 @@ function Agents() {
                     </td>
                     <td style={{ fontSize: "0.85rem", color: "#666" }}>
                       {formatLastSeen(agent.last_seen)}
+                    </td>
+                    <td>
+                      {deletingId === agent.agent_id ? (
+                        <div style={{ display: "flex", gap: "4px" }}>
+                          <button
+                            className="btn"
+                            style={{ background: "#ef4444", padding: "4px 10px", fontSize: "0.7rem" }}
+                            onClick={() => deleteAgent(agent.agent_id)}
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            className="btn"
+                            style={{ background: "#6b7280", padding: "4px 10px", fontSize: "0.7rem" }}
+                            onClick={() => setDeletingId(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className="btn outline sm"
+                          style={{ padding: "4px 10px", fontSize: "0.7rem", color: "#ef4444", borderColor: "#ef4444" }}
+                          onClick={() => setDeletingId(agent.agent_id)}
+                        >
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

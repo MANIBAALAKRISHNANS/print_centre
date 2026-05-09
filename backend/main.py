@@ -1637,6 +1637,23 @@ def get_agents(user: dict = Depends(get_current_user)):
     conn.close()
     return rows
 
+@app.delete("/agents/{agent_id}")
+def delete_agent(agent_id: str, current_user: dict = Depends(require_admin)):
+    conn = get_connection()
+    cur = get_cursor(conn)
+    placeholder = get_placeholder()
+    cur.execute(f"SELECT agent_id FROM agents WHERE agent_id={placeholder}", (agent_id,))
+    if not cur.fetchone():
+        conn.close()
+        raise HTTPException(404, "Agent not found")
+    cur.execute(f"DELETE FROM agents WHERE agent_id={placeholder}", (agent_id,))
+    conn.commit()
+    conn.close()
+    log_audit(current_user.get("sub", "unknown"), "user", "DELETE_AGENT",
+              details={"agent_id": agent_id})
+    return {"status": "deleted"}
+
+
 @app.get("/admin/activation-codes")
 def list_activation_codes(current_user: dict = Depends(require_admin)):
     conn = get_connection()
