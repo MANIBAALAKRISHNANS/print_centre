@@ -1660,21 +1660,20 @@ def revoke_activation_code(code_id: int, current_user: dict = Depends(require_ad
     conn = get_connection()
     cur = get_cursor(conn)
     placeholder = get_placeholder()
-    cur.execute(f"SELECT used FROM activation_codes WHERE id={placeholder}", (code_id,))
+    cur.execute(f"SELECT used, code, location_id FROM activation_codes WHERE id={placeholder}", (code_id,))
     row = cur.fetchone()
     if not row:
         conn.close()
         raise HTTPException(404, "Code not found")
-    
-    used = get_row_value(row, "used", 0)
-    if used:
-        conn.close()
-        raise HTTPException(400, "Cannot revoke an already-used code")
-    
+
     cur.execute(f"DELETE FROM activation_codes WHERE id={placeholder}", (code_id,))
     conn.commit()
     conn.close()
-    return {"status": "revoked"}
+    used = get_row_value(row, "used", 0)
+    action = "DELETE_USED_ACTIVATION_CODE" if used else "REVOKE_ACTIVATION_CODE"
+    log_audit(current_user.get("sub", "unknown"), "user", action,
+              details={"code_id": code_id, "location_id": get_row_value(row, "location_id", "")})
+    return {"status": "deleted"}
 
 
 @app.post("/admin/activation-codes")

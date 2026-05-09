@@ -72,4 +72,4 @@ def clear_credentials():
     for key in ("agent_id", "token", "location_id", "pending_activation_code"):
         config.pop(key, None)
     save_config(config)
-    logger.info("[CONFIG] Credentials cleared — re-run agent_setup.py to register again")
+    logger.info("[CONFIG] Credentials cleared - re-run agent_setup.py to register again")

@@ -32,10 +32,27 @@ function Agents() {
     return () => clearInterval(interval);
   }, [fetchAgents]);
 
+  const parseAgentDate = (str) => {
+    if (!str) return null;
+    const clean = str.replace(" UTC", "Z").replace(" ", "T");
+    const d = new Date(clean);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
   const isStale = (last_seen) => {
-    if (!last_seen) return true;
-    const d = new Date(last_seen.replace(" UTC", "Z").replace(" ", "T"));
+    const d = parseAgentDate(last_seen);
+    if (!d) return true;
     return Date.now() - d.getTime() > 45000;
+  };
+
+  const formatLastSeen = (last_seen) => {
+    const d = parseAgentDate(last_seen);
+    if (!d) return "Never";
+    const diffMs = Date.now() - d.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return `${diffSec}s ago`;
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   return (
@@ -92,7 +109,7 @@ function Agents() {
                       </span>
                     </td>
                     <td style={{ fontSize: "0.85rem", color: "#666" }}>
-                      {agent.last_seen || "Never"}
+                      {formatLastSeen(agent.last_seen)}
                     </td>
                   </tr>
                 );
