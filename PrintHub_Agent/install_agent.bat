@@ -155,6 +155,18 @@ if %errorLevel% neq 0 (
 )
 echo [OK] Service installed.
 
+:: Register Python (Anaconda) in HKLM so SYSTEM account can find python311.dll.
+:: By default Anaconda only writes to HKCU; pythonservice.exe looks in HKLM.
+echo [INFO] Registering Python runtime in HKLM for SYSTEM account access...
+"%VENV_PY%" -c "import winreg,sys; base=sys.base_prefix; v=str(sys.version_info.major)+'.'+str(sys.version_info.minor); k=winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE,'Software\\Python\\PythonCore\\'+v+'\\InstallPath'); winreg.SetValueEx(k,'',0,winreg.REG_SZ,base+'\\'); winreg.CloseKey(k); print('Registered HKLM Python',v,'at',base)"
+echo [OK] Python registered in HKLM.
+
+:: Set service-specific PATH so SYSTEM can load Anaconda DLLs when running the service.
+:: Also disable user site-packages and conda init (not needed for the service).
+echo [INFO] Configuring service environment (Anaconda PATH for SYSTEM)...
+"%VENV_PY%" -c "import winreg,sys,os; b=sys.base_prefix; p=['PATH='+b+';'+b+r'\Library\mingw-w64\bin;'+b+r'\Library\bin;'+b+r'\Scripts;C:\Windows\System32;C:\Windows','PYTHONNOUSERSITE=1','CONDA_SHLVL=0']; k=winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,r'SYSTEM\CurrentControlSet\Services\PrintHubAgent',0,winreg.KEY_SET_VALUE); winreg.SetValueEx(k,'Environment',0,winreg.REG_MULTI_SZ,p); winreg.CloseKey(k); print('Service PATH set to include Anaconda')"
+echo [OK] Service environment configured.
+
 :: Start the service using net start (returns proper exit code unlike agent_service.py start)
 echo [STEP 5] Starting service...
 net start PrintHubAgent
