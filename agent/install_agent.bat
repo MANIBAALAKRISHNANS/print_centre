@@ -29,9 +29,36 @@ if %errorLevel% neq 0 (
 for /f "tokens=2" %%v in ('python --version 2^>^&1') do set PY_VER=%%v
 echo [OK] Python %PY_VER% found.
 
-:: Create virtual environment if needed
+:: ============================================================
+:: IMPORTANT: Install to C:\PrintHubAgent - NOT to OneDrive.
+:: Windows Services run as SYSTEM, which cannot access files
+:: in a user's OneDrive folder. All agent files and the venv
+:: must live in a path SYSTEM can read.
+:: ============================================================
+set INSTALL_DIR=C:\PrintHubAgent
+
+echo [STEP 1] Preparing installation directory %INSTALL_DIR%...
+if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+
+:: Copy all agent files from the source folder to the install dir
+echo [INFO] Copying agent files...
+for %%f in (agent.py agent_service.py agent_config.py agent_setup.py requirements.txt) do (
+    if exist "%~dp0%%f" (
+        copy /y "%~dp0%%f" "%INSTALL_DIR%\%%f" >nul
+    ) else (
+        echo [WARNING] %%f not found in source folder - skipping
+    )
+)
+if exist "%~dp0agent_macos.py" copy /y "%~dp0agent_macos.py" "%INSTALL_DIR%\agent_macos.py" >nul
+
+echo [OK] Agent files copied to %INSTALL_DIR%
+
+:: Switch all remaining work to the install directory
+cd /d "%INSTALL_DIR%"
+
+:: Create virtual environment inside INSTALL_DIR (not OneDrive)
 if not exist "venv\Scripts\python.exe" (
-    echo [STEP 1] Creating virtual environment...
+    echo [STEP 2] Creating virtual environment in %INSTALL_DIR%\venv...
     python -m venv venv
     if %errorLevel% neq 0 (
         echo [ERROR] Failed to create virtual environment.
@@ -42,39 +69,25 @@ if not exist "venv\Scripts\python.exe" (
     echo [OK] Virtual environment ready.
 )
 
-:: Use venv python directly - no activation needed
-set VENV_PY=%~dp0venv\Scripts\python.exe
-set VENV_PIP=%~dp0venv\Scripts\pip.exe
+set VENV_PY=%INSTALL_DIR%\venv\Scripts\python.exe
 
-:: Verify venv python exists
-if not exist "%VENV_PY%" (
-    echo [ERROR] venv\Scripts\python.exe not found. Deleting and recreating venv...
-    rmdir /s /q venv
-    python -m venv venv
-    if %errorLevel% neq 0 (
-        echo [ERROR] Failed to create virtual environment.
-        pause & exit /b 1
-    )
-)
-
-:: Install dependencies using full path to venv pip
-echo [STEP 2] Installing dependencies...
+:: Install dependencies
+echo [STEP 3] Installing dependencies...
 "%VENV_PY%" -m pip install --quiet --upgrade pip
 "%VENV_PY%" -m pip install --quiet -r requirements.txt
 if %errorLevel% neq 0 (
-    echo [ERROR] Dependency installation failed.
-    echo         Check your internet connection and try again.
+    echo [ERROR] Dependency installation failed. Check internet connection.
     pause & exit /b 1
 )
-echo [OK] Dependencies installed (including websocket-client for real-time).
+echo [OK] Dependencies installed.
 
-:: Run pywin32 post-install (always required on fresh installs for Windows Service support)
-echo [INFO] Running pywin32 post-install (ensures service DLLs are registered)...
+:: Run pywin32 post-install (always - required for Windows Service DLL registration)
+echo [INFO] Running pywin32 post-install...
 for /f "delims=" %%i in ('"%VENV_PY%" -c "import sys; print(sys.prefix)"') do set VENV_PREFIX=%%i
 "%VENV_PY%" "!VENV_PREFIX!\Scripts\pywin32_postinstall.py" -install >nul 2>&1
 echo [OK] pywin32 post-install complete.
 
-:: First-time setup
+:: First-time setup (only if no config exists in install dir)
 if not exist "agent_config.json" (
     echo.
     echo ===========================================================
@@ -112,44 +125,44 @@ if not exist "agent_config.json" (
     echo [OK] Existing configuration found - skipping setup.
 )
 
-:: Grant SYSTEM read/write on agent_config.json so the Windows Service (running as SYSTEM) can read it
-if exist "agent_config.json" (
-    echo [INFO] Granting SYSTEM permissions on agent_config.json...
-    icacls "agent_config.json" /inheritance:r /grant:r "%USERNAME%:(R,W)" /grant:r "SYSTEM:(R,W)" >nul 2>&1
-    echo [OK] Permissions set.
-)
+:: Grant SYSTEM full access to the install directory and config file
+:: NOTE: icacls with (OI)(CI) flags MUST be outside any parenthesized if block
+:: to avoid a batch parser bug with parentheses in arguments.
+echo [INFO] Setting SYSTEM permissions on %INSTALL_DIR%...
+icacls "%INSTALL_DIR%" /grant:r "SYSTEM:(OI)(CI)F" >nul 2>&1
+echo [OK] SYSTEM permissions set.
 
-:: Stop and remove existing service if running
+:: Stop and remove existing service if it exists
 sc query PrintHubAgent >nul 2>&1
 if %errorLevel% equ 0 (
-    echo [STEP 3] Removing existing service...
-    "%VENV_PY%" agent_service.py stop >nul 2>&1
-    timeout /t 2 /nobreak >nul
+    echo [STEP 4] Removing existing service...
+    net stop PrintHubAgent >nul 2>&1
+    timeout /t 3 /nobreak >nul
     "%VENV_PY%" agent_service.py remove >nul 2>&1
     timeout /t 2 /nobreak >nul
 )
 
-:: Install Windows Service
-echo [STEP 3] Installing Windows Service (PrintHubAgent)...
+:: Install Windows Service (registers pythonservice.exe from the venv in INSTALL_DIR)
+echo [STEP 4] Installing Windows Service (PrintHubAgent)...
 "%VENV_PY%" agent_service.py --startup auto install
 if %errorLevel% neq 0 (
     echo [ERROR] Service installation failed.
-    echo         Check the log: %~dp0venv\Scripts\pywin32_postinstall.py
     pause & exit /b 1
 )
 echo [OK] Service installed.
 
-:: Start the service
-echo [STEP 4] Starting service...
-"%VENV_PY%" agent_service.py start
+:: Start the service using net start (returns proper exit code unlike agent_service.py start)
+echo [STEP 5] Starting service...
+net start PrintHubAgent
 if %errorLevel% neq 0 (
-    echo [WARNING] Service did not start cleanly.
-    echo           Check: C:\PrintHubAgent\agent_service.log
+    echo [WARNING] Service did not start. Check Event Viewer or:
+    echo           %INSTALL_DIR%\agent_service.log
+    echo           %INSTALL_DIR%\agent.log
 ) else (
     echo [OK] Service started.
 )
 
-:: Wait and verify
+:: Verify after a short wait
 timeout /t 4 /nobreak >nul
 sc query PrintHubAgent | findstr "RUNNING" >nul 2>&1
 if %errorLevel% equ 0 (
@@ -158,23 +171,23 @@ if %errorLevel% equ 0 (
     echo  SUCCESS! PrintHub Agent is running as a Windows Service.
     echo  It starts automatically on every boot.
     echo.
+    echo  Installation: %INSTALL_DIR%
     echo  Logs:
-    echo    C:\PrintHubAgent\agent.log
-    echo    C:\PrintHubAgent\agent_service.log
+    echo    %INSTALL_DIR%\agent.log
+    echo    %INSTALL_DIR%\agent_service.log
     echo.
-    echo  Commands (run from this folder):
-    echo    venv\Scripts\python.exe agent_service.py stop
-    echo    venv\Scripts\python.exe agent_service.py start
-    echo    venv\Scripts\python.exe agent_service.py restart
+    echo  Commands (run as Administrator from %INSTALL_DIR%):
+    echo    net stop PrintHubAgent
+    echo    net start PrintHubAgent
     echo    venv\Scripts\python.exe agent_service.py remove
     echo    venv\Scripts\python.exe agent_setup.py --status
     echo ===========================================================
 ) else (
     echo.
-    echo [WARNING] Service may not have started correctly.
-    echo Check: C:\PrintHubAgent\agent_service.log
-    echo Or run manually to see errors:
-    echo   venv\Scripts\python.exe agent.py
+    echo [WARNING] Service is not in RUNNING state.
+    echo Run this to see the Python error directly:
+    echo   %VENV_PY% agent.py
+    echo Or check logs at %INSTALL_DIR%\
 )
 
 echo.
