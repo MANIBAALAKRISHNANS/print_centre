@@ -6,370 +6,242 @@
 
 ## Table of Contents
 
-1. [How It Works (Simple Explanation)](#how-it-works)
-2. [What You Need Before Starting](#what-you-need-before-starting)
-3. [Part A — Running the Backend (Brain of the System)](#part-a--running-the-backend)
-   - [On Your Laptop — Windows](#on-your-laptop--windows)
-   - [On Your Laptop — Mac](#on-your-laptop--mac)
-   - [On a Dedicated Server — Windows Server](#on-a-dedicated-server--windows-server)
-   - [On a Dedicated Server — Linux / Mac Server](#on-a-dedicated-server--linux--mac-server)
-4. [Part B — Running the Frontend (The Website/UI)](#part-b--running-the-frontend)
-   - [On Your Laptop — Windows](#on-your-laptop--windows-1)
-   - [On Your Laptop — Mac](#on-your-laptop--mac-1)
-   - [On a Dedicated Server (Production)](#on-a-dedicated-server-production)
-5. [Part C — Installing the Agent on Workstations](#part-c--installing-the-agent-on-workstations)
-   - [Windows — Full Step-by-Step](#windows--full-step-by-step)
-   - [Mac — Full Step-by-Step](#mac--full-step-by-step)
-6. [Part D — Using the Dashboard After Everything is Running](#part-d--using-the-dashboard)
-7. [Default Login Credentials](#default-login-credentials)
-8. [Environment Variables Reference](#environment-variables-reference)
-9. [Firewall & Network](#firewall--network)
-10. [Troubleshooting](#troubleshooting)
-11. [Architecture Overview (Technical)](#architecture-overview-technical)
+1. [How The System Works](#1-how-the-system-works)
+2. [What Runs Where — Deployment Architecture](#2-what-runs-where--deployment-architecture)
+3. [What You Need Before Starting](#3-what-you-need-before-starting)
+4. [Part A — Start the Backend (The Brain)](#part-a--start-the-backend)
+   - [On Windows (Laptop or Server)](#on-windows-laptop-or-server)
+   - [On Mac (Laptop or Server)](#on-mac-laptop-or-server)
+   - [On Linux Server (Production)](#on-linux-server-production)
+5. [Part B — Start the Frontend (The Dashboard Website)](#part-b--start-the-frontend)
+   - [On Windows](#on-windows)
+   - [On Mac](#on-mac)
+   - [Production Build with nginx](#production-build-with-nginx)
+6. [Part C — Install the Agent on Printer Workstations](#part-c--install-the-agent-on-printer-workstations)
+   - [Windows — Step by Step](#windows--step-by-step)
+   - [Mac — Step by Step](#mac--step-by-step)
+7. [Part D — Using the Dashboard](#part-d--using-the-dashboard)
+8. [Default Login Credentials](#default-login-credentials)
+9. [Environment Variables Reference](#environment-variables-reference)
+10. [Firewall and Network Ports](#firewall-and-network-ports)
+11. [Troubleshooting](#troubleshooting)
+12. [Architecture Overview (Technical)](#architecture-overview-technical)
 
 ---
 
-## How It Works
+## 1. How The System Works
 
-Think of PrintHub as three separate programs that all need to be running at the same time:
+Think of PrintHub as a post office system:
+
+- The **Backend** is the main post office building — it receives print requests, stores them, and sends them to the right printer PC
+- The **Frontend** is the glass window at the post office — staff open it in their browser to see all jobs and manage printers
+- The **Agent** is the delivery person at each nursing station — it waits for the backend to send a job, then sends it to the USB printer plugged into that PC
 
 ```
-┌─────────────────┐      talks to      ┌──────────────────┐      talks to      ┌──────────────────────┐
-│   FRONTEND      │  ◄──────────────►  │    BACKEND       │  ◄──────────────►  │   AGENT              │
-│  (The Website)  │                    │  (The Brain)     │                    │  (On each workstation)│
-│  Port 5173      │                    │  Port 8000       │                    │  Installed locally    │
-│                 │                    │                  │                    │                      │
-│  You open this  │                    │  Stores all data │                    │  Receives jobs and    │
-│  in Chrome or   │                    │  Processes jobs  │                    │  sends them to the    │
-│  Edge to use    │                    │  Handles logins  │                    │  physical printer     │
-│  the system     │                    │                  │                    │                      │
-└─────────────────┘                    └──────────────────┘                    └──────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    ONE SERVER (stays on 24/7)                    │
+│                                                                  │
+│   ┌─────────────────┐        ┌────────────────────────────┐     │
+│   │   Frontend      │        │   Backend                  │     │
+│   │   (Dashboard)   │◄──────►│   (Brain)                  │     │
+│   │   Port 5173     │        │   Port 8000                │     │
+│   └─────────────────┘        └─────────────┬──────────────┘     │
+│                                            │                    │
+│   Server IP: 192.168.1.14 (example)        │                    │
+└────────────────────────────────────────────┼────────────────────┘
+                                             │  (same network)
+                         ┌───────────────────┤
+                         │                   │
+              ┌──────────▼──────┐  ┌─────────▼───────┐
+              │  Printer PC 1   │  │  Printer PC 2   │
+              │                 │  │                 │
+              │  Agent running  │  │  Agent running  │
+              │  USB Printer ▼  │  │  USB Printer ▼  │
+              └─────────────────┘  └─────────────────┘
 ```
 
-- **Backend** = Must always be running. All data goes through here.
-- **Frontend** = The admin dashboard website. Open it in your browser.
-- **Agent** = Installed on each PC connected to a printer. Receives jobs and prints them.
+**Key rule:** The backend and frontend run on ONE machine (the server). The agent runs on EVERY PC that has a printer. The agents connect TO the server over the network.
 
 ---
 
-## What You Need Before Starting
+## 2. What Runs Where — Deployment Architecture
 
-You must install these programs **before** doing anything else. Each one is listed with exactly where to download it and how to install it.
+| Component | Runs on | Started by | Who accesses it |
+|---|---|---|---|
+| **Backend** | Server only | `start_backend.bat` (double-click) | Nobody opens this in browser — it runs silently |
+| **Frontend** | Server only | `start_frontend.bat` (double-click) | Anyone on the network opens `http://SERVER_IP:5173` in their browser |
+| **Agent** | Every printer PC | Auto-starts at Windows login after one-time install | Runs silently in background — no window |
 
-### 1. Python 3.11 or newer
+### The most important thing to understand
 
-The backend and agent are written in Python.
+When a nurse on **another PC** opens the dashboard in her browser, her browser makes API requests to the backend. The URL in `frontend/.env` must be the **server's network IP**, not `127.0.0.1` (which means "this computer"). If it says `127.0.0.1`, her browser looks for the backend on her own PC instead of the server.
+
+**Correct `frontend/.env` for production:**
+```
+VITE_API_URL=http://192.168.1.14:8000
+```
+(Replace `192.168.1.14` with your actual server IP.)
+
+---
+
+## 3. What You Need Before Starting
+
+Install these on the **server machine** (the one that will run backend + frontend). The printer PCs only need Python.
+
+### Python 3.11 or newer
 
 **Windows:**
 1. Go to [python.org/downloads](https://www.python.org/downloads/)
-2. Click the big yellow "Download Python 3.11.x" button
+2. Click the big yellow Download button
 3. Run the installer
-4. **VERY IMPORTANT:** On the first screen of the installer, check the box that says **"Add Python to PATH"** before clicking Install Now
-5. After install, open PowerShell and type: `python --version` — it should say `Python 3.11.x`
+4. **CRITICAL:** On the first screen, tick **"Add Python to PATH"** before clicking Install Now
+5. After install, open PowerShell and run: `python --version` — it must show `Python 3.11.x`
+
+> If you use Anaconda, use Anaconda Prompt instead of regular PowerShell for all Python commands.
 
 **Mac:**
-1. Go to [python.org/downloads](https://www.python.org/downloads/)
-2. Download the macOS installer
-3. Run it and follow the steps
-4. After install, open Terminal (press `Cmd + Space`, type "Terminal", press Enter) and type: `python3 --version` — it should say `Python 3.11.x`
+1. Go to [python.org/downloads](https://www.python.org/downloads/) and download the macOS installer
+2. Run it and follow the steps
+3. Open Terminal (`Cmd + Space` → type Terminal → Enter) and run: `python3 --version`
 
-> If you have Anaconda installed on Windows, use the Anaconda Prompt instead of regular PowerShell to run Python commands.
-
-### 2. Node.js 18 or newer
-
-The frontend is built with React and needs Node.js to run.
+### Node.js 18 or newer (server only — not needed on printer PCs)
 
 **Windows:**
 1. Go to [nodejs.org](https://nodejs.org/)
-2. Click the "LTS" (Long Term Support) version — the left button
+2. Click the **LTS** button (left side)
 3. Run the installer, click Next through all steps
-4. Open PowerShell and type: `node --version` — should say `v18.x.x` or higher
+4. Open PowerShell and run: `node --version` — should show `v18.x.x` or higher
 
 **Mac:**
 1. Go to [nodejs.org](https://nodejs.org/)
-2. Download the macOS LTS version
-3. Run the .pkg file and follow the steps
-4. Open Terminal and type: `node --version`
+2. Download the macOS LTS version and run the `.pkg` file
+3. Open Terminal and run: `node --version`
 
-### 3. Git (to download the code)
+### Git (to download the code)
 
 **Windows:**
-1. Go to [git-scm.com](https://git-scm.com/)
-2. Download and run the installer. Click Next through all steps — defaults are fine.
-3. After install, right-click on your Desktop → you should see "Git Bash Here" in the menu
+1. Go to [git-scm.com](https://git-scm.com/) and download the installer
+2. Run it, click Next through all steps — defaults are fine
+3. After install, right-click your Desktop — you should see "Git Bash Here"
 
 **Mac:**
-Git usually comes pre-installed. Open Terminal and type `git --version`. If it asks you to install, click Install.
+Open Terminal and run `git --version`. If Git is not installed, macOS will prompt you to install it automatically.
 
 ---
 
-## Part A — Running the Backend
+## Part A — Start the Backend
 
-The backend is the brain of the whole system. It must be running before anything else works.
+The backend is the brain. It must always be running first before anything else.
 
-### On Your Laptop — Windows
+### On Windows (Laptop or Server)
 
-**Step 1 — Download the code**
+#### First-time setup (do this once)
 
-Open PowerShell (press `Win + S`, type PowerShell, press Enter):
+**Step 1 — Download the project**
+
+Open PowerShell:
 ```powershell
 cd C:\Users\YourName\Desktop
 git clone https://github.com/MANIBAALAKRISHNANS/print_centre.git
-cd print_centre
+cd print_centre\backend
 ```
+> Replace `YourName` with your Windows username.
 
-> Replace `YourName` with your actual Windows username.
+**Step 2 — Create a virtual environment**
 
-**Step 2 — Go into the backend folder**
-```powershell
-cd backend
-```
-
-**Step 3 — Create a virtual environment**
-
-A virtual environment is like a clean, separate box for Python to install packages into. It prevents conflicts with other Python projects on your computer.
+A virtual environment is a clean, separate box for Python packages. It keeps things organised.
 ```powershell
 python -m venv venv
 ```
+You will see a `venv` folder appear.
 
-You should now see a `venv` folder appear in the backend directory.
+> If you see "Permission denied" or "Access denied", the venv already exists. Skip this step and go to Step 3.
 
-> If you get a permission error saying "Access is denied" or "Permission denied", it means the venv folder already exists (from a previous install). Skip this step and continue to Step 4.
-
-**Step 4 — Install all required packages**
+**Step 3 — Install all required packages**
 ```powershell
 .\venv\Scripts\pip.exe install -r requirements.txt
 ```
+This takes 2–3 minutes. Many lines will scroll by — that is normal.
 
-This downloads and installs everything the backend needs. It may take 2-3 minutes. You will see many lines scrolling by — that is normal.
+**Step 4 — Set up your configuration file**
 
-**Step 5 — Set up the configuration file**
-
-The backend reads settings from a file called `.env`. Create it now:
-```powershell
-copy .env.example .env
-```
-
-Now open the `.env` file in Notepad:
+The backend reads settings from a file called `.env` in the backend folder. A `.env` file is already set up in this project. Open it and check the values:
 ```powershell
 notepad .env
 ```
 
-You will see something like this. Change these values:
+You will see:
 ```
 HOST=0.0.0.0
 PORT=8000
 ENVIRONMENT=development
-JWT_SECRET_KEY=CHANGE_ME_use_openssl_rand_hex_32
-ALLOWED_ORIGINS=http://localhost:5173
+JWT_SECRET_KEY=f059b3e79d923a7f21c6b5e771fc5e891e923c8036384cc36eaaf1f06e72b328
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.14:5173
 DATABASE_PATH=./printhub.db
 ```
 
-For `JWT_SECRET_KEY`, replace `CHANGE_ME_use_openssl_rand_hex_32` with a long random string. You can generate one by running:
-```powershell
-.\venv\Scripts\python.exe -c "import secrets; print(secrets.token_hex(32))"
-```
-Copy the output and paste it as your `JWT_SECRET_KEY`.
+**Update `ALLOWED_ORIGINS`** — replace `192.168.1.14` with your server's actual IP address. Keep all three entries, just replace the IP in the third one.
 
-Save and close Notepad.
-
-**Step 6 — Start the backend**
-```powershell
-.\venv\Scripts\uvicorn.exe main:app --host 0.0.0.0 --port 8000
-```
-
-You should see:
-```
-INFO:     Started server process [XXXX]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-```
-
-**The backend is now running.** Do NOT close this window — closing it stops the backend.
-
-**Step 7 — Verify it is working**
-
-Open Chrome or Edge and go to: `http://localhost:8000/health`
-
-You should see a JSON response like `{"status": "healthy", ...}`. If you see this, the backend is working.
-
----
-
-### On Your Laptop — Mac
-
-**Step 1 — Download the code**
-
-Open Terminal (Cmd + Space, type "Terminal"):
-```bash
-cd ~/Desktop
-git clone https://github.com/MANIBAALAKRISHNANS/print_centre.git
-cd print_centre
-```
-
-**Step 2 — Go into the backend folder**
-```bash
-cd backend
-```
-
-**Step 3 — Create a virtual environment**
-```bash
-python3 -m venv venv
-```
-
-**Step 4 — Activate the virtual environment**
-
-On Mac you need to activate the venv before using it:
-```bash
-source venv/bin/activate
-```
-
-You will notice your terminal prompt now starts with `(venv)` — this means it is activated.
-
-**Step 5 — Install all required packages**
-```bash
-pip install -r requirements.txt
-```
-
-**Step 6 — Set up the configuration file**
-```bash
-cp .env.example .env
-nano .env
-```
-
-This opens a text editor inside Terminal. Use the arrow keys to navigate. Change `JWT_SECRET_KEY` to a random string. To generate one:
-```bash
-python3 -c "import secrets; print(secrets.token_hex(32))"
-```
-
-After editing, press `Ctrl + X`, then `Y`, then Enter to save.
-
-**Step 7 — Start the backend**
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-You should see `Application startup complete.` — the backend is running.
-
-**Do NOT close the Terminal window.**
-
-**Step 8 — Verify**
-
-Open Safari or Chrome and go to: `http://localhost:8000/health`
-
-You should see a JSON health response.
-
----
-
-### On a Dedicated Server — Windows Server
-
-A dedicated server is a computer that stays ON all the time and is only used to run the backend. This is what you use in a hospital production environment.
-
-**Step 1 — Log into the server**
-
-Connect to the server via Remote Desktop (on Windows, search for "Remote Desktop Connection", type the server's IP address).
-
-**Step 2 — Install Python on the server**
-
-Follow the same Python installation steps as above (laptop section). Make sure "Add Python to PATH" is checked during installation.
-
-**Step 3 — Download the code on the server**
-
-Open PowerShell on the server:
-```powershell
-cd C:\
-mkdir PrintHub
-cd PrintHub
-git clone https://github.com/MANIBAALAKRISHNANS/print_centre.git
-cd print_centre\backend
-```
-
-**Step 4 — Create venv and install packages**
-```powershell
-python -m venv venv
-.\venv\Scripts\pip.exe install -r requirements.txt
-```
-
-**Step 5 — Configure .env**
-```powershell
-copy .env.example .env
-notepad .env
-```
-
-For a production server, also set:
-```
-ENVIRONMENT=production
-ALLOWED_ORIGINS=http://YOUR_SERVER_IP:5173,http://YOUR_SERVER_IP
-```
-
-Replace `YOUR_SERVER_IP` with the actual IP address of your server (e.g., `192.168.1.14`).
-
-**Step 6 — Run the backend automatically on boot using Task Scheduler**
-
-So the backend starts automatically when the server reboots:
-
-1. Press `Win + S`, type "Task Scheduler", open it
-2. Click "Create Basic Task" on the right
-3. Name: `PrintHub Backend`
-4. Trigger: Select "When the computer starts"
-5. Action: Select "Start a program"
-6. Program: `C:\PrintHub\print_centre\backend\venv\Scripts\uvicorn.exe`
-7. Arguments: `main:app --host 0.0.0.0 --port 8000`
-8. Start in: `C:\PrintHub\print_centre\backend`
-9. Click Finish
-
-**Step 7 — Start it now (first time)**
-```powershell
-cd C:\PrintHub\print_centre\backend
-.\venv\Scripts\uvicorn.exe main:app --host 0.0.0.0 --port 8000
-```
-
-**Step 8 — Find out your server's IP address**
-
-Other people on the network will access the backend using this IP:
+To find your server's IP, open PowerShell and run:
 ```powershell
 ipconfig
 ```
+Look for `IPv4 Address` — it will look like `192.168.1.XX`.
 
-Look for `IPv4 Address` — something like `192.168.1.14`. This is what you will put in the agent config and frontend config.
+Save and close Notepad.
 
-**Step 9 — Open the firewall port**
+#### Every day — starting the backend
 
-Run this in PowerShell as Administrator so other computers can reach the backend:
-```powershell
-netsh advfirewall firewall add rule name="PrintHub Backend Port 8000" dir=in action=allow protocol=TCP localport=8000
+The project includes a ready-made start script. Simply go to the backend folder and double-click it:
+
+```
+backend\start_backend.bat
 ```
 
-**Verify from another computer:**
+A black window will appear with:
+```
+===========================================================
+ PrintHub Backend Server
+ Local:   http://127.0.0.1:8000
+ Network: http://192.168.1.14:8000
+===========================================================
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000
+```
 
-Open a browser on a different computer on the same network and go to:
-`http://192.168.1.14:8000/health` (replace with your server's actual IP)
+**Leave this window open.** Do not close it — closing it stops the backend and nothing will work.
 
-If you see the health response, the server is accessible from the network.
+**Verify the backend is working:**
+
+Open Chrome and go to: `http://localhost:8000/health`
+
+You should see something like: `{"status": "healthy", ...}`
 
 ---
 
-### On a Dedicated Server — Linux / Mac Server
+### On Mac (Laptop or Server)
 
-**Step 1 — SSH into the server**
-```bash
-ssh username@YOUR_SERVER_IP
-```
+#### First-time setup
 
-**Step 2 — Download the code**
+**Step 1 — Download the project**
+
+Open Terminal (`Cmd + Space` → Terminal → Enter):
 ```bash
-cd /opt
-sudo mkdir printhub
-sudo chown $USER:$USER printhub
-cd printhub
+cd ~/Desktop
 git clone https://github.com/MANIBAALAKRISHNANS/print_centre.git
 cd print_centre/backend
 ```
 
-**Step 3 — Create venv and install packages**
+**Step 2 — Create and activate a virtual environment**
 ```bash
 python3 -m venv venv
 source venv/bin/activate
+```
+
+Your terminal prompt will now start with `(venv)` — this means it is activated.
+
+**Step 3 — Install packages**
+```bash
 pip install -r requirements.txt
 ```
 
@@ -379,19 +251,64 @@ cp .env.example .env
 nano .env
 ```
 
-Set `ALLOWED_ORIGINS` to include your network IP:
+Update `ALLOWED_ORIGINS` to include your server IP:
 ```
-ALLOWED_ORIGINS=http://YOUR_SERVER_IP:5173,http://YOUR_SERVER_IP,http://localhost:5173
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://YOUR_IP:5173
 ```
 
-**Step 5 — Run as a systemd service (auto-start on boot)**
+To find your Mac's IP: Apple menu → System Settings → Wi-Fi → Details → IP Address.
 
-Create a service file:
+Press `Ctrl+X`, then `Y`, then Enter to save.
+
+#### Every day — starting the backend
+
+```bash
+cd ~/Desktop/print_centre/backend
+source venv/bin/activate
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+You will see `Application startup complete.` — the backend is running.
+
+**Do NOT close this Terminal window.**
+
+Verify: Open Safari and go to `http://localhost:8000/health`
+
+---
+
+### On Linux Server (Production)
+
+**Step 1 — SSH into the server and download the project**
+```bash
+ssh username@YOUR_SERVER_IP
+cd /opt
+sudo mkdir printhub && sudo chown $USER:$USER printhub
+cd printhub
+git clone https://github.com/MANIBAALAKRISHNANS/print_centre.git
+cd print_centre/backend
+```
+
+**Step 2 — Create venv and install packages**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Step 3 — Configure .env**
+```bash
+cp .env.example .env
+nano .env
+```
+Set `ALLOWED_ORIGINS` to include your server's IP.
+
+**Step 4 — Create a systemd service so the backend starts automatically on reboot**
+
 ```bash
 sudo nano /etc/systemd/system/printhub.service
 ```
 
-Paste this content (replace `/opt/printhub/print_centre` with your actual path):
+Paste this (replace paths and username as needed):
 ```ini
 [Unit]
 Description=PrintHub Backend
@@ -409,9 +326,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-Press `Ctrl + X`, `Y`, Enter to save.
-
-Enable and start it:
+Save, then enable and start:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable printhub
@@ -421,188 +336,158 @@ sudo systemctl status printhub
 
 You should see `Active: active (running)` in green.
 
-**Step 6 — Open the port in the firewall**
+**Open port 8000 in firewall:**
 ```bash
-# Ubuntu/Debian
 sudo ufw allow 8000
-
-# CentOS/RHEL
-sudo firewall-cmd --permanent --add-port=8000/tcp
-sudo firewall-cmd --reload
+sudo ufw allow 5173
 ```
 
 ---
 
-## Part B — Running the Frontend
+## Part B — Start the Frontend
 
-The frontend is the website/dashboard you open in your browser to use PrintHub. It must be able to reach the backend.
+The frontend is the dashboard website. You open it in your browser. It must be started on the same machine as the backend.
 
-### On Your Laptop — Windows
+### On Windows
 
-This is for testing/development. You run both the backend and the frontend on the same computer.
+#### First-time setup (do this once)
 
-**Step 1 — Open a NEW PowerShell window**
-
-Keep the backend window open. Open a separate new PowerShell window for the frontend.
-
-**Step 2 — Go into the frontend folder**
+**Step 1 — Go to the frontend folder**
 ```powershell
 cd C:\Users\YourName\Desktop\print_centre\frontend
 ```
 
-**Step 3 — Install packages**
+**Step 2 — Install JavaScript packages**
 ```powershell
 npm install
 ```
+This takes 1–2 minutes.
 
-This downloads all the JavaScript packages needed. It may take 1-2 minutes.
+**Step 3 — Configure the backend URL**
 
-**Step 4 — Configure the API address**
-
-The frontend needs to know where the backend is. Open the config file:
-```powershell
-notepad src\config.js
-```
-
-You will see something like:
-```js
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-```
-
-For local testing, `http://localhost:8000` is already correct. No changes needed.
-
-If your backend is on a different computer (e.g., a server at `192.168.1.14`), create a `.env` file:
+Open the file `frontend\.env`:
 ```powershell
 notepad .env
 ```
 
-Add this line:
+You will see:
 ```
 VITE_API_URL=http://192.168.1.14:8000
 ```
 
-**Step 5 — Start the frontend**
-```powershell
-npm run dev
+Replace `192.168.1.14` with your server's actual IP address (the same IP you used in the backend `.env`).
+
+> **Why this matters:** This URL is baked into the frontend when it starts. When anyone opens the dashboard on ANY computer on the network, their browser uses this URL to talk to the backend. It must be the server's IP, not `127.0.0.1` (which means "my own computer").
+
+Save and close Notepad.
+
+#### Every day — starting the frontend
+
+Double-click the start script in the frontend folder:
+
+```
+frontend\start_frontend.bat
 ```
 
-You should see:
+A black window will appear with:
 ```
-  VITE v5.x.x  ready in 300ms
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: http://192.168.1.xx:5173/
+===========================================================
+ PrintHub Frontend (Dashboard)
+ Local:   http://localhost:5173
+ Network: http://192.168.1.14:5173
+===========================================================
+VITE v8.x  ready in 261 ms
+  Local:   http://localhost:5173/
+  Network: http://192.168.1.14:5173/
 ```
 
-**Do NOT close this window.**
+**Leave this window open.**
 
-**Step 6 — Open the dashboard**
+**Open the dashboard:**
 
-Open Chrome or Edge and go to: `http://localhost:5173`
-
-You should see the PrintHub login screen.
+On the server PC: `http://localhost:5173`
+From any other PC on the network: `http://192.168.1.14:5173` (replace with your server IP)
 
 ---
 
-### On Your Laptop — Mac
+### On Mac
 
-**Step 1 — Open a NEW Terminal tab**
+#### First-time setup (do this once)
 
-Press `Cmd + T` to open a new tab (keep the backend tab open).
-
-**Step 2 — Go to the frontend folder**
+**Step 1 — Go to the frontend folder**
 ```bash
 cd ~/Desktop/print_centre/frontend
 ```
 
-**Step 3 — Install packages**
+**Step 2 — Install packages**
 ```bash
 npm install
 ```
 
-**Step 4 — Configure the API address**
-
-For local testing, it defaults to `http://localhost:8000` automatically.
-
-For a remote backend, create a `.env` file:
+**Step 3 — Configure the backend URL**
 ```bash
-echo "VITE_API_URL=http://192.168.1.14:8000" > .env
+nano .env
 ```
-Replace `192.168.1.14` with your server's actual IP.
 
-**Step 5 — Start the frontend**
+Set it to your server's IP:
+```
+VITE_API_URL=http://YOUR_SERVER_IP:8000
+```
+
+Save (`Ctrl+X`, `Y`, Enter).
+
+#### Every day — starting the frontend
+
+Open a **new** Terminal tab (`Cmd+T`) — keep the backend tab open:
 ```bash
+cd ~/Desktop/print_centre/frontend
 npm run dev
 ```
 
-**Step 6 — Open the dashboard**
-
-Open Safari or Chrome and go to: `http://localhost:5173`
+Open the dashboard: `http://localhost:5173`
 
 ---
 
-### On a Dedicated Server (Production)
+### Production Build with nginx
 
-In production, you build the frontend into static files and serve them with nginx. This way the frontend works even without Node.js running.
+In production, you build the frontend into static files served by nginx so it works without Node.js running.
 
 **Step 1 — Build the frontend**
-
-On the server (or on your laptop — you can copy the built files):
 ```bash
 cd /opt/printhub/print_centre/frontend
-
-# Create a .env file pointing to your backend
 echo "VITE_API_URL=http://YOUR_SERVER_IP:8000" > .env
-
-# Build the static files
 npm install
 npm run build
 ```
-
 This creates a `dist/` folder with all the HTML/CSS/JS files.
 
 **Step 2 — Install nginx**
-
-On Ubuntu/Debian:
 ```bash
-sudo apt update
-sudo apt install nginx
+# Ubuntu/Debian
+sudo apt update && sudo apt install nginx
+
+# CentOS/RHEL
+sudo yum install nginx
 ```
 
-On Windows Server:
-1. Download nginx from [nginx.org/en/download.html](http://nginx.org/en/download.html)
-2. Extract to `C:\nginx\`
-
-**Step 3 — Configure nginx to serve the frontend and proxy the backend**
-
-On Linux, edit the config:
+**Step 3 — Configure nginx**
 ```bash
 sudo nano /etc/nginx/sites-available/printhub
 ```
 
-Paste this:
+Paste:
 ```nginx
 server {
     listen 80;
     server_name YOUR_SERVER_IP;
 
-    # Serve the React frontend
     root /opt/printhub/print_centre/frontend/dist;
     index index.html;
 
-    # For React Router — always serve index.html for unknown paths
     location / {
         try_files $uri $uri/ /index.html;
     }
 
-    # Proxy API requests to the backend
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-
-    # Proxy WebSocket connections to the backend
     location /ws {
         proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
@@ -613,241 +498,188 @@ server {
 }
 ```
 
-Enable and start:
+Enable and restart:
 ```bash
 sudo ln -s /etc/nginx/sites-available/printhub /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-Now open a browser and go to `http://YOUR_SERVER_IP` — you should see the dashboard.
+Open a browser and go to `http://YOUR_SERVER_IP` — you should see the dashboard.
 
 ---
 
-## Part C — Installing the Agent on Workstations
+## Part C — Install the Agent on Printer Workstations
 
-The agent is a small program you install on each workstation (nursing station PC) that has a USB printer plugged in. It connects to the backend and receives print jobs.
+The agent is installed on every PC that has a USB printer plugged in. It runs silently in the background, connects to the backend, and prints jobs when they arrive.
 
-**Before installing the agent you need:**
-1. The backend must be running
-2. You must generate an **activation code** from the dashboard (see instructions below)
+**You install the agent ONCE per PC. After that, it starts automatically every time Windows logs in.**
 
-### How to Generate an Activation Code
+### What you need before installing
 
-1. Open the PrintHub dashboard in your browser
-2. Log in as admin
-3. Go to the **Agents** page (in the left menu)
-4. Click **"Generate Activation Code"**
-5. You will see an 8-character code like `A3F9B2C1`
-6. Copy this code — it expires in 10 minutes. You will need it during agent install.
+1. The backend must be running on the server
+2. You need an **activation code** from the dashboard — generate one fresh before starting (it expires in 10 minutes)
+
+**How to generate an activation code:**
+1. Open the dashboard → click **Activation Codes** in the left menu
+2. Click **Generate Code**
+3. Write down or copy the 8-character code (example: `6F166AC4`)
 
 ---
 
-### Windows — Full Step-by-Step
+### Windows — Step by Step
 
-#### What the agent does on Windows
+#### Step 1 — Copy the agent folder to the printer PC
 
-The agent runs as a background program. When you log into Windows, it automatically starts and connects to the backend. You don't see a window — it runs silently in the background.
+Get the `PrintHub_Agent` folder (or zip file) from your server:
+- USB stick, network share, or any way you prefer
+- Copy it to the printer PC (e.g., to the Desktop)
 
-#### Step-by-step installation
-
-**Step 1 — Get the agent files**
-
-Get the `PrintHub_Agent.zip` file from your IT administrator or from the project folder.
-
-Copy the zip file to the workstation. You can put it anywhere — for example the Desktop.
-
-**Step 2 — Extract the zip**
-
-Right-click on `PrintHub_Agent.zip` → Extract All → Choose `C:\` as the destination → Click Extract.
-
-You should now have a folder: `C:\PrintHub_Agent\`
-
-> If Windows asks about replacing existing files, click Yes.
-
-**Step 3 — Open PowerShell as Administrator**
-
-This is important — the installer MUST run as Administrator.
-
-1. Press the Windows key
-2. Type `PowerShell`
-3. Right-click on "Windows PowerShell"
-4. Click **"Run as administrator"**
-5. If Windows asks "Do you want to allow this app to make changes?", click **Yes**
-
-You will know it's running as Administrator because the title bar says "Administrator: Windows PowerShell".
-
-**Step 4 — Check Python is installed**
-
-In the Administrator PowerShell window, type:
-```powershell
-python --version
+The folder must contain these files:
+```
+PrintHub_Agent\
+├── agent.py
+├── agent_config.py
+├── agent_setup.py
+├── agent_service.py
+├── install_agent.bat     ← this is the installer
+└── requirements.txt
 ```
 
-You should see `Python 3.11.x`. If you see an error, Python is not installed — go back and install it first.
+#### Step 2 — Right-click the installer → Run as administrator
 
-**Step 5 — Run the installer**
-```powershell
-cd C:\PrintHub_Agent
-.\install_agent.bat
+In File Explorer, navigate to the `PrintHub_Agent` folder.
+
+**Right-click** on `install_agent.bat` → click **"Run as administrator"**.
+
+> Do NOT just double-click. It must say "Run as administrator". If Windows asks "Do you want to allow this app to make changes?" click **Yes**.
+
+#### Step 3 — Answer the questions (first time only)
+
+The installer will ask you 4 questions. Answer them one by one and press Enter after each:
+
 ```
-
-The installer will now run automatically. It will show you:
+Server IP address (e.g. 192.168.1.50):
 ```
-===========================================================
- PrintHub Print Agent - Windows Installer
-===========================================================
+→ Type the IP address of your server (the PC running the backend). Example: `192.168.1.14`
 
-[OK] Running as Administrator.
-[OK] Python 3.11.x found.
+```
+Server port (press Enter for 8000):
+```
+→ Just press **Enter** (8000 is the default and is correct).
+
+```
+Use HTTPS? (y/N):
+```
+→ Just press **Enter** (choose No unless your IT team set up HTTPS specifically).
+
+```
+Enter the 8-character activation code:
+```
+→ Type the code you generated from the dashboard. Example: `6F166AC4`
+
+> If this PC already has a saved config (you installed before), it will say "Existing configuration found — skipping setup" and skip straight to creating the scheduled task. No questions asked.
+
+#### Step 4 — Watch it complete
+
+You will see these lines appear one by one:
+
+```
+[OK] Running as Administrator
+[OK] Python 3.11.5 found
 [STEP 1] Preparing installation directory C:\PrintHubAgent...
-[INFO] Copying agent files...
 [OK] Agent files copied to C:\PrintHubAgent
-[STEP 2] Creating virtual environment...
-[OK] Virtual environment created.
+[OK] Virtual environment ready
 [STEP 3] Installing dependencies...
 [OK] Dependencies installed.
+[OK] pywin32 post-install complete.
+[OK] Existing configuration found   (or "Configuration saved" on first run)
+[STEP 4] Creating Task Scheduler task (PrintHubAgent)...
+[OK] Task Scheduler task created (runs at every login automatically).
+[STEP 5] Starting agent now...
+[OK] Agent started in background (minimized window).
 ```
 
-**Step 6 — Enter the server IP and port**
+When you see all those `[OK]` lines — **installation is complete**.
 
-The installer will ask:
-```
-  Server IP address (e.g. 192.168.1.50):
-```
-Type the IP address of the computer running the backend (e.g., `192.168.1.14`) and press Enter.
+A minimized window called **"PrintHubAgent"** will appear in your taskbar. The agent is running inside it.
 
-```
-  Server port (press Enter for 8000):
-```
-Just press Enter (8000 is correct).
+#### Step 5 — Confirm the agent is connected
 
-```
-  Use HTTPS? (y/N):
-```
-Type `N` and press Enter (unless your IT team specifically set up HTTPS).
+Go to the dashboard (`http://YOUR_SERVER_IP:5173`) → click **Agents** in the left menu.
 
-**Step 7 — Enter the activation code**
+Within 15–30 seconds, the printer PC should appear in the list with a green **"Online"** badge.
 
-The installer will ask:
-```
-  Enter the 8-character activation code:
-```
-Type the code you generated from the dashboard (e.g., `A3F9B2C1`) and press Enter.
+---
 
-**Step 8 — Wait for installation to complete**
+#### Managing the agent on Windows
 
-The installer will finish with either:
-```
-===========================================================
- SUCCESS! PrintHub Agent is running.
- It starts automatically on every boot.
-===========================================================
-```
+The agent starts automatically at every Windows login. You normally never need to touch it. But if you need to:
 
-Or if the Windows Service failed, it uses Task Scheduler:
-```
-[OK] Task Scheduler task created for current user.
-```
-
-Both methods mean the agent is successfully installed and running.
-
-**Step 9 — Verify the agent is connected**
-
-Open the PrintHub dashboard in your browser, go to **Agents** page. Within 15-30 seconds, you should see this workstation appear with a green **"Online"** badge.
-
-#### Starting and stopping the agent manually (Windows)
-
-The agent starts automatically when Windows starts. But if you need to manage it:
-
-**To stop the agent:**
+**View the agent log (to see what it is doing):**
 ```powershell
-schtasks /end /tn "PrintHubAgent"
+notepad C:\PrintHubAgent\agent.log
 ```
-Or open Task Manager → Details → find `python.exe` → End Task.
-
-**To start the agent again:**
+Or in PowerShell:
 ```powershell
-schtasks /run /tn "PrintHubAgent"
+Get-Content C:\PrintHubAgent\agent.log -Tail 30
 ```
 
-**To run the agent in a visible window (for debugging):**
+**Stop the agent:**
+Open Task Manager → Details tab → find `python.exe` → End Task.
 
-Open a regular (non-admin) PowerShell window:
+**Start the agent manually:**
 ```powershell
 C:\PrintHubAgent\venv\Scripts\python.exe C:\PrintHubAgent\agent.py
 ```
 
-You will see the agent's log output in real time. This is very useful for diagnosing problems. When you see `[WS] Connected`, the agent is fully working.
-
-**To view the agent logs:**
+**Run the agent in a visible window (for troubleshooting):**
+Open a regular PowerShell window (not admin) and run:
 ```powershell
-type C:\PrintHubAgent\agent.log
+C:\PrintHubAgent\venv\Scripts\python.exe C:\PrintHubAgent\agent.py
 ```
+You will see live log output. When you see `[WS] Connected to server`, the agent is fully working.
 
-Or open it in Notepad:
+**Uninstall the agent completely:**
 ```powershell
-notepad C:\PrintHubAgent\agent.log
+# Run as Administrator
+schtasks /delete /tn "PrintHubAgent" /f
+Remove-Item -Recurse -Force C:\PrintHubAgent
 ```
 
 ---
 
-### Mac — Full Step-by-Step
+### Mac — Step by Step
 
-#### What the agent does on Mac
+#### Step 1 — Copy the agent folder to the printer Mac
 
-On Mac, the agent installs as a **LaunchAgent** — a background service that starts automatically when you log in.
+Copy the `PrintHub_Agent` folder to the Mac (USB, AirDrop, or network share).
 
-#### Step-by-step installation
+#### Step 2 — Open Terminal
 
-**Step 1 — Get the agent files**
+Press `Cmd + Space` → type "Terminal" → press Enter.
 
-Copy `PrintHub_Agent.zip` to the Mac.
-
-**Step 2 — Extract the zip**
-
-Double-click `PrintHub_Agent.zip`. A folder called `PrintHub_Agent` will appear in the same location.
-
-**Step 3 — Open Terminal**
-
-Press `Cmd + Space`, type "Terminal", press Enter.
-
-**Step 4 — Go to the agent folder**
+#### Step 3 — Go to the agent folder
 ```bash
 cd ~/Desktop/PrintHub_Agent
 ```
-(Replace `~/Desktop` with wherever you extracted the files.)
+(Replace `~/Desktop` with wherever you copied the folder.)
 
-**Step 5 — Make the installer executable**
+#### Step 4 — Make the installer executable
 ```bash
 chmod +x install_agent.sh
 ```
 
-**Step 6 — Run the installer**
+#### Step 5 — Run the installer
 ```bash
 bash install_agent.sh
 ```
 
-The installer will ask you for:
-- Server URL (e.g., `http://192.168.1.14:8000`)
-- Activation code (the 8-character code from the dashboard)
+The installer will ask for:
+- Server URL: `http://192.168.1.14:8000` (replace with your server IP)
+- Activation code: the 8-character code from the dashboard
 
-**Step 7 — Enter the details**
-
-```
-  Enter server URL (e.g. http://192.168.1.50:8000): http://192.168.1.14:8000
-  Enter 8-character activation code: A3F9B2C1
-```
-
-**Step 8 — Installation completes**
-
-You should see:
-```
-[OK] Agent installed and started.
-[OK] LaunchAgent registered — starts at login automatically.
-```
-
-**Step 9 — Verify**
+#### Step 6 — Confirm it's working
 
 Open the dashboard → Agents page. The Mac should appear as Online within 15 seconds.
 
@@ -868,12 +700,7 @@ launchctl unload ~/Library/LaunchAgents/com.printhub.agent.plist
 launchctl load ~/Library/LaunchAgents/com.printhub.agent.plist
 ```
 
-**Run in visible window (for debugging):**
-```bash
-~/PrintHubAgent/venv/bin/python ~/PrintHubAgent/agent.py
-```
-
-**Remove the agent completely:**
+**Uninstall completely:**
 ```bash
 launchctl unload ~/Library/LaunchAgents/com.printhub.agent.plist
 rm ~/Library/LaunchAgents/com.printhub.agent.plist
@@ -884,61 +711,73 @@ rm -rf ~/PrintHubAgent
 
 ## Part D — Using the Dashboard
 
-Once the backend is running, the frontend is running, and at least one agent is installed and online, here is how to use the system.
+### Opening the dashboard
 
-### Opening the Dashboard
+| Situation | URL to open in browser |
+|---|---|
+| On the server PC itself | `http://localhost:5173` |
+| From any other PC on the same network | `http://192.168.1.14:5173` (replace with your server IP) |
+| In production with nginx | `http://192.168.1.14` (no port number needed) |
 
-Open Chrome or Edge and go to:
-- **If everything is on your laptop (testing):** `http://localhost:5173`
-- **If there is a dedicated server:** `http://YOUR_SERVER_IP:5173` (replace with actual IP)
-
-### Logging In
-
-Use these default credentials (change them immediately after first login):
+### Logging in
 
 | Username | Password |
 |---|---|
 | `admin` | `Admin@PrintHub2026` |
 
+> Change the password immediately after first login. Go to the user icon at the top-right → Change Password.
+
+---
+
 ### Pages in the Dashboard
 
-| Page | What It Does |
+| Page | What it does |
 |---|---|
-| **Dashboard** | Overview — shows active agents, pending jobs, printer status |
-| **Printers** | Add and manage physical printers |
-| **Mapping** | Map each location/department to specific printers |
-| **Print Jobs** | See all print jobs, retry failed ones |
-| **Agents** | See all workstations running the agent (Online/Offline status) |
-| **Users** | Create/delete admin and clinical user accounts |
-| **Activation Codes** | Generate codes for registering new agent workstations |
-| **Audit Logs** | HIPAA compliance — see every action ever taken in the system |
+| **Dashboard** | Overview — active agents, pending jobs, printer status |
+| **Printers** | Add and manage physical printers (name, type, connection) |
+| **Locations / Mapping** | Map each department/ward to specific printers |
+| **Print Jobs** | View all print jobs, retry failed ones |
+| **Agents** | See all PCs running the agent — Online/Offline status |
+| **Users** | Create and manage staff accounts (Admin / Viewer roles) |
+| **Activation Codes** | Generate codes to register new agent workstations |
+| **Audit Logs** | Full history of every action — required for compliance |
 
-### Setting Up the System (First Time)
+---
 
-Follow this order when setting up PrintHub for the first time:
+### First-time setup order
 
-**Step 1 — Add your printers**
+Follow these steps in order when setting up PrintHub for the first time:
+
+**1. Add your printers**
 
 Go to **Printers** → click **Add Printer**. Fill in:
-- Name (e.g., "Nurses Station A4 Printer")
-- Category (A4 or Barcode)
-- The printer's name exactly as Windows knows it (run `Get-Printer` in PowerShell to see the exact name)
+- Name (e.g., `Ward A Barcode Printer`)
+- Type: A4 or Barcode
+- The printer's name exactly as Windows knows it
 
-**Step 2 — Set up locations/departments**
+To find the exact printer name on Windows, open PowerShell and run:
+```powershell
+Get-Printer | Select-Object Name
+```
 
-Go to **Mapping** — each row is a department/location. Click Edit on a row to assign which printer should be the Primary and which should be the Secondary (backup) for that location.
+**2. Set up locations and mapping**
 
-**Step 3 — Install agents on workstations**
+Go to **Locations** → add each department/ward (e.g., `Ward A`, `ICU`, `OPD`).
 
-For each workstation with a printer:
-1. Go to **Activation Codes** → Generate Code (copies to your clipboard)
-2. Go to that workstation → run the agent installer → enter the code
+Then go to **Mapping** → assign a Primary printer and a Secondary (backup) printer to each location.
 
-**Step 4 — Test a print job**
+**3. Install agents on workstations**
 
-Go to **Mapping** → find a location that has an agent online → click the small **"A4"** or **"Bar"** test button. Check the physical printer — it should print a test page within seconds.
+For each PC with a USB printer:
+1. Go to **Activation Codes** → Generate Code
+2. Go to that PC → run `install_agent.bat` as Administrator → enter the code
+3. Come back to the dashboard → Agents → confirm it shows Online
 
-**Step 5 — Create user accounts for clinical staff**
+**4. Test a print job**
+
+Go to **Mapping** → find a location with an agent Online → click the **test** button (A4 or Bar). Check the physical printer — it should print within seconds.
+
+**5. Create user accounts for clinical staff**
 
 Go to **Users** → Add User. Clinical users can submit print jobs but cannot change system settings.
 
@@ -946,123 +785,135 @@ Go to **Users** → Add User. Clinical users can submit print jobs but cannot ch
 
 ## Default Login Credentials
 
-> Change these immediately after your first login. Go to the top-right user menu → Change Password.
-
 | Username | Password | Role |
 |---|---|---|
-| `admin` | `Admin@PrintHub2026` | Super Admin — full access to everything |
+| `admin` | `Admin@PrintHub2026` | Super Admin — full access |
+
+> The admin account is automatically created when the backend starts for the first time. Change the password immediately.
 
 ---
 
 ## Environment Variables Reference
 
-These settings go in `backend/.env`. The file controls how the backend behaves.
+These go in `backend/.env`. This file controls how the backend behaves.
 
-| Variable | Required | Example | What It Does |
-|---|---|---|---|
-| `HOST` | No | `0.0.0.0` | Which network interface to listen on. `0.0.0.0` means all interfaces (needed so other computers can reach it). |
-| `PORT` | No | `8000` | Which port the backend listens on. |
-| `ENVIRONMENT` | No | `development` | Set to `production` on a real server. |
-| `JWT_SECRET_KEY` | YES | (long random string) | Secret used to sign login tokens. Generate with: `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `ALLOWED_ORIGINS` | No | `http://localhost:5173` | Which websites are allowed to talk to the backend. Add your server's IP here. Comma-separated. |
-| `DATABASE_PATH` | No | `./printhub.db` | Where the SQLite database file is stored. |
-| `STALE_THRESHOLD_SECONDS` | No | `45` | How many seconds without a heartbeat before an agent is marked Offline. |
-| `MAX_RETRY_COUNT` | No | `3` | How many times a failed print job is retried automatically. |
+| Variable | Default | What it does |
+|---|---|---|
+| `HOST` | `0.0.0.0` | Which interface to listen on. `0.0.0.0` means all interfaces — required so other PCs on the network can reach it. |
+| `PORT` | `8000` | Which port the backend listens on. |
+| `ENVIRONMENT` | `development` | Set to `production` on a real hospital server. Production mode enforces stronger security rules. |
+| `JWT_SECRET_KEY` | (random 64-char hex) | Secret used to sign login tokens. Generate a new one with: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ADMIN_CLEANUP_TOKEN` | `CHANGE_ME_...` | Token for admin maintenance endpoints. Change this in production. |
+| `ALLOWED_ORIGINS` | (comma-separated URLs) | Which browser origins (URLs) are allowed to talk to the backend. Must include the frontend URL. |
+| `DATABASE_PATH` | `./printhub.db` | Where the SQLite database file is stored. |
+| `STALE_THRESHOLD_SECONDS` | `45` | Seconds without a heartbeat before an agent is marked Offline. |
+| `MAX_RETRY_COUNT` | `3` | How many times a failed print job is retried automatically. |
+| `JOB_LOCK_TIMEOUT_SECONDS` | `300` | Seconds before a locked print job is considered stuck and released. |
+
+**Frontend `frontend/.env`:**
+
+| Variable | What it does |
+|---|---|
+| `VITE_API_URL` | The full URL of the backend server. **Must be the server's network IP** (not `127.0.0.1`) so that browsers from other PCs can reach the backend. Example: `http://192.168.1.14:8000` |
 
 ---
 
-## Firewall & Network
+## Firewall and Network Ports
 
-The backend listens on port 8000. The frontend listens on port 5173 (development) or port 80 (production with nginx).
-
-**What ports need to be open:**
-
-| Computer | Direction | Port | Why |
+| Machine | Port | Direction | Why |
 |---|---|---|---|
-| Backend server | Inbound | 8000 | So agents and the dashboard can reach it |
-| Backend server | Inbound | 5173 | So users can open the dashboard (dev mode) |
-| Backend server | Inbound | 80 | So users can open the dashboard (production/nginx) |
-| Workstations (agents) | Outbound | 8000 | So the agent can connect to the backend |
+| Server | 8000 | Inbound | Backend — agents and browsers connect here |
+| Server | 5173 | Inbound | Frontend dev server — users open dashboard here |
+| Server | 80 | Inbound | Frontend in production (nginx) |
+| Printer PCs | (none) | Outbound only | Agents connect out to server port 8000 — no inbound ports needed |
 
-**Windows Server — Open port 8000:**
+**Windows — Open ports (run PowerShell as Administrator on the server):**
 ```powershell
-# Run as Administrator
-netsh advfirewall firewall add rule name="PrintHub Port 8000" dir=in action=allow protocol=TCP localport=8000
-netsh advfirewall firewall add rule name="PrintHub Port 5173" dir=in action=allow protocol=TCP localport=5173
+netsh advfirewall firewall add rule name="PrintHub Backend 8000" dir=in action=allow protocol=TCP localport=8000
+netsh advfirewall firewall add rule name="PrintHub Frontend 5173" dir=in action=allow protocol=TCP localport=5173
 ```
 
-**Mac / Linux — Open port 8000:**
+**Linux — Open ports:**
 ```bash
-# Linux (Ubuntu)
 sudo ufw allow 8000
 sudo ufw allow 5173
-
-# Mac — no configuration needed (Mac allows all inbound by default)
 ```
 
 ---
 
 ## Troubleshooting
 
-### The backend starts but WebSocket connection fails (agent shows 404 error)
+### Agent log shows `[WS] Error: Handshake status 404 Not Found`
 
-**Symptom:** Agent log shows `[WS] Error: Handshake status 404 Not Found` repeatedly.
+**Cause:** The `websockets` package is missing from the backend virtual environment. Without it, uvicorn cannot handle WebSocket connections.
 
-**Cause:** The `websockets` package is not installed in the backend's virtual environment. Without it, uvicorn cannot handle WebSocket connections and returns 404 for all WebSocket routes.
-
-**Fix:** Stop the backend, install the package, restart:
+**Fix:** Stop the backend and run:
 ```powershell
 # Windows
 cd C:\...\backend
 .\venv\Scripts\pip.exe install websockets "uvicorn[standard]"
-.\venv\Scripts\uvicorn.exe main:app --host 0.0.0.0 --port 8000
 ```
 ```bash
 # Mac/Linux
 cd .../backend
 source venv/bin/activate
 pip install websockets "uvicorn[standard]"
-uvicorn main:app --host 0.0.0.0 --port 8000
 ```
+Then restart the backend.
+
+---
+
+### install_agent.bat shows `: was unexpected at this time.`
+
+**Cause:** This is a bug with the old `schtasks` command on Windows 11. The installer has been updated to use PowerShell's `Register-ScheduledTask` instead.
+
+**Fix:** Make sure you are using the latest `install_agent.bat` from the project. The updated installer uses PowerShell internally for the Task Scheduler step and does not have this error.
 
 ---
 
 ### Agent shows "Offline" in the dashboard
 
-**Cause 1:** The agent is not running on that workstation.
+**Cause 1 — Agent is not running on that PC.**
 
-**Fix:** Open PowerShell on the workstation and run:
+Fix: Open PowerShell on the printer PC and run:
 ```powershell
 C:\PrintHubAgent\venv\Scripts\python.exe C:\PrintHubAgent\agent.py
 ```
-If you see `[WS] Connected`, the agent connects. Leave it running.
+If you see `[WS] Connected to server`, it is working. Leave it running.
 
-**Cause 2:** The backend is not reachable from the workstation.
+**Cause 2 — Backend is not reachable from the printer PC.**
 
-**Fix:** On the workstation, open a browser and go to `http://BACKEND_IP:8000/health`. If you can't reach it, check the firewall on the server.
+Fix: On the printer PC, open a browser and go to `http://SERVER_IP:8000/health`. If you can't reach it, the firewall on the server is blocking port 8000. Run the firewall commands above.
+
+**Cause 3 — Wrong server IP saved in agent config.**
+
+Fix: Delete `C:\PrintHubAgent\agent_config.json` and run `install_agent.bat` again to re-enter the correct server IP.
 
 ---
 
-### "Cannot connect to API" or blank white screen in browser
+### Dashboard shows blank page or "Cannot connect to API"
 
-**Cause:** The frontend cannot reach the backend.
+**Cause:** The frontend is connecting to the wrong backend address.
 
-**Fix checklist:**
-1. Is the backend running? Check the backend terminal window — is it still open?
-2. Is the URL correct? In `frontend/src/config.js`, does `API_BASE_URL` point to the right IP and port?
-3. Is the backend port open in the firewall? Test: `http://BACKEND_IP:8000/health` in your browser.
+**Fix:**
+1. Open `frontend/.env`
+2. Make sure `VITE_API_URL=http://SERVER_IP:8000` — with the actual IP, not `127.0.0.1`
+3. Stop the frontend and restart it (`start_frontend.bat`)
 
 ---
 
 ### "Permission denied: venv\Scripts\python.exe" when running `python -m venv venv`
 
-**Cause:** A venv folder already exists and its files are locked (by a running server or OneDrive).
+**Cause:** A venv folder already exists and its files are locked (OneDrive sync or a running process).
 
-**Fix:** You don't need to create a new venv. Skip the `python -m venv venv` step — just use the existing one with `.\venv\Scripts\pip.exe install ...`.
+**Fix:** Skip the `python -m venv venv` step — the venv already exists. Just run:
+```powershell
+.\venv\Scripts\pip.exe install -r requirements.txt
+```
 
 ---
 
-### Activation code "invalid or expired"
+### Activation code says "invalid or expired"
 
 **Cause:** Codes expire after 10 minutes.
 
@@ -1072,19 +923,25 @@ If you see `[WS] Connected`, the agent connects. Leave it running.
 
 ### Print job stays "Pending" and never prints
 
-**Fix checklist:**
-1. Go to **Agents** page — is the agent for that location showing as **Online**?
-2. Go to **Mapping** page — does that location have a printer assigned?
-3. Is the USB printer plugged in and turned on?
-4. View the agent log: `type C:\PrintHubAgent\agent.log` (Windows) or `tail -f ~/Library/Logs/PrintHubAgent/agent.log` (Mac)
+Checklist:
+1. Dashboard → **Agents** — is the agent for that location showing as **Online**?
+2. Dashboard → **Mapping** — does that location have a printer assigned?
+3. Is the USB printer physically plugged in and turned on?
+4. View the agent log on the printer PC: `notepad C:\PrintHubAgent\agent.log`
 
 ---
 
-### Frontend shows login page but login fails with "Invalid credentials"
+### Backend startup shows `CRITICAL: MISSING DEPENDENCIES: soffice, gswin64c`
 
-**Cause:** Wrong username or password, or the database was reset.
+**This is not a problem.** These are optional tools for converting Word/PDF files. All label printing and barcode printing works perfectly without them. Ignore this warning.
 
-**Fix:** Reset the admin password by running this on the server:
+---
+
+### Login fails with "Invalid credentials"
+
+**Cause:** Wrong password or the database was reset.
+
+**Fix:** Reset the admin password on the server:
 ```powershell
 # Windows
 cd C:\...\backend
@@ -1099,9 +956,11 @@ python restore_admin.py
 
 ---
 
-### Backend startup shows `CRITICAL: MISSING DEPENDENCIES: soffice, gswin64c`
+### Backend fails to start — pydantic validation errors
 
-**This is NOT a problem for normal operation.** These are optional tools for converting Word/PDF documents. Label printing and barcode printing work fine without them. Ignore this warning unless you specifically need to print Word or PDF documents.
+**Cause:** Unknown or incorrectly named variables in `backend/.env`. The backend only accepts variables that are defined in `backend/config.py`.
+
+**Fix:** Make sure `backend/.env` does not contain `SERVER_URL` or `HEARTBEAT_INTERVAL` — these are agent-only settings and must not be in the backend config file.
 
 ---
 
@@ -1127,7 +986,7 @@ python restore_admin.py
 │  │                                                             │   │
 │  │  ┌──────────────────┐    ┌──────────────────────────────┐  │   │
 │  │  │  WebSocket Thread│    │  Main Poll Loop              │  │   │
-│  │  │  on job_available│───►│  Wakes immediately on WS push│  │   │
+│  │  │  on job_available│───►│  Wakes on WS push            │  │   │
 │  │  │  → sets trigger  │    │  Falls back to 30s poll      │  │   │
 │  │  └──────────────────┘    └──────────────────────────────┘  │   │
 │  └──────────────────────────────────────┬───────────────────────┘  │
@@ -1143,36 +1002,41 @@ python restore_admin.py
 | Layer | Technology |
 |---|---|
 | **Backend** | Python 3.11, FastAPI, APScheduler, SQLite (default) / PostgreSQL (production) |
-| **WebSocket server** | uvicorn + websockets package (required for WebSocket support) |
+| **WebSocket server** | uvicorn + websockets package |
 | **Frontend** | React 18, Vite, React Router v6 |
-| **Real-time (Dashboard)** | WebSocket `/ws` |
-| **Real-time (Agents)** | WebSocket `/ws/agent` |
-| **Auth** | JWT (HS256) |
-| **Agent (Windows)** | Python, win32print, pywin32, websocket-client |
-| **Agent (macOS)** | Python, CUPS (lpstat/lp), websocket-client |
+| **Real-time dashboard** | WebSocket `/ws` |
+| **Real-time agents** | WebSocket `/ws/agent` |
+| **Authentication** | JWT (HS256) |
+| **Agent — Windows** | Python, win32print, pywin32, websocket-client |
+| **Agent — macOS** | Python, CUPS (lpstat/lp), websocket-client |
 
 ### Project Structure
 
 ```
 print_centre/
 ├── backend/
-│   ├── main.py              # FastAPI app — all routes, WebSocket, lifespan
-│   ├── database.py          # Database connection pool + helpers
-│   ├── config.py            # Settings loaded from .env
-│   ├── requirements.txt     # Python packages (must include websockets)
+│   ├── main.py                   # FastAPI app — all routes, WebSocket, lifespan
+│   ├── database.py               # DB connection pool + schema helpers
+│   ├── config.py                 # Settings loaded from .env (pydantic-settings)
+│   ├── logging_config.py         # Structured logging setup
+│   ├── requirements.txt          # Python packages (must include websockets)
+│   ├── start_backend.bat         # One-click start script (Windows)
+│   ├── .env                      # Your local config (NOT committed to git)
 │   ├── services/
-│   │   ├── recovery.py      # Stuck job auto-recovery
-│   │   ├── alerts.py        # Email/SMS alerts
-│   │   ├── routing_service.py # Printer failover logic
-│   │   ├── barcode_service.py # Label/barcode generation
-│   │   └── auth.py          # Password hashing + JWT helpers
-│   └── .env                 # Your local config (NOT committed to git)
+│   │   ├── auth.py               # Password hashing + JWT helpers
+│   │   ├── recovery.py           # Stuck job auto-recovery
+│   │   ├── alerts.py             # Email/Slack alert integration
+│   │   ├── routing_service.py    # Printer failover logic
+│   │   ├── barcode_service.py    # Label/barcode generation
+│   │   └── audit.py              # Audit log writing
+│   └── backups/                  # Automatic database backups
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── config.js        # API_BASE_URL — change this to point to your backend
+│   │   ├── config.js             # API_BASE_URL from VITE_API_URL env var
 │   │   ├── context/
-│   │   │   └── AuthContext.jsx   # Login state + authenticated fetch helper
+│   │   │   ├── AuthContext.jsx   # Login state + authenticated fetch
+│   │   │   └── AppData.jsx       # Shared data cache
 │   │   └── pages/
 │   │       ├── Dashboard.jsx
 │   │       ├── Agents.jsx
@@ -1180,23 +1044,25 @@ print_centre/
 │   │       ├── PrintJobs.jsx
 │   │       ├── Printers.jsx
 │   │       ├── Users.jsx
+│   │       ├── ActivationCodes.jsx
 │   │       ├── AuditLogs.jsx
 │   │       └── Login.jsx
-│   ├── .env                 # VITE_API_URL — set this for non-localhost backends
+│   ├── .env                      # VITE_API_URL — must be the server's network IP
+│   ├── vite.config.js            # Vite config — port 5173, host: true
+│   ├── start_frontend.bat        # One-click start script (Windows)
 │   └── package.json
 │
-├── agent/
-│   ├── agent.py             # Main agent — WebSocket client + print loop
-│   ├── agent_config.py      # Config file read/write (stored at C:\PrintHubAgent\)
-│   ├── agent_setup.py       # Setup wizard (run once with activation code)
-│   ├── agent_service.py     # Windows Service wrapper
-│   ├── requirements.txt     # Agent dependencies
-│   ├── install_agent.bat    # Windows installer (run as Administrator)
-│   └── install_agent.sh     # macOS/Linux installer
-│
-└── PrintHub_Agent.zip       # Ready-to-distribute agent package
+└── agent/                        # Source files for the agent
+    ├── agent.py                  # Main agent — WebSocket + print loop
+    ├── agent_config.py           # Config read/write (stored at C:\PrintHubAgent\)
+    ├── agent_setup.py            # One-time setup with activation code
+    ├── agent_service.py          # Windows Service wrapper (legacy)
+    ├── agent_macos.py            # macOS CUPS printing helpers
+    ├── requirements.txt          # Agent Python dependencies
+    ├── install_agent.bat         # Windows installer (right-click → Run as admin)
+    └── install_agent.sh          # macOS/Linux installer
 ```
 
 ---
 
-*PrintHub — Savetha Hospital IT Engineering. All rights reserved.*
+*PrintHub — Savetha Hospital IT Engineering*

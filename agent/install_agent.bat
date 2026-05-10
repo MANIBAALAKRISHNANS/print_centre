@@ -138,33 +138,28 @@ if %errorLevel% equ 0 (
     echo [OK] Old service removed.
 )
 
-:: Remove existing scheduled task if it exists
-schtasks /query /tn "PrintHubAgent" >nul 2>&1
-if %errorLevel% equ 0 (
-    echo [INFO] Removing existing scheduled task...
-    schtasks /end /tn "PrintHubAgent" >nul 2>&1
-    schtasks /delete /tn "PrintHubAgent" /f >nul 2>&1
-)
-
-:: Create Task Scheduler task - runs at login, as current user
+:: Create/recreate scheduled task via PowerShell (schtasks has quoting bugs on Windows 11)
 echo [STEP 4] Creating Task Scheduler task (PrintHubAgent)...
-schtasks /create /tn "PrintHubAgent" /tr "%INSTALL_DIR%\venv\Scripts\python.exe %INSTALL_DIR%\agent.py" /sc ONLOGON /rl HIGHEST /f
-if %errorLevel% neq 0 (
+(
+    echo Unregister-ScheduledTask -TaskName 'PrintHubAgent' -Confirm:$false -ErrorAction SilentlyContinue
+    echo $a = New-ScheduledTaskAction -Execute '%INSTALL_DIR%\venv\Scripts\python.exe' -Argument '%INSTALL_DIR%\agent.py' -WorkingDirectory '%INSTALL_DIR%'
+    echo $t = New-ScheduledTaskTrigger -AtLogOn
+    echo $s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable
+    echo Register-ScheduledTask -TaskName 'PrintHubAgent' -Action $a -Trigger $t -Settings $s -RunLevel Highest -Force
+) > "%TEMP%\phtask.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\phtask.ps1"
+if !ERRORLEVEL! neq 0 (
     echo [ERROR] Failed to create scheduled task.
+    del "%TEMP%\phtask.ps1" >nul 2>&1
     pause & exit /b 1
 )
+del "%TEMP%\phtask.ps1" >nul 2>&1
 echo [OK] Task Scheduler task created (runs at every login automatically).
 
-:: Start the agent right now (don't wait for next login)
+:: Start the agent right now in a minimized window
 echo [STEP 5] Starting agent now...
-schtasks /run /tn "PrintHubAgent"
-if %errorLevel% neq 0 (
-    echo [WARNING] Could not start task immediately. It will start at next login.
-    echo           To start manually, run:
-    echo             %VENV_PY% %INSTALL_DIR%\agent.py
-) else (
-    echo [OK] Agent started.
-)
+start "PrintHubAgent" /min "%INSTALL_DIR%\venv\Scripts\python.exe" "%INSTALL_DIR%\agent.py"
+echo [OK] Agent started in background (minimized window).
 
 :: Wait a moment then check if Python process is running
 timeout /t 5 /nobreak >nul
