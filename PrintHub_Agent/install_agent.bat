@@ -148,7 +148,7 @@ if %errorLevel% equ 0 (
 
 :: Create Task Scheduler task - runs at login, as current user
 echo [STEP 4] Creating Task Scheduler task (PrintHubAgent)...
-schtasks /create /tn "PrintHubAgent" /tr "\"%VENV_PY%\" \"%INSTALL_DIR%\agent.py\"" /sc ONLOGON /rl HIGHEST /f
+schtasks /create /tn "PrintHubAgent" /tr "%INSTALL_DIR%\venv\Scripts\python.exe %INSTALL_DIR%\agent.py" /sc ONLOGON /rl HIGHEST /f
 if %errorLevel% neq 0 (
     echo [ERROR] Failed to create scheduled task.
     pause & exit /b 1
