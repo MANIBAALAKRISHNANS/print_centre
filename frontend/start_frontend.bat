@@ -34,7 +34,7 @@ if "!PYTHON_EXE!"=="" (
 )
 echo [INFO] Python: !PYTHON_EXE!
 
-:: ── Firewall Step 1: Remove ALL rules tied to this python.exe ──
+:: ── Firewall Step 1: Remove ALL auto-block rules for python.exe ──
 :: Windows auto-adds a BLOCK rule when the user dismisses the
 :: "Allow Python through Firewall?" security popup.
 :: That program-level block overrides all port-based allow rules.
@@ -42,25 +42,25 @@ echo [INFO] Python: !PYTHON_EXE!
 echo [INFO] Removing any existing Python firewall rules (including auto-blocks)...
 netsh advfirewall firewall delete rule name=all program="!PYTHON_EXE!" >nul 2>&1
 
-:: ── Firewall Step 2: Add program-level ALLOW for python.exe ────
-:: Program-level rules take priority over port-level rules.
-netsh advfirewall firewall add rule ^
-    name="PrintHub Python Allow" ^
-    dir=in action=allow ^
-    program="!PYTHON_EXE!" ^
-    enable=yes profile=any >nul 2>&1
-echo [OK] Program-level ALLOW rule added for python.exe
-
-:: ── Firewall Step 3: Add port-level ALLOW rules as backup ──────
+:: ── Firewall Step 2: Add port-level ALLOW rules as backup ──────
 netsh advfirewall firewall delete rule name="PrintHub Frontend 5173" >nul 2>&1
 netsh advfirewall firewall add rule name="PrintHub Frontend 5173" dir=in action=allow protocol=TCP localport=5173 profile=any >nul 2>&1
 netsh advfirewall firewall delete rule name="PrintHub Backend 8000" >nul 2>&1
 netsh advfirewall firewall add rule name="PrintHub Backend 8000" dir=in action=allow protocol=TCP localport=8000 profile=any >nul 2>&1
 echo [OK] Port-level ALLOW rules added (5173 and 8000)
 
-:: ── Firewall Step 4: PowerShell New-NetFirewallRule (Win10/11) ─
+:: ── Firewall Step 3: PowerShell New-NetFirewallRule (Win10/11) ─
 powershell -NonInteractive -Command "$e='SilentlyContinue'; Get-NetFirewallRule -DisplayName 'PrintHub*' -EA $e | Remove-NetFirewallRule -EA $e; New-NetFirewallRule -DisplayName 'PrintHub Frontend 5173' -Direction Inbound -Protocol TCP -LocalPort 5173 -Action Allow -Profile Any -EA $e | Out-Null; New-NetFirewallRule -DisplayName 'PrintHub Backend 8000' -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow -Profile Any -EA $e | Out-Null" >nul 2>&1
 echo [OK] PowerShell firewall rules applied (all profiles)
+
+:: ── Firewall Step 4: Program-level ALLOW (MUST be added LAST) ──
+:: CRITICAL: The PowerShell step above removes ALL 'PrintHub*' rules.
+:: If program-level ALLOW was added before it, it would be deleted.
+:: Adding it here (after PowerShell) ensures it survives and is active
+:: when serve_spa.py starts — preventing the Windows security popup from
+:: appearing and creating a new BLOCK rule that overrides everything.
+netsh advfirewall firewall add rule name="PrintHub Python Allow" dir=in action=allow program="!PYTHON_EXE!" enable=yes profile=any >nul 2>&1
+echo [OK] Program-level ALLOW rule added for python.exe
 echo.
 
 :: ── Check if production build exists ───────────────────────────
