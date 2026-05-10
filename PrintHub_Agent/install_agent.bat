@@ -1,5 +1,5 @@
 @echo off
-:: PrintHub Agent - Windows Service Installer
+:: PrintHub Agent - Windows Installer (Task Scheduler)
 :: Run as Administrator
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
@@ -29,18 +29,12 @@ if %errorLevel% neq 0 (
 for /f "tokens=2" %%v in ('python --version 2^>^&1') do set PY_VER=%%v
 echo [OK] Python %PY_VER% found.
 
-:: ============================================================
-:: IMPORTANT: Install to C:\PrintHubAgent - NOT to OneDrive.
-:: Windows Services run as SYSTEM, which cannot access files
-:: in a user's OneDrive folder. All agent files and the venv
-:: must live in a path SYSTEM can read.
-:: ============================================================
 set INSTALL_DIR=C:\PrintHubAgent
 
 echo [STEP 1] Preparing installation directory %INSTALL_DIR%...
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
 
-:: Copy all agent files from the source folder to the install dir
+:: Copy all agent files to the install directory
 echo [INFO] Copying agent files...
 for %%f in (agent.py agent_service.py agent_config.py agent_setup.py requirements.txt) do (
     if exist "%~dp0%%f" (
@@ -50,15 +44,15 @@ for %%f in (agent.py agent_service.py agent_config.py agent_setup.py requirement
     )
 )
 if exist "%~dp0agent_macos.py" copy /y "%~dp0agent_macos.py" "%INSTALL_DIR%\agent_macos.py" >nul
-
 echo [OK] Agent files copied to %INSTALL_DIR%
 
-:: Switch all remaining work to the install directory
 cd /d "%INSTALL_DIR%"
 
-:: Create virtual environment inside INSTALL_DIR (not OneDrive)
+set VENV_PY=%INSTALL_DIR%\venv\Scripts\python.exe
+
+:: Create virtual environment
 if not exist "venv\Scripts\python.exe" (
-    echo [STEP 2] Creating virtual environment in %INSTALL_DIR%\venv...
+    echo [STEP 2] Creating virtual environment...
     python -m venv venv
     if %errorLevel% neq 0 (
         echo [ERROR] Failed to create virtual environment.
@@ -68,8 +62,6 @@ if not exist "venv\Scripts\python.exe" (
 ) else (
     echo [OK] Virtual environment ready.
 )
-
-set VENV_PY=%INSTALL_DIR%\venv\Scripts\python.exe
 
 :: Install dependencies
 echo [STEP 3] Installing dependencies...
@@ -81,17 +73,16 @@ if %errorLevel% neq 0 (
 )
 echo [OK] Dependencies installed.
 
-:: Run pywin32 post-install (always - required for Windows Service DLL registration)
-:: Use hardcoded path since we know venv lives at INSTALL_DIR\venv
+:: Run pywin32 post-install (required for win32print printer access)
 echo [INFO] Running pywin32 post-install...
 "%VENV_PY%" "%INSTALL_DIR%\venv\Scripts\pywin32_postinstall.py" -install
 if %errorLevel% neq 0 (
-    echo [WARNING] pywin32 post-install returned an error - service may not work
+    echo [WARNING] pywin32 post-install returned an error - printer access may not work
 ) else (
     echo [OK] pywin32 post-install complete.
 )
 
-:: First-time setup (only if no config exists in install dir)
+:: First-time setup (only if no config exists)
 if not exist "agent_config.json" (
     echo.
     echo ===========================================================
@@ -129,81 +120,78 @@ if not exist "agent_config.json" (
     echo [OK] Existing configuration found - skipping setup.
 )
 
-:: Grant SYSTEM full access to the install directory and config file
-:: NOTE: icacls with (OI)(CI) flags MUST be outside any parenthesized if block
-:: to avoid a batch parser bug with parentheses in arguments.
-echo [INFO] Setting SYSTEM permissions on %INSTALL_DIR%...
-icacls "%INSTALL_DIR%" /grant:r "SYSTEM:(OI)(CI)F" >nul 2>&1
-echo [OK] SYSTEM permissions set.
+:: ============================================================
+:: Use Windows Task Scheduler (not Windows Service).
+:: Task Scheduler runs as the current logged-on user, who has
+:: Python/Anaconda in PATH. This avoids all SYSTEM account
+:: issues with DLL loading that affect Windows Services.
+:: ============================================================
 
-:: Stop and remove existing service if it exists
+:: Remove old Windows Service if it exists from a previous install
 sc query PrintHubAgent >nul 2>&1
 if %errorLevel% equ 0 (
-    echo [STEP 4] Removing existing service...
+    echo [INFO] Removing old Windows Service (replaced by Task Scheduler)...
     net stop PrintHubAgent >nul 2>&1
-    timeout /t 3 /nobreak >nul
+    timeout /t 2 /nobreak >nul
     "%VENV_PY%" agent_service.py remove >nul 2>&1
     timeout /t 2 /nobreak >nul
+    echo [OK] Old service removed.
 )
 
-:: Install Windows Service (registers pythonservice.exe from the venv in INSTALL_DIR)
-echo [STEP 4] Installing Windows Service (PrintHubAgent)...
-"%VENV_PY%" agent_service.py --startup auto install
+:: Remove existing scheduled task if it exists
+schtasks /query /tn "PrintHubAgent" >nul 2>&1
+if %errorLevel% equ 0 (
+    echo [INFO] Removing existing scheduled task...
+    schtasks /end /tn "PrintHubAgent" >nul 2>&1
+    schtasks /delete /tn "PrintHubAgent" /f >nul 2>&1
+)
+
+:: Create Task Scheduler task - runs at login, as current user
+echo [STEP 4] Creating Task Scheduler task (PrintHubAgent)...
+schtasks /create /tn "PrintHubAgent" /tr "\"%VENV_PY%\" \"%INSTALL_DIR%\agent.py\"" /sc ONLOGON /rl HIGHEST /f
 if %errorLevel% neq 0 (
-    echo [ERROR] Service installation failed.
+    echo [ERROR] Failed to create scheduled task.
     pause & exit /b 1
 )
-echo [OK] Service installed.
+echo [OK] Task Scheduler task created (runs at every login automatically).
 
-:: Register Python (Anaconda) in HKLM so SYSTEM account can find python311.dll.
-:: By default Anaconda only writes to HKCU; pythonservice.exe looks in HKLM.
-echo [INFO] Registering Python runtime in HKLM for SYSTEM account access...
-"%VENV_PY%" -c "import winreg,sys; base=sys.base_prefix; v=str(sys.version_info.major)+'.'+str(sys.version_info.minor); k=winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE,'Software\\Python\\PythonCore\\'+v+'\\InstallPath'); winreg.SetValueEx(k,'',0,winreg.REG_SZ,base+'\\'); winreg.CloseKey(k); print('Registered HKLM Python',v,'at',base)"
-echo [OK] Python registered in HKLM.
-
-:: Set service-specific PATH so SYSTEM can load Anaconda DLLs when running the service.
-:: Also disable user site-packages and conda init (not needed for the service).
-echo [INFO] Configuring service environment (Anaconda PATH for SYSTEM)...
-"%VENV_PY%" -c "import winreg,sys,os; b=sys.base_prefix; p=['PATH='+b+';'+b+r'\Library\mingw-w64\bin;'+b+r'\Library\bin;'+b+r'\Scripts;C:\Windows\System32;C:\Windows','PYTHONNOUSERSITE=1','CONDA_SHLVL=0']; k=winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,r'SYSTEM\CurrentControlSet\Services\PrintHubAgent',0,winreg.KEY_SET_VALUE); winreg.SetValueEx(k,'Environment',0,winreg.REG_MULTI_SZ,p); winreg.CloseKey(k); print('Service PATH set to include Anaconda')"
-echo [OK] Service environment configured.
-
-:: Start the service using net start (returns proper exit code unlike agent_service.py start)
-echo [STEP 5] Starting service...
-net start PrintHubAgent
+:: Start the agent right now (don't wait for next login)
+echo [STEP 5] Starting agent now...
+schtasks /run /tn "PrintHubAgent"
 if %errorLevel% neq 0 (
-    echo [WARNING] Service did not start. Check Event Viewer or:
-    echo           %INSTALL_DIR%\agent_service.log
-    echo           %INSTALL_DIR%\agent.log
+    echo [WARNING] Could not start task immediately. It will start at next login.
+    echo           To start manually, run:
+    echo             %VENV_PY% %INSTALL_DIR%\agent.py
 ) else (
-    echo [OK] Service started.
+    echo [OK] Agent started.
 )
 
-:: Verify after a short wait
-timeout /t 4 /nobreak >nul
-sc query PrintHubAgent | findstr "RUNNING" >nul 2>&1
+:: Wait a moment then check if Python process is running
+timeout /t 5 /nobreak >nul
+tasklist /fi "imagename eq python.exe" 2>nul | findstr "python.exe" >nul 2>&1
 if %errorLevel% equ 0 (
     echo.
     echo ===========================================================
-    echo  SUCCESS! PrintHub Agent is running as a Windows Service.
-    echo  It starts automatically on every boot.
+    echo  SUCCESS! PrintHub Agent is running.
+    echo  It starts automatically every time you log into Windows.
     echo.
-    echo  Installation: %INSTALL_DIR%
-    echo  Logs:
-    echo    %INSTALL_DIR%\agent.log
-    echo    %INSTALL_DIR%\agent_service.log
+    echo  Installation folder: %INSTALL_DIR%
+    echo  Log file: %INSTALL_DIR%\agent.log
     echo.
-    echo  Commands (run as Administrator from %INSTALL_DIR%):
-    echo    net stop PrintHubAgent
-    echo    net start PrintHubAgent
-    echo    venv\Scripts\python.exe agent_service.py remove
-    echo    venv\Scripts\python.exe agent_setup.py --status
+    echo  To stop the agent:
+    echo    schtasks /end /tn "PrintHubAgent"
+    echo.
+    echo  To start the agent:
+    echo    schtasks /run /tn "PrintHubAgent"
+    echo.
+    echo  To run in a visible window (for troubleshooting):
+    echo    %VENV_PY% %INSTALL_DIR%\agent.py
     echo ===========================================================
 ) else (
     echo.
-    echo [WARNING] Service is not in RUNNING state.
-    echo Run this to see the Python error directly:
-    echo   %VENV_PY% agent.py
-    echo Or check logs at %INSTALL_DIR%\
+    echo [WARNING] Agent process not detected. Try running manually to see errors:
+    echo   %VENV_PY% %INSTALL_DIR%\agent.py
+    echo Or check the log at %INSTALL_DIR%\agent.log
 )
 
 echo.
