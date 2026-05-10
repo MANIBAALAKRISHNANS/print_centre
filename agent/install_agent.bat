@@ -88,11 +88,17 @@ if not exist "venv\Scripts\python.exe" (
     echo [OK] venv already exists >> "%LOG%"
 )
 
+:: ── Bootstrap pip (Python 3.12+ may create venv without pip) ─────────────
+echo [INFO] Bootstrapping pip into virtual environment...
+echo [INFO] ensurepip starting >> "%LOG%"
+"%VENV_PY%" -m ensurepip --upgrade >nul 2>&1
+echo [OK] pip bootstrap done >> "%LOG%"
+
 :: ── Install dependencies ──────────────────────────────────────────────────
 echo [STEP 3] Installing dependencies...
 echo [STEP 3] pip install starting >> "%LOG%"
 
-"%VENV_PY%" -m pip install --upgrade pip --quiet
+"%VENV_PY%" -m pip install --upgrade pip
 "%VENV_PY%" -m pip install -r requirements.txt
 if !ERRORLEVEL! neq 0 (
     echo [ERROR] Dependency installation failed.

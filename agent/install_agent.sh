@@ -57,6 +57,11 @@ fi
 VENV_PY="$DIR/venv/bin/python3"
 VENV_PIP="$DIR/venv/bin/pip"
 
+# ── Bootstrap pip (Python 3.12+ may create venv without pip) ─────
+echo "[INFO] Bootstrapping pip into virtual environment..." | tee -a "$LOG_FILE"
+"$VENV_PY" -m ensurepip --upgrade >> "$LOG_FILE" 2>&1
+echo "[OK] pip bootstrap done." | tee -a "$LOG_FILE"
+
 # ── Install dependencies ─────────────────────────────────────────
 echo "[STEP 2] Installing dependencies..." | tee -a "$LOG_FILE"
 "$VENV_PIP" install --upgrade pip
