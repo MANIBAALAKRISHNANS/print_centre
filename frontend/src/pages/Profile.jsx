@@ -10,6 +10,7 @@ function Profile() {
   
   const [formData, setFormData] = useState({ current_password: "", new_password: "", confirm_password: "" });
   const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handlePasswordChange = async (e) => {
@@ -21,7 +22,7 @@ function Profile() {
     setLoading(true);
     try {
       const res = await authFetch(`${API_BASE_URL}/auth/change-password`, {
-        method: "PUT",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           current_password: formData.current_password,
@@ -122,12 +123,25 @@ function Profile() {
             </div>
             <div>
               <label>Confirm New Password</label>
-              <input 
-                required 
-                type="password" 
-                value={formData.confirm_password}
-                onChange={e => setFormData({ ...formData, confirm_password: e.target.value })}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  required
+                  type={showConfirmPass ? "text" : "password"}
+                  value={formData.confirm_password}
+                  onChange={e => setFormData({ ...formData, confirm_password: e.target.value })}
+                  style={{ paddingRight: "40px" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPass(!showConfirmPass)}
+                  style={{
+                    position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)",
+                    background: "none", border: "none", cursor: "pointer", fontSize: "1.1rem"
+                  }}
+                >
+                  {showConfirmPass ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
             </div>
             <button className="btn full" type="submit" disabled={loading}>
               {loading ? "Updating..." : "Update Password"}
