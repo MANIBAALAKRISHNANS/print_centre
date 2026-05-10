@@ -612,39 +612,65 @@ Within 15–30 seconds, the printer PC should appear in the list with a green **
 
 ---
 
+#### Verify the agent is running correctly (Windows)
+
+**Method 1 — Check the dashboard (easiest):**
+Open the PrintHub Dashboard in your browser → click **Agents** in the left menu.
+This PC should appear with a green **Online** badge within 15–30 seconds of the agent starting.
+
+**Method 2 — Check the log file in Command Prompt:**
+
+If the installer window is still open (it shows `C:\Windows\System32>`), run:
+```cmd
+type C:\PrintHubAgent\agent.log
+```
+
+**Method 3 — Check the log file in PowerShell:**
+
+Press `Win + X` → click **Terminal** or **PowerShell**, then run:
+```powershell
+Get-Content C:\PrintHubAgent\agent.log -Tail 20
+```
+
+**Method 4 — Open the log in Notepad:**
+```cmd
+notepad C:\PrintHubAgent\agent.log
+```
+
+In the log, look for this line — it confirms the agent is fully connected:
+```
+[WS] Connected to server
+```
+
+**Method 5 — Check Task Manager:**
+Press `Ctrl + Shift + Esc` → click the **Details** tab → look for `python.exe` in the list.
+If it is there, the agent is running.
+
+---
+
 #### Managing the agent on Windows
 
 The agent starts automatically at every Windows login. You normally never need to touch it. But if you need to:
 
-**View the agent log (to see what it is doing):**
-```powershell
-notepad C:\PrintHubAgent\agent.log
-```
-Or in PowerShell:
-```powershell
-Get-Content C:\PrintHubAgent\agent.log -Tail 30
-```
-
 **Stop the agent:**
 Open Task Manager → Details tab → find `python.exe` → End Task.
 
-**Start the agent manually:**
-```powershell
+**Start the agent manually (Command Prompt):**
+```cmd
 C:\PrintHubAgent\venv\Scripts\python.exe C:\PrintHubAgent\agent.py
 ```
 
 **Run the agent in a visible window (for troubleshooting):**
-Open a regular PowerShell window (not admin) and run:
-```powershell
+Open a regular Command Prompt or PowerShell window (not admin) and run:
+```cmd
 C:\PrintHubAgent\venv\Scripts\python.exe C:\PrintHubAgent\agent.py
 ```
 You will see live log output. When you see `[WS] Connected to server`, the agent is fully working.
 
-**Uninstall the agent completely:**
-```powershell
-# Run as Administrator
+**Uninstall the agent completely (run Command Prompt as Administrator):**
+```cmd
 schtasks /delete /tn "PrintHubAgent" /f
-Remove-Item -Recurse -Force C:\PrintHubAgent
+rmdir /s /q C:\PrintHubAgent
 ```
 
 ---
@@ -679,16 +705,41 @@ The installer will ask for:
 - Server URL: `http://192.168.1.14:8000` (replace with your server IP)
 - Activation code: the 8-character code from the dashboard
 
-#### Step 6 — Confirm it's working
+#### Step 6 — Verify the agent is running correctly (Mac)
 
-Open the dashboard → Agents page. The Mac should appear as Online within 15 seconds.
+**Method 1 — Check the dashboard (easiest):**
+Open the PrintHub Dashboard in your browser → click **Agents** in the left menu.
+This Mac should appear with a green **Online** badge within 15–30 seconds.
 
-#### Managing the agent on Mac
+**Method 2 — Check the log file in Terminal:**
 
-**View live logs:**
+Open Terminal (`Cmd + Space` → Terminal → Enter) and run:
+```bash
+tail -20 ~/Library/Logs/PrintHubAgent/agent.log
+```
+
+Look for this line — it confirms the agent is fully connected:
+```
+[WS] Connected to server
+```
+
+**Method 3 — Watch live log output (useful for troubleshooting):**
 ```bash
 tail -f ~/Library/Logs/PrintHubAgent/agent.log
 ```
+This keeps scrolling in real time. Press `Ctrl + C` to stop.
+
+**Method 4 — Check if the launchd service is registered:**
+```bash
+launchctl list | grep printhub
+```
+If a line appears, the service is loaded. If it is blank, run the installer again.
+
+---
+
+#### Managing the agent on Mac
+
+The agent starts automatically at every login via launchd. You normally never need to touch it.
 
 **Stop the agent:**
 ```bash
@@ -700,11 +751,20 @@ launchctl unload ~/Library/LaunchAgents/com.printhub.agent.plist
 launchctl load ~/Library/LaunchAgents/com.printhub.agent.plist
 ```
 
+**Run the agent manually in Terminal (for troubleshooting):**
+```bash
+~/Library/Application\ Support/PrintHubAgent/venv/bin/python3 ~/Library/Application\ Support/PrintHubAgent/agent.py
+```
+Or from wherever you copied the agent folder:
+```bash
+/path/to/agent/venv/bin/python3 /path/to/agent/agent.py
+```
+You will see live log output. When you see `[WS] Connected to server`, the agent is fully working.
+
 **Uninstall completely:**
 ```bash
 launchctl unload ~/Library/LaunchAgents/com.printhub.agent.plist
 rm ~/Library/LaunchAgents/com.printhub.agent.plist
-rm -rf ~/PrintHubAgent
 ```
 
 ---
