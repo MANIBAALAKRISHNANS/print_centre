@@ -12,10 +12,12 @@
 6. [Deployment Configuration — Exactly What to Change and Where](#6-deployment-configuration--exactly-what-to-change-and-where)
 7. [How to Start the Backend](#7-how-to-start-the-backend)
 8. [How to Start the Frontend](#8-how-to-start-the-frontend)
-9. [How to Install the Agent](#9-how-to-install-the-agent)
-10. [How to Verify the Agent is Connected](#10-how-to-verify-the-agent-is-connected)
-11. [Default Login and First-Time Dashboard Setup](#11-default-login-and-first-time-dashboard-setup)
-12. [Troubleshooting](#12-troubleshooting)
+9. [Daily Operations — Starting, Stopping and Common Situations](#9-daily-operations--starting-stopping-and-common-situations)
+10. [How to Install the Agent](#10-how-to-install-the-agent)
+11. [How to Verify the Agent is Connected](#11-how-to-verify-the-agent-is-connected)
+12. [Default Login and First-Time Dashboard Setup](#12-default-login-and-first-time-dashboard-setup)
+13. [How to Stop and Uninstall the Agent](#13-how-to-stop-and-uninstall-the-agent)
+14. [Troubleshooting](#14-troubleshooting)
 
 ---
 
@@ -398,6 +400,8 @@ You will see `Application startup complete.`
 
 Start the frontend **after** the backend is already running.
 
+> The frontend uses a **production build** (not the dev server). This means it is stable, fast, and never drops connections. The `start_frontend.bat` script handles everything automatically.
+
 ---
 
 ### Windows
@@ -431,17 +435,15 @@ Double-click this file in File Explorer:
 print_centre\frontend\start_frontend.bat
 ```
 
-A black window opens and shows:
+A black window opens. If `dist\` already exists it starts immediately:
 ```
-===========================================================
- PrintHub Frontend (Dashboard)
- Local:   http://localhost:5173
- Network: http://192.168.1.14:5173
-===========================================================
-  VITE ready in 261ms
-  Local:   http://localhost:5173/
-  Network: http://192.168.1.14:5173/
+[OK] Serving production build on port 5173
+
+ Dashboard (this PC)  : http://localhost:5173
+ Dashboard (network)  : http://192.168.1.14:5173
 ```
+
+If no build exists yet (first ever run), it builds automatically first — wait 30–60 seconds, then it starts serving.
 
 **Leave this window open.** Closing it takes down the dashboard.
 
@@ -471,14 +473,203 @@ Set `VITE_API_URL=http://YOUR_SERVER_IP:8000`. Save with `Ctrl+X` → `Y` → En
 Open a **new** Terminal tab (`Cmd+T`) — keep the backend tab open:
 ```bash
 cd ~/Desktop/print_centre/frontend
-npm run dev
+npm run build
+npx serve -s dist -l 5173
 ```
 
 Open the dashboard: `http://localhost:5173`
 
 ---
 
-## 9. How to Install the Agent
+## 9. Daily Operations — Starting, Stopping and Common Situations
+
+There are three situations you will encounter. Each is explained step by step below.
+
+---
+
+### Situation 1 — Normal Restart (Every Day)
+
+This is what you do every time you start or restart the server. No special commands needed — just the bat files.
+
+**Step 1 — Stop everything (if running)**
+
+Close the black `start_backend.bat` window → click the X or press `Ctrl+C`
+
+Close the black `start_frontend.bat` window → same
+
+**Step 2 — Start the backend first**
+
+Open File Explorer → go to `print_centre\backend\`
+
+Double-click `start_backend.bat`
+
+Wait until you see:
+```
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000
+```
+**Leave this window open.**
+
+**Step 3 — Start the frontend**
+
+Open File Explorer → go to `print_centre\frontend\`
+
+Double-click `start_frontend.bat`
+
+Since `dist\` already exists from the previous build, it skips the build and starts in 2–3 seconds:
+```
+[OK] Serving production build on port 5173
+
+ Dashboard (this PC)  : http://localhost:5173
+ Dashboard (network)  : http://192.168.1.14:5173
+```
+**Leave this window open.**
+
+**Step 4 — Done**
+
+Open any browser on any PC on the network:
+```
+http://192.168.1.14:5173
+```
+
+---
+
+### Situation 2 — Server IP Changed
+
+This happens when the router restarts and assigns a new IP to the server PC (e.g. was `192.168.1.14`, now it is `192.168.1.20`). The dashboard stops loading from other PCs because the old IP is no longer valid.
+
+**Step 1 — Find the new IP**
+
+On the server PC, open PowerShell (`Win + X` → Windows PowerShell):
+```powershell
+ipconfig
+```
+Look for **IPv4 Address** under your active network adapter. Write it down.
+Example: `192.168.1.20`
+
+**Step 2 — Update `frontend\.env`**
+
+Open File Explorer → `print_centre\frontend\` → right-click `.env` → Open with Notepad
+
+Find this line:
+```
+VITE_API_URL=http://192.168.1.14:8000
+```
+Replace with the new IP:
+```
+VITE_API_URL=http://192.168.1.20:8000
+```
+Save and close.
+
+**Step 3 — Update `backend\.env`**
+
+Open File Explorer → `print_centre\backend\` → right-click `.env` → Open with Notepad
+
+Find this line:
+```
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.14:5173
+```
+Replace only the last IP:
+```
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.20:5173
+```
+Save and close.
+
+**Step 4 — Rebuild the frontend**
+
+Open File Explorer → `print_centre\frontend\` → double-click `rebuild_frontend.bat`
+
+It shows your current `.env` setting. Confirm it shows the new IP and press any key.
+
+Wait for the build to finish (~30–60 seconds):
+```
+Build complete!
+Now run start_frontend.bat to start the dashboard.
+```
+Press any key to close.
+
+**Step 5 — Restart both bat files**
+
+Double-click `start_backend.bat` → wait for startup complete
+
+Double-click `start_frontend.bat` → starts immediately with the new IP baked in
+
+**Step 6 — Open the dashboard with the new IP**
+```
+http://192.168.1.20:5173
+```
+
+> **Permanent fix — prevent the IP from ever changing again:**
+> Windows Settings → Network & Internet → your Wi-Fi or Ethernet → click **Edit** next to IP assignment → switch to **Manual** → enter the current IP as fixed. After this the IP will never change even after router restarts.
+
+---
+
+### Situation 3 — First Time on a New Machine
+
+This is what you do when setting up PrintHub on a brand new PC that has never run it before.
+
+**Step 1 — Install Python**
+
+Go to https://www.python.org/downloads/ → Download → Run the installer
+
+On the very first screen: **tick "Add Python to PATH"** → click Install Now
+
+Verify: open PowerShell → run `python --version` → must show `3.11` or higher
+
+**Step 2 — Install Node.js**
+
+Go to https://nodejs.org/ → click **LTS** → Run the installer → click Next through all steps
+
+Verify: open PowerShell → run `node --version` → must show `v18` or higher
+
+**Step 3 — Download the project**
+
+Open PowerShell:
+```powershell
+cd C:\Users\YourName\Desktop
+git clone https://github.com/MANIBAALAKRISHNANS/print_centre.git
+```
+
+**Step 4 — Set up the backend (one time only)**
+
+```powershell
+cd print_centre\backend
+python -m venv venv
+.\venv\Scripts\pip.exe install -r requirements.txt
+copy .env.example .env
+notepad .env
+```
+Update `ALLOWED_ORIGINS` with your server IP. Save and close.
+
+**Step 5 — Set up the frontend (one time only)**
+
+```powershell
+cd ..\frontend
+npm install
+copy .env.example .env
+notepad .env
+```
+Update `VITE_API_URL` with your server IP. Save and close.
+
+**Step 6 — Start normally**
+
+Double-click `start_backend.bat` → backend starts
+
+Double-click `start_frontend.bat` → builds the frontend automatically for the first time (30–60 seconds), then starts serving
+
+From this point on every restart is just **Situation 1** — double-click the two bat files, nothing else.
+
+---
+
+| Situation | When it happens | What to do |
+|---|---|---|
+| **Normal restart** | Every day | Double-click `start_backend.bat` then `start_frontend.bat` |
+| **IP changed** | After router restart | Update both `.env` files → run `rebuild_frontend.bat` → restart bat files |
+| **New machine** | First-time setup | Install Python + Node → `npm install` → configure `.env` → run bat files |
+
+---
+
+## 10. How to Install the Agent
 
 Install the agent on **every PC that has a USB printer plugged in**. You install it once per PC — after that it runs automatically.
 
@@ -606,7 +797,7 @@ It starts automatically at every login.
 
 ---
 
-## 10. How to Verify the Agent is Connected
+## 11. How to Verify the Agent is Connected
 
 After installing, confirm the agent is running and talking to the server.
 
@@ -713,7 +904,7 @@ If a line appears with `com.printhub.agent`, the service is loaded and running.
 
 ---
 
-## 11. Default Login and First-Time Dashboard Setup
+## 12. Default Login and First-Time Dashboard Setup
 
 Open the dashboard in any browser and log in:
 
@@ -782,7 +973,7 @@ Go to **Users** → Add User. Clinical users can submit jobs but cannot change s
 
 ---
 
-## 12. Troubleshooting
+## 14. Troubleshooting
 
 ### Agent shows Offline in the dashboard
 
@@ -994,6 +1185,7 @@ python restore_admin.py
 ---
 
 ## 13. How to Stop and Uninstall the Agent
+
 
 ---
 
