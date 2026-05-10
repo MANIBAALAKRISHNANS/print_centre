@@ -278,7 +278,8 @@ def init_db():
         location_id TEXT,
         status TEXT,
         last_seen TEXT,
-        token TEXT
+        token TEXT,
+        hostname TEXT
     )
     """)
 
@@ -340,14 +341,19 @@ def init_db():
     """)
 
     # 🔹 PRODUCTION INDEXES
-    # Print jobs
+    # Print jobs — individual columns
     cur.execute("CREATE INDEX IF NOT EXISTS idx_jobs_status ON print_jobs(status)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_jobs_location ON print_jobs(location_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_jobs_printer ON print_jobs(printer)")
-    
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_jobs_time ON print_jobs(time)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_jobs_completed_at ON print_jobs(completed_at)")
+    # Composite index: agent job polling queries (location_id + status together)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_jobs_location_status ON print_jobs(location_id, status)")
+
     # Print logs
     cur.execute("CREATE INDEX IF NOT EXISTS idx_logs_job_id ON print_logs(job_id)")
-    
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_logs_time ON print_logs(time)")
+
     # Agents
     cur.execute("CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_agents_last_seen ON agents(last_seen)")
@@ -355,6 +361,7 @@ def init_db():
     # Audit log
     cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_patient_id ON audit_log(patient_id)")
 
     # Activation codes
     cur.execute("CREATE INDEX IF NOT EXISTS idx_codes_used ON activation_codes(used)")

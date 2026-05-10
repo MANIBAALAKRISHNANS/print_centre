@@ -7,7 +7,7 @@ import EmptyState from "../components/EmptyState";
 import { API_BASE_URL } from "../config";
 
 function Printers() {
-  const { printers, setPrinters, categories, loadAll, loading: appLoading, errors: appErrors } = useContext(AppData);
+  const { printers, setPrinters, categories, loadAll, loading: appLoading } = useContext(AppData);
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -40,40 +40,24 @@ function Printers() {
     }
   }, [categories]); // eslint-disable-line
 
+  // AppData already refreshes printers via WebSocket (printer_update events).
+  // This effect only handles: (1) status-change toasts using lastStatuses ref,
+  // (2) ticking the relative-time clock every 60 s.
   useEffect(() => {
-    const refreshPrinterStatus = async () => {
-      try {
-        const res = await authFetch(`${API_BASE_URL}/printers`);
-        const data = await res.json();
-        
-        if (Array.isArray(data)) {
-            // Check for status changes to trigger toasts
-            data.forEach(p => {
-                const prev = lastStatuses.current[p.id];
-                const current = p.status;
-                if (prev && prev !== current) {
-                    if (current === "Online") toast.success(`Printer ${p.name} is back ONLINE`);
-                    if (current === "Offline") toast.warning(`Printer ${p.name} has gone OFFLINE`);
-                }
-                lastStatuses.current[p.id] = current;
-            });
-
-            setPrinters(data);
-        }
-      } catch (err) {
-        // Silent for background poll
+    printers.forEach(p => {
+      const prev = lastStatuses.current[p.id];
+      if (prev && prev !== p.status) {
+        if (p.status === "Online")  toast.success(`Printer ${p.name} is back ONLINE`);
+        if (p.status === "Offline") toast.warning(`Printer ${p.name} has gone OFFLINE`);
       }
-    };
+      lastStatuses.current[p.id] = p.status;
+    });
+  }, [printers, toast]);
 
-    refreshPrinterStatus();
-    const interval = setInterval(refreshPrinterStatus, 30000); // 30s polling
-    const timeInterval = setInterval(() => setNow(Date.now()), 60000); // Update relative times
-
-    return () => {
-        clearInterval(interval);
-        clearInterval(timeInterval);
-    };
-  }, [setPrinters, authFetch, toast]);
+  useEffect(() => {
+    const timeInterval = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(timeInterval);
+  }, []);
 
   const getStatusColor = (status) => {
     const s = (status || "").toLowerCase();
