@@ -36,3 +36,5 @@ Thumbs.db
 # Agent Config (Credentials)
 agent/agent_config.json
 agent_config.json
+
+frontend/dist/
