@@ -832,6 +832,49 @@ Run `install_agent.bat` again — it will ask for the server IP again.
 
 ---
 
+### Dashboard shows "This site can't be reached" or ERR_CONNECTION_TIMED_OUT
+
+This is the most common issue when opening the dashboard from another PC on the network. It means the **Windows Firewall on the server is blocking the connection** — the frontend is running fine but the other PC's request never gets through.
+
+**Step 1 — Confirm the frontend is running on the server**
+
+On the server PC, check that `start_frontend.bat` is open and shows:
+```
+Local:   http://localhost:5173/
+Network: http://192.168.1.14:5173/
+```
+If it does not show the Network line, the frontend is not bound to the network interface. Make sure `frontend\vite.config.js` contains `host: true` inside the `server` block.
+
+**Step 2 — Confirm the server IP is correct**
+
+On the server PC, open PowerShell and run:
+```powershell
+ipconfig
+```
+Look for **IPv4 Address** under your active network adapter. Confirm it matches the IP you are typing in the browser. If it has changed (e.g. after a router restart), update `frontend\.env` and `backend\.env` with the new IP and restart both.
+
+**Step 3 — Open ports in Windows Firewall on the server**
+
+On the server PC, open PowerShell **as Administrator** (`Win + X` → Windows PowerShell (Admin)) and run:
+```powershell
+netsh advfirewall firewall add rule name="PrintHub Frontend 5173" dir=in action=allow protocol=TCP localport=5173
+
+netsh advfirewall firewall add rule name="PrintHub Backend 8000" dir=in action=allow protocol=TCP localport=8000
+```
+You should see `Ok.` after each command.
+
+**Step 4 — Try again**
+
+On the other PC, open a browser and go to:
+```
+http://YOUR_SERVER_IP:5173
+```
+It should now load the PrintHub login page.
+
+> **Why this happens:** Windows Firewall blocks all inbound connections by default, even from PCs on the same local network. The firewall rules above tell Windows to allow other PCs to reach port 5173 (dashboard) and port 8000 (backend API).
+
+---
+
 ### Dashboard shows blank page or "Cannot connect to API"
 
 The frontend is pointing at the wrong backend address.
