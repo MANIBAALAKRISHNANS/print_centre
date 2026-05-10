@@ -834,7 +834,11 @@ Run `install_agent.bat` again — it will ask for the server IP again.
 
 ### Dashboard shows "This site can't be reached" or ERR_CONNECTION_TIMED_OUT
 
-This is the most common issue when opening the dashboard from another PC on the network. It means the **Windows Firewall on the server is blocking the connection** — the frontend is running fine but the other PC's request never gets through.
+This is the most common issue when opening the dashboard from another PC on the network. The frontend is running fine on the server but the firewall is blocking the connection before it gets through.
+
+---
+
+#### If the server is a Windows PC
 
 **Step 1 — Confirm the frontend is running on the server**
 
@@ -843,7 +847,7 @@ On the server PC, check that `start_frontend.bat` is open and shows:
 Local:   http://localhost:5173/
 Network: http://192.168.1.14:5173/
 ```
-If it does not show the Network line, the frontend is not bound to the network interface. Make sure `frontend\vite.config.js` contains `host: true` inside the `server` block.
+If it does not show the Network line, make sure `frontend\vite.config.js` contains `host: true` inside the `server` block.
 
 **Step 2 — Confirm the server IP is correct**
 
@@ -853,7 +857,7 @@ ipconfig
 ```
 Look for **IPv4 Address** under your active network adapter. Confirm it matches the IP you are typing in the browser. If it has changed (e.g. after a router restart), update `frontend\.env` and `backend\.env` with the new IP and restart both.
 
-**Step 3 — Open ports in Windows Firewall on the server**
+**Step 3 — Open ports in Windows Firewall**
 
 On the server PC, open PowerShell **as Administrator** (`Win + X` → Windows PowerShell (Admin)) and run:
 ```powershell
@@ -869,9 +873,59 @@ On the other PC, open a browser and go to:
 ```
 http://YOUR_SERVER_IP:5173
 ```
-It should now load the PrintHub login page.
 
-> **Why this happens:** Windows Firewall blocks all inbound connections by default, even from PCs on the same local network. The firewall rules above tell Windows to allow other PCs to reach port 5173 (dashboard) and port 8000 (backend API).
+> **Why this happens:** Windows Firewall blocks all inbound connections by default, even from PCs on the same local network. The rules above allow other PCs to reach port 5173 (dashboard) and port 8000 (backend API).
+
+---
+
+#### If the server is a Mac
+
+**Step 1 — Confirm the frontend is running on the server**
+
+On the server Mac, check that the Terminal running `npm run dev` shows:
+```
+Local:   http://localhost:5173/
+Network: http://192.168.1.14:5173/
+```
+If there is no Network line, make sure `frontend/vite.config.js` contains `host: true` inside the `server` block.
+
+**Step 2 — Confirm the server IP is correct**
+
+On the server Mac, open Terminal and run:
+```bash
+ipconfig getifaddr en0
+```
+Confirm the IP matches what you are typing in the browser. If it has changed, update `frontend/.env` and `backend/.env` with the new IP and restart both.
+
+**Step 3 — Check if macOS Firewall is on**
+
+Go to: Apple menu → **System Settings** → **Privacy & Security** → **Firewall**
+
+If Firewall is **ON**, click **Firewall Options** and check if Python or uvicorn is being blocked. Either:
+- Add Python to the allowed apps list, **or**
+- Turn the firewall off temporarily to confirm it is the cause
+
+**Step 4 — Open ports using Terminal (alternative to GUI)**
+
+On the server Mac, open Terminal and run:
+```bash
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off
+```
+This turns off the macOS firewall entirely. If the dashboard now loads from other PCs, the firewall was the cause. You can turn it back on and add Python as an allowed app instead:
+```bash
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add $(which python3)
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp $(which python3)
+```
+
+**Step 5 — Try again**
+
+On the other PC, open a browser and go to:
+```
+http://YOUR_SERVER_IP:5173
+```
+
+> **Why this happens:** macOS Firewall (if enabled) blocks inbound connections to Python and Node processes. Allowing Python through the firewall lets uvicorn (backend) and Vite (frontend) accept connections from other PCs on the network.
 
 ---
 
