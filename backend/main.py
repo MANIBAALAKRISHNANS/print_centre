@@ -1270,17 +1270,22 @@ def validate_mapping(user: dict = Depends(get_current_user)):
     return {"valid": len(issues) == 0, "issues": issues, "issues_count": len(issues)}
 
 @app.post("/print-a4-file")
-async def print_a4_file(location_id: str = Form(...), file: UploadFile = File(...)):
+async def print_a4_file(location_id: str = Form(...), file: UploadFile = File(...), user: dict = Depends(get_current_user)):
     # 🔹 MIME & Extension Validation
     allowed_exts = (".pdf", ".doc", ".docx", ".txt")
-    allowed_mimes = ("application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain")
-    
+    allowed_mimes = (
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain",
+        "application/octet-stream",  # generic fallback some browsers send for .doc/.docx
+    )
+
     if not file.filename.lower().endswith(allowed_exts):
-        raise HTTPException(400, "Unsupported file format.")
-        
-    if file.content_type not in allowed_mimes:
-        # Some OS might send different mimes, we mainly rely on extension but check mime for safety
-        pass
+        raise HTTPException(400, "Unsupported file format. Allowed: PDF, DOC, DOCX, TXT")
+
+    if file.content_type and file.content_type not in allowed_mimes:
+        raise HTTPException(400, f"Rejected MIME type: {file.content_type}. Upload a PDF, DOC, DOCX, or TXT file.")
 
     import re
     # 🔹 Filename Sanitization
@@ -1321,7 +1326,10 @@ async def print_a4_file(location_id: str = Form(...), file: UploadFile = File(..
     job_id = get_row_value(cur.fetchone(), 'id', 0)
     conn.commit()
     conn.close()
+    log_audit(user.get("sub", "api"), "user", "CREATE_JOB", resource_type="print_job", resource_id=job_id,
+              details={"category": "A4", "location": location_id, "filename": safe_name, "size_bytes": file_size})
     print_queue.put((2, {"job_id": job_id, "location_id": location_id, "category": "A4", "payload": file_path}))
+    notify_agents_at_location_sync(location_id)
     return {"job_id": job_id, "status": "Queued"}
 
 @app.get("/sync-locations")

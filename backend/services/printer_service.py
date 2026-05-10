@@ -95,7 +95,7 @@ def check_printer(ip, timeout=2):
         return False
 
 
-def send_to_printer(printer_ip, data, printer_name=None, port=9100, timeout=5):
+def send_to_printer(printer_ip, data, printer_name=None, port=9100, timeout=10):
     # Ensure bytes
     if isinstance(data, str):
         data = data.encode("utf-8")
@@ -105,8 +105,12 @@ def send_to_printer(printer_ip, data, printer_name=None, port=9100, timeout=5):
     # -------------------------------
     if printer_ip:
         try:
+            # Send timeout scales with payload: 30 s base + 1 s per MB, capped at 120 s.
+            # This prevents spurious timeouts on large PS/PCL documents while still
+            # catching genuinely stalled printers.
+            send_timeout = min(30 + len(data) // (1024 * 1024), 120)
             with socket.create_connection((printer_ip, port), timeout=timeout) as sock:
-                sock.settimeout(5) # 🔹 Timeout for data transmission
+                sock.settimeout(send_timeout)
                 sock.sendall(data)
                 logger.info(f"Printed via IP: {printer_ip}")
                 return True

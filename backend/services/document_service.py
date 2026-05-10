@@ -9,8 +9,18 @@ def process_document(file_path: str, printer: dict) -> bytes:
     Convert document and return raw bytes. Clean up all temporary files.
     """
     file_ext = os.path.splitext(file_path)[1].lower()
+
+    # Already in the target language — read and return directly.
+    # This handles retries where the file was already converted on a previous attempt.
+    target_lang = (printer.get("language") or "PS").upper()
+    already_converted = {".ps": "PS", ".pcl": "PCL", ".raster": "RASTER"}
+    if already_converted.get(file_ext, "").upper() == target_lang:
+        logger.info(f"File already in target format ({target_lang}), reading directly: {file_path}")
+        with open(file_path, "rb") as f:
+            return f.read()
+
     temp_files = []
-    
+
     try:
         # 1. Base conversion: DOC/DOCX/TXT to PDF
         pdf_path = file_path

@@ -100,6 +100,15 @@ def mark_job_retry(job_id, retry_count):
     finally:
         conn.close()
 
+def _update_job_file_path(job_id, file_path):
+    conn = get_connection()
+    try:
+        cur = get_cursor(conn)
+        placeholder = get_placeholder()
+        cur.execute(f"UPDATE print_jobs SET file_path={placeholder} WHERE id={placeholder}", (file_path, job_id))
+        conn.commit()
+    finally:
+        conn.close()
 
 def print_with_failover(job_id, location_id, category, payload):
     """
@@ -149,10 +158,28 @@ def print_with_failover(job_id, location_id, category, payload):
                         log_print_event(job_id, printer["name"], "Failed", "Printer Offline or Stale")
                         raise RuntimeError(f"Printer '{printer['name']}' is Offline or Stale")
 
+                    # For A4 jobs the backend has already converted the document to
+                    # PS/PCL/Raster bytes.  The agent downloads by file_path from DB,
+                    # so save the converted bytes to a file and update the DB record.
+                    # Without this step the agent would receive raw PDF/DOCX and
+                    # send it verbatim to the USB port — which most printers cannot print.
+                    if category == "A4" and isinstance(binary_payload, bytes):
+                        lang = (printer.get("language") or "PS").upper()
+                        ext_map = {"PS": ".ps", "PCL": ".pcl", "RASTER": ".raster"}
+                        ext = ext_map.get(lang, ".ps")
+                        base = os.path.splitext(payload)[0] if isinstance(payload, str) else f"uploads/job_{job_id}"
+                        converted_path = f"{base}_converted{ext}"
+                        with open(converted_path, "wb") as _cf:
+                            _cf.write(binary_payload)
+                        _update_job_file_path(job_id, converted_path)
+                        # Original uploaded file is no longer needed; agent will
+                        # download the converted file via the updated file_path.
+                        safe_delete(payload)
+
                     mark_job(job_id, JobStatus.PENDING_AGENT, printer["name"], route_type)
                     log_print_event(job_id, printer["name"], "Assigned to Agent", "Waiting for local agent pickup")
                     is_assigned_to_agent = True
-                    return printer, route_type 
+                    return printer, route_type
                     
             except Exception as exc:
                 log_print_event(job_id, printer["name"], "Failed", str(exc))
