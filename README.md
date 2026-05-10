@@ -203,62 +203,17 @@ Node.js is **not needed** on printer PCs — only Python.
 
 ## 6. Deployment Configuration — Exactly What to Change and Where
 
-> Read this before doing anything else. These are the **exact files and exact lines** you must update with your server's IP address. If you skip this step, the dashboard will not work from other PCs and agents will not connect.
+> **Good news — the frontend no longer needs an IP configured.** The dashboard automatically detects the server address from whatever URL the browser is using. You only need to configure one thing: the agent's server URL during installation.
 
-### Step 1 — Find your server's IP address
-
-Run this on the server PC:
-
-**Windows:**
-```powershell
-ipconfig
-```
-Look for **IPv4 Address** under your active network adapter. It looks like `192.168.1.XX`.
-
-**Mac:**
-```bash
-ipconfig getifaddr en0
-```
-Or: Apple menu → System Settings → Wi-Fi → Details → IP Address.
-
-Write this IP down. You will use it in both files below.
+### What you still need to set
 
 ---
 
-### File 1 — `frontend/.env`
-
-**Full path:** `print_centre/frontend/.env`
-
-**Open it:**
-```
-notepad frontend\.env        (Windows — run from the print_centre folder)
-nano frontend/.env           (Mac)
-```
-
-**Find this line:**
-```
-VITE_API_URL=http://192.168.1.14:8000
-```
-
-**Change it to your server's IP:**
-```
-VITE_API_URL=http://YOUR_SERVER_IP:8000
-```
-
-Example — if your server IP is `192.168.1.50`:
-```
-VITE_API_URL=http://192.168.1.50:8000
-```
-
-Save and close.
-
-> **Why this matters:** `VITE_API_URL` is baked into the frontend when it starts. When anyone opens the dashboard on any PC in the hospital, their browser uses this URL to talk to the backend. If you leave `127.0.0.1` here, every other PC will look for the backend on their **own** machine instead of the server — and fail.
-
----
-
-### File 2 — `backend/.env`
+### Only file to configure — `backend/.env`
 
 **Full path:** `print_centre/backend/.env`
+
+This file only needs to be created from the example template. The CORS settings now cover all local network IPs automatically — no IP address needs to be entered.
 
 **Open it:**
 ```
@@ -266,33 +221,43 @@ notepad backend\.env         (Windows)
 nano backend/.env            (Mac)
 ```
 
-**Find this line:**
-```
-ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.14:5173
-```
+The `ALLOWED_ORIGINS` line already covers localhost, 127.0.0.1, and all local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x) automatically via a built-in regex — no changes needed.
 
-**Replace only the IP in the third entry:**
-```
-ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://YOUR_SERVER_IP:5173
-```
-
-Example — if your server IP is `192.168.1.50`:
-```
-ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.50:5173
-```
-
-Keep all three entries separated by commas. Save and close.
-
-> **Why this matters:** CORS is a browser security rule. The backend only accepts requests from URLs in this list. If your server's IP is missing, the dashboard will show "Cannot connect" errors when opened from any other PC.
+> **Why CORS no longer needs manual configuration:** The backend uses a network-range regex that accepts any browser origin from a private/local IP address. This means the same backend works whether staff open the dashboard from the server's WiFi IP, hotspot IP, a cable-connected IP, or localhost — with no config changes.
 
 ---
 
-### Quick reference — everything to change
+### Agent installer — only place the server IP is entered
 
-| File | Line | Replace with |
+When running `install_agent.bat` on each printer PC, the installer asks:
+```
+Server IP address (e.g. 192.168.1.14):
+```
+Enter the server's current IP here. This is the **only place** you enter an IP address.
+
+**Find your server's IP:**
+
+Windows (run on the server PC):
+```powershell
+ipconfig
+```
+Look for **IPv4 Address** under your active network adapter.
+
+Mac:
+```bash
+ipconfig getifaddr en0
+```
+
+---
+
+### Quick reference — what changed vs old setup
+
+| | Old setup | New setup |
 |---|---|---|
-| `frontend/.env` | `VITE_API_URL=http://...` | `http://YOUR_SERVER_IP:8000` |
-| `backend/.env` | `ALLOWED_ORIGINS=...` | Replace the IP in the third entry with YOUR_SERVER_IP |
+| `frontend/.env` VITE_API_URL | Must set to server IP | **Not needed — auto-detected** |
+| `backend/.env` ALLOWED_ORIGINS | Must add server IP manually | **Not needed — regex covers all local IPs** |
+| Rebuild frontend when IP changes | Required | **Not required** |
+| Agent config | Enter IP during install | Same — enter IP during install |
 
 **You do NOT change anything in the agent files.** The agent installer asks for the server IP interactively during installation.
 
@@ -618,7 +583,9 @@ http://192.168.1.14:5173
 
 ### Situation 2 — Server IP Changed
 
-This happens when the router restarts and assigns a new IP to the server PC (e.g. was `192.168.1.14`, now it is `192.168.1.20`). The dashboard stops loading from other PCs because the old IP is no longer valid.
+This happens when the router restarts and assigns a new IP to the server PC (e.g. was `192.168.1.14`, now it is `192.168.1.20`).
+
+> **The frontend no longer needs a rebuild when the IP changes.** It auto-detects the server address from the browser URL. Only the agent config on each printer PC needs updating.
 
 ---
 
@@ -633,56 +600,32 @@ ipconfig
 Look for **IPv4 Address** under your active network adapter. Write it down.
 Example: `192.168.1.20`
 
-**Step 2 — Update `frontend\.env`**
+**Step 2 — Restart both scripts**
 
-Open File Explorer → `print_centre\frontend\` → right-click `.env` → Open with Notepad
+Double-click `start_backend.bat` → click Yes on UAC → wait for startup complete
 
-Find this line:
-```
-VITE_API_URL=http://192.168.1.14:8000
-```
-Replace with the new IP:
-```
-VITE_API_URL=http://192.168.1.20:8000
-```
-Save and close.
+Double-click `start_frontend.bat` → click Yes on UAC → starts in 2–3 seconds
 
-**Step 3 — Update `backend\.env`**
-
-Open File Explorer → `print_centre\backend\` → right-click `.env` → Open with Notepad
-
-Find this line:
-```
-ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.14:5173
-```
-Replace only the last IP:
-```
-ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.20:5173
-```
-Save and close.
-
-**Step 4 — Rebuild the frontend**
-
-Open File Explorer → `print_centre\frontend\` → double-click `rebuild_frontend.bat`
-
-It shows your current `.env` setting. Confirm it shows the new IP and press any key.
-
-Wait for the build to finish (~30–60 seconds):
-```
-Build complete!
-Now run start_frontend.bat to start the dashboard.
-```
-Press any key to close.
-
-**Step 5 — Restart both scripts**
-
-Double-click `start_backend.bat` → wait for startup complete
-
-Double-click `start_frontend.bat` → starts immediately with the new IP baked in
-
-**Step 6 — Open the dashboard with the new IP**
+**Step 3 — Open the dashboard with the new IP**
 ```
 http://192.168.1.20:5173
+```
+The dashboard loads and works immediately — no rebuild needed.
+
+**Step 4 — Update agent config on each printer PC** (if the agent shows Offline)
+
+On each printer PC, open Command Prompt and run:
+```cmd
+notepad C:\PrintHubAgent\agent_config.json
+```
+Change `server_url` to the new IP:
+```json
+"server_url": "http://192.168.1.20:8000"
+```
+Save, then restart the agent:
+```cmd
+schtasks /end /tn "PrintHubAgent"
+schtasks /run /tn "PrintHubAgent"
 ```
 
 > **Permanent fix — prevent the IP from ever changing again:**
@@ -700,38 +643,9 @@ ipconfig getifaddr en0
 ```
 Example: `192.168.1.20`
 
-**Step 2 — Update `frontend/.env`**
-```bash
-nano ~/Desktop/print_centre/frontend/.env
-```
-Find `VITE_API_URL=http://192.168.1.14:8000` → change the IP to the new one:
-```
-VITE_API_URL=http://192.168.1.20:8000
-```
-Press `Ctrl+X` → `Y` → Enter to save.
+**Step 2 — Restart both scripts**
 
-**Step 3 — Update `backend/.env`**
-```bash
-nano ~/Desktop/print_centre/backend/.env
-```
-Find `ALLOWED_ORIGINS=...` → replace the last IP:
-```
-ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.20:5173
-```
-Press `Ctrl+X` → `Y` → Enter to save.
-
-**Step 4 — Rebuild the frontend**
-```bash
-cd ~/Desktop/print_centre/frontend
-./rebuild_frontend.sh
-```
-It shows your current `.env` setting. Press Enter to confirm and wait for the build (~30–60 seconds):
-```
-Build complete!
-Now run ./start_frontend.sh to start the dashboard.
-```
-
-**Step 5 — Restart both scripts**
+In Terminal:
 ```bash
 cd ~/Desktop/print_centre/backend
 ./start_backend.sh
@@ -742,9 +656,26 @@ cd ~/Desktop/print_centre/frontend
 ./start_frontend.sh
 ```
 
-**Step 6 — Open the dashboard with the new IP**
+**Step 3 — Open the dashboard with the new IP**
 ```
 http://192.168.1.20:5173
+```
+The dashboard loads and works immediately — no rebuild needed.
+
+**Step 4 — Update agent config on each printer PC** (if the agent shows Offline)
+
+On each printer PC, open Command Prompt and run:
+```cmd
+notepad C:\PrintHubAgent\agent_config.json
+```
+Change `server_url` to the new IP:
+```json
+"server_url": "http://192.168.1.20:8000"
+```
+Save, then restart the agent:
+```cmd
+schtasks /end /tn "PrintHubAgent"
+schtasks /run /tn "PrintHubAgent"
 ```
 
 > **Permanent fix — prevent the IP from ever changing again:**
@@ -1390,7 +1321,7 @@ Many ISP-provided routers (Airtel, BSNL, Jio) enable wireless client isolation b
 
 Plug a LAN cable from any yellow/LAN port on the router directly into the **server PC**. Ethernet connections completely bypass AP isolation. All WiFi devices can then reach the server.
 
-After plugging in, check the server's new IP (`ipconfig`) — it may change from the WiFi IP. Update `frontend/.env` and `backend/.env` if it does, then rebuild the frontend.
+After plugging in, check the server's new IP (`ipconfig`) — it may change from the WiFi IP. Restart both scripts and open the dashboard at the new IP. No rebuild needed — the frontend detects the IP automatically.
 
 ---
 
@@ -1398,9 +1329,25 @@ After plugging in, check the server's new IP (`ipconfig`) — it may change from
 
 If a cable is not available, create a Windows Mobile Hotspot on the server laptop and connect all non-server PCs to it instead of the main router WiFi.
 
-The server's hotspot IP is always **`192.168.137.1`**. After switching, update these on every affected PC and on the server:
+> **Critical:** The hotspot must stay ON at all times while the system is in use. If you turn it off, non-server PCs will lose connection and get "Failed to fetch" errors — even if the dashboard page appears to still be open (it was cached by the browser).
 
-**On each non-server PC — update agent config:**
+The server's hotspot IP is always **`192.168.137.1`**. No .env changes or frontend rebuild are needed — the frontend auto-detects the IP and the backend accepts all local network origins automatically.
+
+**Step 1 — Turn on Mobile Hotspot on the server laptop**
+
+Settings → Network & Internet → Mobile Hotspot → toggle ON.
+
+**Step 2 — Connect all non-server PCs to the hotspot WiFi**
+
+On each non-server PC, connect to the hotspot network in WiFi settings.
+
+**Step 3 — Restart both scripts on the server** (if not already running)
+
+Double-click `start_backend.bat` → Yes on UAC
+
+Double-click `start_frontend.bat` → Yes on UAC
+
+**Step 4 — Update agent config on each non-server PC:**
 ```cmd
 notepad C:\PrintHubAgent\agent_config.json
 ```
@@ -1414,24 +1361,7 @@ schtasks /end /tn "PrintHubAgent"
 schtasks /run /tn "PrintHubAgent"
 ```
 
-**On the server — update `frontend/.env`:**
-```
-VITE_API_URL=http://192.168.137.1:8000
-```
-
-**On the server — update `backend/.env`:**
-Add the hotspot origin to `ALLOWED_ORIGINS`:
-```
-ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.14:5173,http://192.168.137.1:5173
-```
-
-**On the server — rebuild the frontend:**
-```
-rebuild_frontend.bat   (Windows)
-./rebuild_frontend.sh  (Mac)
-```
-
-**Access the dashboard from non-server PCs at:**
+**Step 5 — Access the dashboard from non-server PCs at:**
 ```
 http://192.168.137.1:5173
 ```
