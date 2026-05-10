@@ -107,6 +107,7 @@ print_centre/
 │   ├── config.py                   ← Settings loaded from .env (pydantic-settings)
 │   ├── requirements.txt            ← Python packages list
 │   ├── start_backend.bat           ← One-click start script for Windows
+│   ├── start_backend.sh            ← One-click start script for Mac/Linux
 │   ├── .env                        ← Your local config (NOT committed to git)
 │   ├── .env.example                ← Template — copy this to .env
 │   └── services/
@@ -136,6 +137,9 @@ print_centre/
 │   ├── .env.example                ← Template — copy this to .env
 │   ├── vite.config.js              ← Port 5173, host: true
 │   ├── start_frontend.bat          ← One-click start script for Windows
+│   ├── start_frontend.sh           ← One-click start script for Mac/Linux
+│   ├── rebuild_frontend.bat        ← Rebuild when server IP changes (Windows)
+│   ├── rebuild_frontend.sh         ← Rebuild when server IP changes (Mac/Linux)
 │   └── package.json
 │
 └── agent/                          ← Agent source files (also in separate repo)
@@ -382,13 +386,20 @@ Update `ALLOWED_ORIGINS` with your server IP. Press `Ctrl+X` → `Y` → Enter t
 
 #### Every day — start the backend
 
+Open Terminal (`Cmd + Space` → type Terminal → Enter):
 ```bash
 cd ~/Desktop/print_centre/backend
-source venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8000
+./start_backend.sh
 ```
 
-You will see `Application startup complete.`
+The script will ask for your Mac password once to apply firewall rules, then start the server:
+```
+[OK] Firewall rules applied.
+
+ Local:   http://127.0.0.1:8000
+ Network: http://192.168.1.14:8000
+ Press Ctrl+C to stop
+```
 
 **Do NOT close this Terminal window.** Open a new tab (`Cmd+T`) for the frontend.
 
@@ -473,11 +484,23 @@ Set `VITE_API_URL=http://YOUR_SERVER_IP:8000`. Save with `Ctrl+X` → `Y` → En
 Open a **new** Terminal tab (`Cmd+T`) — keep the backend tab open:
 ```bash
 cd ~/Desktop/print_centre/frontend
-npm run build
-npx serve -s dist -l 5173
+./start_frontend.sh
 ```
 
-Open the dashboard: `http://localhost:5173`
+The script asks for your Mac password once to apply firewall rules. If no build exists yet, it builds automatically first (30–60 seconds). Then it starts serving:
+```
+[OK] Serving production build on ALL network interfaces, port 5173
+
+ Dashboard (this Mac)  : http://localhost:5173
+ Dashboard (network)   : http://192.168.1.14:5173
+```
+
+**Do NOT close this Terminal tab.** Closing it takes down the dashboard.
+
+| Who | URL to use |
+|---|---|
+| On the server Mac itself | `http://localhost:5173` |
+| From any other PC on the same network | `http://YOUR_SERVER_IP:5173` |
 
 ---
 
@@ -489,7 +512,11 @@ There are three situations you will encounter. Each is explained step by step be
 
 ### Situation 1 — Normal Restart (Every Day)
 
-This is what you do every time you start or restart the server. No special commands needed — just the bat files.
+This is what you do every time you start or restart the server. No special commands needed — just the start scripts.
+
+---
+
+#### Windows
 
 **Step 1 — Stop everything (if running)**
 
@@ -501,10 +528,12 @@ Close the black `start_frontend.bat` window → same
 
 Open File Explorer → go to `print_centre\backend\`
 
-Double-click `start_backend.bat`
+Double-click `start_backend.bat` → click **Yes** on the UAC prompt (needed for firewall rules)
 
 Wait until you see:
 ```
+[OK] Firewall rules applied.
+
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000
 ```
@@ -514,11 +543,12 @@ INFO:     Uvicorn running on http://0.0.0.0:8000
 
 Open File Explorer → go to `print_centre\frontend\`
 
-Double-click `start_frontend.bat`
+Double-click `start_frontend.bat` → click **Yes** on the UAC prompt
 
 Since `dist\` already exists from the previous build, it skips the build and starts in 2–3 seconds:
 ```
-[OK] Serving production build on port 5173
+[OK] Firewall rules applied.
+[OK] Serving production build on ALL network interfaces, port 5173
 
  Dashboard (this PC)  : http://localhost:5173
  Dashboard (network)  : http://192.168.1.14:5173
@@ -534,9 +564,65 @@ http://192.168.1.14:5173
 
 ---
 
+#### Mac
+
+**Step 1 — Stop everything (if running)**
+
+In the Terminal tab running the backend → press `Ctrl+C`
+
+In the Terminal tab running the frontend → press `Ctrl+C`
+
+**Step 2 — Start the backend first**
+
+Open Terminal (`Cmd + Space` → Terminal → Enter):
+```bash
+cd ~/Desktop/print_centre/backend
+./start_backend.sh
+```
+Enter your Mac password when asked (for firewall rules — asked once).
+
+Wait until you see:
+```
+[OK] Firewall rules applied.
+
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000
+```
+**Do NOT close this Terminal window.**
+
+**Step 3 — Start the frontend**
+
+Open a **new** Terminal tab (`Cmd+T`):
+```bash
+cd ~/Desktop/print_centre/frontend
+./start_frontend.sh
+```
+Enter your Mac password when asked. The script starts in 2–3 seconds:
+```
+[OK] Firewall rules applied.
+[OK] Serving production build on ALL network interfaces, port 5173
+
+ Dashboard (this Mac)  : http://localhost:5173
+ Dashboard (network)   : http://192.168.1.14:5173
+```
+**Do NOT close this Terminal tab.**
+
+**Step 4 — Done**
+
+Open any browser on any PC on the network:
+```
+http://192.168.1.14:5173
+```
+
+---
+
 ### Situation 2 — Server IP Changed
 
 This happens when the router restarts and assigns a new IP to the server PC (e.g. was `192.168.1.14`, now it is `192.168.1.20`). The dashboard stops loading from other PCs because the old IP is no longer valid.
+
+---
+
+#### Windows
 
 **Step 1 — Find the new IP**
 
@@ -588,7 +674,7 @@ Now run start_frontend.bat to start the dashboard.
 ```
 Press any key to close.
 
-**Step 5 — Restart both bat files**
+**Step 5 — Restart both scripts**
 
 Double-click `start_backend.bat` → wait for startup complete
 
@@ -604,9 +690,75 @@ http://192.168.1.20:5173
 
 ---
 
+#### Mac
+
+**Step 1 — Find the new IP**
+
+Open Terminal:
+```bash
+ipconfig getifaddr en0
+```
+Example: `192.168.1.20`
+
+**Step 2 — Update `frontend/.env`**
+```bash
+nano ~/Desktop/print_centre/frontend/.env
+```
+Find `VITE_API_URL=http://192.168.1.14:8000` → change the IP to the new one:
+```
+VITE_API_URL=http://192.168.1.20:8000
+```
+Press `Ctrl+X` → `Y` → Enter to save.
+
+**Step 3 — Update `backend/.env`**
+```bash
+nano ~/Desktop/print_centre/backend/.env
+```
+Find `ALLOWED_ORIGINS=...` → replace the last IP:
+```
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.20:5173
+```
+Press `Ctrl+X` → `Y` → Enter to save.
+
+**Step 4 — Rebuild the frontend**
+```bash
+cd ~/Desktop/print_centre/frontend
+./rebuild_frontend.sh
+```
+It shows your current `.env` setting. Press Enter to confirm and wait for the build (~30–60 seconds):
+```
+Build complete!
+Now run ./start_frontend.sh to start the dashboard.
+```
+
+**Step 5 — Restart both scripts**
+```bash
+cd ~/Desktop/print_centre/backend
+./start_backend.sh
+```
+Open a new tab (`Cmd+T`):
+```bash
+cd ~/Desktop/print_centre/frontend
+./start_frontend.sh
+```
+
+**Step 6 — Open the dashboard with the new IP**
+```
+http://192.168.1.20:5173
+```
+
+> **Permanent fix — prevent the IP from ever changing again:**
+> Apple menu → System Settings → Network → your Wi-Fi or Ethernet → Details → TCP/IP → Configure IPv4 → switch to **Manually** → enter the current IP as fixed.
+
+---
+
 ### Situation 3 — First Time on a New Machine
 
-This is what you do when setting up PrintHub on a brand new PC that has never run it before.
+This is what you do when setting up PrintHub on a brand new PC/Mac that has never run it before.
+
+---
+
+#### Windows
 
 **Step 1 — Install Python**
 
@@ -653,19 +805,83 @@ Update `VITE_API_URL` with your server IP. Save and close.
 
 **Step 6 — Start normally**
 
-Double-click `start_backend.bat` → backend starts
+Double-click `start_backend.bat` → click Yes on UAC → backend starts
 
-Double-click `start_frontend.bat` → builds the frontend automatically for the first time (30–60 seconds), then starts serving
+Double-click `start_frontend.bat` → click Yes on UAC → builds the frontend automatically (30–60 seconds), then starts serving
 
 From this point on every restart is just **Situation 1** — double-click the two bat files, nothing else.
 
 ---
 
-| Situation | When it happens | What to do |
-|---|---|---|
-| **Normal restart** | Every day | Double-click `start_backend.bat` then `start_frontend.bat` |
-| **IP changed** | After router restart | Update both `.env` files → run `rebuild_frontend.bat` → restart bat files |
-| **New machine** | First-time setup | Install Python + Node → `npm install` → configure `.env` → run bat files |
+#### Mac
+
+**Step 1 — Install Python and Node.js**
+
+Open Terminal (`Cmd + Space` → Terminal → Enter):
+```bash
+brew install python@3.11 node
+```
+If you do not have Homebrew: https://brew.sh
+
+Verify:
+```bash
+python3 --version   # must show 3.11 or higher
+node --version      # must show v18 or higher
+```
+
+**Step 2 — Download the project**
+```bash
+cd ~/Desktop
+git clone https://github.com/MANIBAALAKRISHNANS/print_centre.git
+```
+
+**Step 3 — Set up the backend (one time only)**
+```bash
+cd print_centre/backend
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+cp .env.example .env
+nano .env
+```
+Update `ALLOWED_ORIGINS` with your server IP. Press `Ctrl+X` → `Y` → Enter to save.
+
+**Step 4 — Make the scripts executable (one time only)**
+```bash
+chmod +x ~/Desktop/print_centre/backend/start_backend.sh
+chmod +x ~/Desktop/print_centre/frontend/start_frontend.sh
+chmod +x ~/Desktop/print_centre/frontend/rebuild_frontend.sh
+```
+
+**Step 5 — Set up the frontend (one time only)**
+```bash
+cd ~/Desktop/print_centre/frontend
+npm install
+cp .env.example .env
+nano .env
+```
+Update `VITE_API_URL` with your server IP. Press `Ctrl+X` → `Y` → Enter to save.
+
+**Step 6 — Start normally**
+```bash
+cd ~/Desktop/print_centre/backend
+./start_backend.sh
+```
+Open a new tab (`Cmd+T`):
+```bash
+cd ~/Desktop/print_centre/frontend
+./start_frontend.sh
+```
+The frontend builds automatically on the first run (30–60 seconds), then starts serving.
+
+From this point on every restart is just **Situation 1** — run the two `.sh` scripts, nothing else.
+
+---
+
+| Situation | When it happens | Windows | Mac |
+|---|---|---|---|
+| **Normal restart** | Every day | Double-click `start_backend.bat` then `start_frontend.bat` | Run `./start_backend.sh` then `./start_frontend.sh` |
+| **IP changed** | After router restart | Update `.env` files → `rebuild_frontend.bat` → restart bat files | Update `.env` files → `./rebuild_frontend.sh` → restart sh scripts |
+| **New machine** | First-time setup | Install Python + Node → `npm install` → configure `.env` → run bat files | Install Python + Node → `npm install` → `chmod +x *.sh` → configure `.env` → run sh scripts |
 
 ---
 
@@ -1071,14 +1287,21 @@ http://YOUR_SERVER_IP:5173
 
 #### If the server is a Mac
 
-**Step 1 — Confirm the frontend is running on the server**
+**Step 1 — Make sure you are using the `.sh` start scripts**
 
-On the server Mac, check that the Terminal running `npm run dev` shows:
+The `./start_backend.sh` and `./start_frontend.sh` scripts automatically apply macOS firewall rules every time they start. If you were starting the server manually (e.g. `uvicorn ...` or `npx serve ...` directly in Terminal), the firewall rules were never applied.
+
+Stop what is running (`Ctrl+C`) and use the scripts instead:
+```bash
+cd ~/Desktop/print_centre/backend
+./start_backend.sh
 ```
-Local:   http://localhost:5173/
-Network: http://192.168.1.14:5173/
+Open a new tab (`Cmd+T`):
+```bash
+cd ~/Desktop/print_centre/frontend
+./start_frontend.sh
 ```
-If there is no Network line, make sure `frontend/vite.config.js` contains `host: true` inside the `server` block.
+Both scripts will ask for your Mac password once — this is required to apply the firewall rules. After that, other PCs can connect.
 
 **Step 2 — Confirm the server IP is correct**
 
@@ -1086,37 +1309,26 @@ On the server Mac, open Terminal and run:
 ```bash
 ipconfig getifaddr en0
 ```
-Confirm the IP matches what you are typing in the browser. If it has changed, update `frontend/.env` and `backend/.env` with the new IP and restart both.
+Confirm the IP matches what you are typing in the browser. If it has changed, follow **Situation 2** in [Section 9](#9-daily-operations--starting-stopping-and-common-situations) to update the `.env` files and rebuild.
 
-**Step 3 — Check if macOS Firewall is on**
+**Step 3 — If the scripts already ran and it is still blocked**
 
-Go to: Apple menu → **System Settings** → **Privacy & Security** → **Firewall**
-
-If Firewall is **ON**, click **Firewall Options** and check if Python or uvicorn is being blocked. Either:
-- Add Python to the allowed apps list, **or**
-- Turn the firewall off temporarily to confirm it is the cause
-
-**Step 4 — Open ports using Terminal (alternative to GUI)**
-
-On the server Mac, open Terminal and run:
+The macOS Application Firewall may need Node added manually. Run:
 ```bash
-sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off
-```
-This turns off the macOS firewall entirely. If the dashboard now loads from other PCs, the firewall was the cause. You can turn it back on and add Python as an allowed app instead:
-```bash
-sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add $(which node)
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp $(which node)
 sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add $(which python3)
 sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp $(which python3)
 ```
 
-**Step 5 — Try again**
+**Step 4 — Try again**
 
 On the other PC, open a browser and go to:
 ```
 http://YOUR_SERVER_IP:5173
 ```
 
-> **Why this happens:** macOS Firewall (if enabled) blocks inbound connections to Python and Node processes. Allowing Python through the firewall lets uvicorn (backend) and Vite (frontend) accept connections from other PCs on the network.
+> **Why this happens:** macOS Firewall (if enabled) blocks inbound connections to Python and Node processes. The `./start_backend.sh` and `./start_frontend.sh` scripts handle this automatically — always use them instead of running commands manually.
 
 ---
 
