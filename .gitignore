@@ -33,6 +33,11 @@ uploads/
 .DS_Store
 Thumbs.db
 
+# IDE / Editor
+.vscode/
+.claude/
+.idea/
+
 # Agent Config (Credentials)
 agent/agent_config.json
 agent_config.json
