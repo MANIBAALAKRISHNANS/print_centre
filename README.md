@@ -896,4 +896,75 @@ python restore_admin.py
 
 ---
 
+## 13. How to Stop and Uninstall the Agent
+
+---
+
+### Windows — Stop and Uninstall
+
+**Step 1 — Stop the agent process**
+
+Press `Ctrl + Shift + Esc` to open Task Manager → click the **Details** tab → find `python.exe` → right-click it → **End Task** → click End Process.
+
+> If there are multiple `python.exe` entries, end all of them.
+
+**Step 2 — Remove the Task Scheduler entry (stops it from auto-starting)**
+
+Open Command Prompt as Administrator (`Win + R` → type `cmd` → `Ctrl + Shift + Enter`):
+```cmd
+schtasks /delete /tn "PrintHubAgent" /f
+```
+You should see: `SUCCESS: The scheduled task "PrintHubAgent" was successfully deleted.`
+
+**Step 3 — Delete the agent folder**
+```cmd
+rmdir /s /q C:\PrintHubAgent
+```
+This deletes everything — the agent files, virtual environment, config, and log files.
+
+**Done.** The agent is completely removed. It will not start again on next login.
+
+---
+
+### Mac — Stop and Uninstall
+
+**Step 1 — Stop the agent process**
+
+Open Terminal (`Cmd + Space` → Terminal → Enter):
+```bash
+launchctl unload ~/Library/LaunchAgents/com.printhub.agent.plist
+```
+
+**Step 2 — Remove the auto-start service**
+```bash
+rm ~/Library/LaunchAgents/com.printhub.agent.plist
+```
+
+**Step 3 — Delete the log files**
+```bash
+rm -rf ~/Library/Logs/PrintHubAgent
+```
+
+**Done.** The agent is completely removed.
+
+---
+
+### Verify it is gone (Windows)
+
+Open Task Manager → Details tab → confirm `python.exe` is no longer in the list.
+
+Also confirm the scheduled task is deleted:
+```cmd
+schtasks /query /tn "PrintHubAgent"
+```
+You should see: `ERROR: The system cannot find the file specified.` — that means it is fully removed.
+
+---
+
+### Want to reinstall later?
+
+Just run `install_agent.bat` again as Administrator — it will set everything up fresh from scratch.
+
+---
+
 *PrintHub — Savetha Hospital IT Engineering*
