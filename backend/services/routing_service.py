@@ -130,6 +130,11 @@ def print_with_failover(job_id, location_id, category, payload):
 
                 # 🔹 HYBRID ROUTING: IP vs AGENT (USB)
                 if printer.get("ip"):
+                    # IP printers need actual bytes. If payload is still a file path
+                    # (barcode saved to disk by process_queue), read the file content.
+                    if isinstance(binary_payload, str) and os.path.isfile(binary_payload):
+                        with open(binary_payload, "rb") as _f:
+                            binary_payload = _f.read()
                     success = send_to_printer(printer["ip"], binary_payload, printer["name"])
                     if success:
                         mark_job(job_id, "Completed", printer["name"], route_type)

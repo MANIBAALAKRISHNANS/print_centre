@@ -502,8 +502,9 @@ function Printers() {
                   <option value="ZPL">ZPL (Barcode)</option>
                 ) : (
                   <>
-                    <option value="PS">PostScript (A4)</option>
-                    <option value="PCL">PCL (A4)</option>
+                    <option value="PS">PostScript (PS)</option>
+                    <option value="PCL">PCL</option>
+                    <option value="Raster">Raster (TIFF-G4)</option>
                   </>
                 )}
               </select>

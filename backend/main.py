@@ -2021,18 +2021,23 @@ def process_queue(worker_id):
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 if job["category"] == "Barcode":
                     os.makedirs("uploads", exist_ok=True)
-                    barcode_file = f"uploads/barcode_{job['job_id']}.zpl"
-                    payload = job["payload"]
-                    zpl_content = payload if isinstance(payload, bytes) else payload.encode()
-                    logger.info("[ZPL DEBUG]\n" + zpl_content.decode(errors='ignore'))
-                    with open(barcode_file, "wb") as f:
-                        f.write(zpl_content)
-                    conn = get_connection()
-                    cur = get_cursor(conn)
-                    placeholder = get_placeholder()
-                    cur.execute(f"UPDATE print_jobs SET file_path={placeholder} WHERE id={placeholder}", (barcode_file, job['job_id']))
-                    conn.commit()
-                    conn.close()
+                    raw_payload = job["payload"]
+                    if isinstance(raw_payload, bytes):
+                        # Fresh job: payload is ZPL bytes — save to disk
+                        barcode_file = f"uploads/barcode_{job['job_id']}.zpl"
+                        logger.info("[ZPL DEBUG]\n" + raw_payload.decode(errors='ignore'))
+                        with open(barcode_file, "wb") as f:
+                            f.write(raw_payload)
+                        conn = get_connection()
+                        cur = get_cursor(conn)
+                        placeholder = get_placeholder()
+                        cur.execute(f"UPDATE print_jobs SET file_path={placeholder} WHERE id={placeholder}", (barcode_file, job['job_id']))
+                        conn.commit()
+                        conn.close()
+                    else:
+                        # Recovery case: payload is already a file path — use as-is,
+                        # never overwrite the file or the file_path column.
+                        barcode_file = raw_payload
                     job["payload"] = barcode_file
 
                 future = executor.submit(print_with_failover, job["job_id"], job["location_id"], job["category"], job["payload"])
@@ -2110,7 +2115,7 @@ def monitor_loop():
             for p in ip_printers:
                 is_alive = check_printer(p["ip"], timeout=2)
                 new_status = "Online" if is_alive else "Offline"
-                
+
                 if p["status"] != new_status:
                     logger.info(f"STATUS UPDATE: '{p['name']}' [IP] | Source: Server | {p['status']} -> {new_status}")
                     cur.execute(f"""
@@ -2119,6 +2124,12 @@ def monitor_loop():
                         WHERE id={placeholder}
                     """, (new_status, utcnow(), "Server:IPMonitor", p["id"]))
                     broadcast_sync("printer_update", {"name": p["name"], "status": new_status})
+                    if new_status == "Offline":
+                        alert_deduplicated(
+                            f"printer_offline_{p['name']}",
+                            f"IP Printer Offline: {p['name']}",
+                            f"<p>Network printer <b>{p['name']}</b> ({p['ip']}) is unreachable on port 9100.</p>"
+                        )
                 
             # 4. AUTOMATED LOG CLEANUP (Daily)
             placeholder = get_placeholder()
