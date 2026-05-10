@@ -1,13 +1,13 @@
 // API Configuration
-// NOTE: Use 127.0.0.1 (not 'localhost') to force IPv4.
-// On Windows, Vite binds to [::1] (IPv6), causing 'localhost' to resolve
-// to ::1 in the browser, while the backend is only on 127.0.0.1 (IPv4).
-// This mismatch causes a "Failed to fetch" network error.
-export const API_BASE_URL =
-    import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+// Derives the backend URL from the browser's current hostname so the same
+// build works from localhost, the server's WiFi IP, the hotspot IP (192.168.137.1),
+// or any future IP — no rebuild needed when the server IP changes.
+// 'localhost' is mapped to '127.0.0.1' to force IPv4 on Windows (Vite binds
+// to [::1] by default, causing "Failed to fetch" on IPv4-only backends).
+const _hostname = window.location.hostname === "localhost"
+    ? "127.0.0.1"
+    : window.location.hostname;
+const _origin = `${window.location.protocol}//${_hostname}:8000`;
 
-// WebSocket base URL — derived from VITE_API_URL by swapping http→ws
-export const WS_BASE_URL = (() => {
-    const base = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-    return base.replace(/^http/, "ws");
-})();
+export const API_BASE_URL = _origin;
+export const WS_BASE_URL  = _origin.replace(/^http/, "ws");

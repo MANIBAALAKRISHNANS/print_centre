@@ -479,11 +479,15 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
-# 🔹 CORS SETUP - origins are configurable via ALLOWED_ORIGINS env var
+# 🔹 CORS SETUP
+# Explicit origins from .env + a regex that covers any local-network IP so the
+# same backend works from localhost, hotspot (192.168.137.x), WiFi IP, or any
+# future IP without editing .env or restarting the backend.
 _allowed_origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?",
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
