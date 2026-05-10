@@ -2,88 +2,98 @@ import { createContext, useState, useEffect, useCallback, useMemo } from "react"
 import { useFetch, useAuth } from "./AuthContext";
 import { API_BASE_URL } from "../config";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { getCache, setCache, isFresh } from "../utils/cache";
 
 export const AppData = createContext();
 
+const CACHE_TTL = 30000; // 30 seconds — data this fresh is shown instantly
+
 function AppDataProvider({ children }) {
-  const [printers, setPrinters] = useState([]);
-  const [locations, setLocations] = useState([]); 
-  const [categories, setCategories] = useState([]);
-  
+  const [printers,  setPrinters]  = useState(() => getCache("printers")  ?? []);
+  const [locations, setLocations] = useState(() => getCache("locations") ?? []);
+  const [categories,setCategories]= useState(() => getCache("categories")  ?? []);
+  const [agents,    setAgents]    = useState(() => getCache("agents")    ?? []);
+
   const [loading, setLoading] = useState({
-    printers: true,
-    locations: true,
-    categories: true
+    printers:   !getCache("printers"),
+    locations:  !getCache("locations"),
+    categories: !getCache("categories"),
+    agents:     !getCache("agents"),
   });
 
   const [errors, setErrors] = useState({
-    printers: null,
-    locations: null,
-    categories: null
+    printers: null, locations: null, categories: null, agents: null
   });
 
   const authFetch = useFetch();
   const { token } = useAuth();
 
-  const fetchResource = useCallback(async (url, setter, key, silent = false) => {
-    if (!silent) {
+  // Stale-while-revalidate: if cache is fresh → show instantly (silent=true auto),
+  // if stale/empty → show loading spinner. Either way, fetch fresh data.
+  const fetchResource = useCallback(async (url, setter, key) => {
+    const cached = getCache(key);
+    const fresh  = isFresh(key, CACHE_TTL);
+
+    // If we have ANY cached data, show it immediately — no spinner
+    if (cached !== null) {
+      setter(cached);
+    }
+
+    // If fresh enough, skip the network call entirely
+    if (fresh) return;
+
+    // Show loading only if we have nothing to show yet
+    if (cached === null) {
       setLoading(prev => ({ ...prev, [key]: true }));
     }
     setErrors(prev => ({ ...prev, [key]: null }));
-    
+
     try {
       const res = await authFetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      setCache(key, data);
       setter(data);
     } catch (err) {
       console.log(`${key} load error`, err);
       setErrors(prev => ({ ...prev, [key]: err.message }));
     } finally {
-      if (!silent) {
-        setLoading(prev => ({ ...prev, [key]: false }));
-      }
+      setLoading(prev => ({ ...prev, [key]: false }));
     }
   }, [authFetch]);
 
-  const loadPrinters = useCallback((silent = false) => fetchResource(`${API_BASE_URL}/printers`, setPrinters, "printers", silent), [fetchResource]);
-  const loadLocations = useCallback((silent = false) => fetchResource(`${API_BASE_URL}/locations`, setLocations, "locations", silent), [fetchResource]);
-  const loadCategories = useCallback((silent = false) => fetchResource(`${API_BASE_URL}/categories`, setCategories, "categories", silent), [fetchResource]);
+  const loadPrinters   = useCallback(() => fetchResource(`${API_BASE_URL}/printers`,  setPrinters,   "printers"),   [fetchResource]);
+  const loadLocations  = useCallback(() => fetchResource(`${API_BASE_URL}/locations`,  setLocations,  "locations"),  [fetchResource]);
+  const loadCategories = useCallback(() => fetchResource(`${API_BASE_URL}/categories`, setCategories, "categories"), [fetchResource]);
+  const loadAgents     = useCallback(() => fetchResource(`${API_BASE_URL}/agents`,     setAgents,     "agents"),     [fetchResource]);
 
-  const loadAll = useCallback((silent = false) => {
-    loadPrinters(silent);
-    loadLocations(silent);
-    loadCategories(silent);
-  }, [loadPrinters, loadLocations, loadCategories]);
+  // Load all four resources in parallel
+  const loadAll = useCallback(() => {
+    Promise.all([loadPrinters(), loadLocations(), loadCategories(), loadAgents()]);
+  }, [loadPrinters, loadLocations, loadCategories, loadAgents]);
 
   useEffect(() => {
-    // ONLY fetch if we have a token.
-    // This prevents unauthorized calls (401) on the login screen.
     const hasToken = document.cookie.includes("print_hub_session");
-    if (hasToken) {
-      loadPrinters();
-      loadLocations();
-      loadCategories();
-    }
-  }, [loadPrinters, loadLocations, loadCategories]);
+    if (hasToken) loadAll();
+  }, [loadAll]);
 
-  // Real-time: refresh printers silently when the server pushes an update
+  // Real-time WebSocket: silently refresh affected resource
   const handleWsMessage = useCallback((msg) => {
-    if (msg.type === "printer_update") {
-      loadPrinters(true);
-    }
-  }, [loadPrinters]);
+    if (msg.type === "printer_update") loadPrinters();
+    if (msg.type === "agent_update")   loadAgents();
+  }, [loadPrinters, loadAgents]);
 
   useWebSocket(handleWsMessage, !!token);
 
   const value = useMemo(() => ({
-    printers, setPrinters,
+    printers,  setPrinters,
     locations, setLocations,
-    categories, setCategories,
-    loading, errors,
-    loadPrinters, loadLocations, loadCategories,
-    loadAll
-  }), [printers, locations, categories, loading, errors, loadPrinters, loadLocations, loadCategories, loadAll]);
+    categories,setCategories,
+    agents,    setAgents,
+    loading,   errors,
+    loadPrinters, loadLocations, loadCategories, loadAgents, loadAll,
+  }), [printers, locations, categories, agents, loading, errors,
+      loadPrinters, loadLocations, loadCategories, loadAgents, loadAll]);
 
   return (
     <AppData.Provider value={value}>

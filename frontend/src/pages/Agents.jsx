@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useFetch } from "../context/AuthContext";
+import { AppData } from "../context/AppData";
 import { useToast } from "../context/ToastContext";
 import { SkeletonTable } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
@@ -7,25 +8,18 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../config";
 
 function Agents() {
-  const [agents, setAgents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { agents, loading, loadAgents } = useContext(AppData);
   const [deletingId, setDeletingId] = useState(null);
   const authFetch = useFetch();
   const toast = useToast();
   const navigate = useNavigate();
 
-  const fetchAgents = useCallback(async () => {
-    try {
-      const res = await authFetch(`${API_BASE_URL}/agents`);
-      if (!res.ok) throw new Error("Failed to fetch agents");
-      const data = await res.json();
-      setAgents(data);
-    } catch (err) {
-      toast.error("Failed to fetch agents");
-    } finally {
-      setLoading(false);
-    }
-  }, [authFetch]);
+  // Refresh agents every 15s for live Online/Offline status
+  useEffect(() => {
+    loadAgents();
+    const interval = setInterval(loadAgents, 15000);
+    return () => clearInterval(interval);
+  }, [loadAgents]);
 
   const deleteAgent = async (agentId) => {
     try {
@@ -33,7 +27,7 @@ function Agents() {
       if (res.ok) {
         setDeletingId(null);
         toast.success("Agent removed");
-        fetchAgents();
+        loadAgents();
       } else {
         const err = await res.json().catch(() => ({}));
         toast.error(err.detail || "Failed to delete agent");
@@ -42,12 +36,6 @@ function Agents() {
       toast.error("Failed to delete agent");
     }
   };
-
-  useEffect(() => {
-    fetchAgents();
-    const interval = setInterval(fetchAgents, 15000); // 15s refresh
-    return () => clearInterval(interval);
-  }, [fetchAgents]);
 
   const parseAgentDate = (str) => {
     if (!str) return null;
@@ -82,7 +70,7 @@ function Agents() {
       <br />
 
       <div className="card">
-        {loading && agents.length === 0 ? (
+        {loading.agents && agents.length === 0 ? (
           <SkeletonTable rows={4} cols={5} />
         ) : agents.length === 0 ? (
           <EmptyState
@@ -112,9 +100,7 @@ function Agents() {
 
                 return (
                   <tr key={agent.agent_id}>
-                    <td>
-                      <code>{agent.agent_id}</code>
-                    </td>
+                    <td><code>{agent.agent_id}</code></td>
                     <td>{agent.hostname || "—"}</td>
                     <td>
                       <code style={{ fontSize: "0.75rem", opacity: 0.7 }}>

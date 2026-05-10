@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useFetch } from "../context/AuthContext";
+import { AppData } from "../context/AppData";
 import { API_BASE_URL } from "../config";
 
 const parseUTCDate = (str) => {
@@ -10,8 +11,8 @@ const parseUTCDate = (str) => {
 };
 
 function ActivationCodes() {
+  const { locations } = useContext(AppData);
   const [codes, setCodes] = useState([]);
-  const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState("");
   const [loading, setLoading] = useState(false);
   const [newCode, setNewCode] = useState(null);
@@ -19,25 +20,24 @@ function ActivationCodes() {
   const [copied, setCopied] = useState(false);
   const authFetch = useFetch();
 
+  // Set default selected location when AppData locations load
   useEffect(() => {
-    loadData();
+    if (locations.length > 0 && !selectedLocation) {
+      setSelectedLocation(locations[0].external_id);
+    }
+  }, [locations]); // eslint-disable-line
+
+  useEffect(() => {
+    loadCodes();
   }, []);
 
-  const loadData = async () => {
+  const loadCodes = async () => {
     try {
-      const [codesRes, locsRes] = await Promise.all([
-        authFetch(`${API_BASE_URL}/admin/activation-codes`),
-        authFetch(`${API_BASE_URL}/locations`)
-      ]);
-      const codesData = await codesRes.json();
-      const locsData = await locsRes.json();
-      setCodes(codesData);
-      setLocations(locsData);
-      if (locsData.length > 0 && !selectedLocation) {
-        setSelectedLocation(locsData[0].external_id);
-      }
+      const res = await authFetch(`${API_BASE_URL}/admin/activation-codes`);
+      const data = await res.json();
+      setCodes(data);
     } catch (err) {
-      console.error("Failed to load activation data", err);
+      console.error("Failed to load activation codes", err);
     }
   };
 
@@ -58,7 +58,7 @@ function ActivationCodes() {
       if (res.ok) {
         const data = await res.json();
         setNewCode(data);
-        loadData();
+        loadCodes();
       } else {
         const err = await res.json().catch(() => ({}));
         alert(err.detail || "Failed to generate code");
@@ -77,7 +77,7 @@ function ActivationCodes() {
       });
       if (res.ok) {
         setDeletingId(null);
-        loadData();
+        loadCodes();
       } else {
         const err = await res.json().catch(() => ({}));
         alert(err.detail || "Delete failed");

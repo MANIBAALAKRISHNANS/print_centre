@@ -8,10 +8,9 @@ import { useWebSocket } from "../hooks/useWebSocket";
 
 function Dashboard() {
   const navigate = useNavigate();
-  const { printers, loading: appLoading, errors: appErrors } = useContext(AppData);
+  const { printers, agents, loading: appLoading, errors: appErrors, loadAgents } = useContext(AppData);
 
   const [stats, setStats] = useState(null);
-  const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [health, setHealth] = useState({ warnings: [] });
@@ -56,21 +55,6 @@ function Dashboard() {
       clearInterval(healthInterval);
     };
   }, [loadStats, loadHealth]);
-
-  const loadAgents = useCallback(async () => {
-    try {
-      const res = await authFetch(`${API_BASE_URL}/agents`);
-      setAgents(await res.json());
-    } catch (e) {
-      /* silent */
-    }
-  }, [authFetch]);
-
-  useEffect(() => {
-    loadAgents();
-    const t = setInterval(loadAgents, 30000);
-    return () => clearInterval(t);
-  }, [loadAgents]);
 
   // Real-time: refresh dashboard instantly when server pushes events
   const handleWsMessage = useCallback((msg) => {

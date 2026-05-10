@@ -7,9 +7,7 @@ import EmptyState from "../components/EmptyState";
 import { API_BASE_URL } from "../config";
 
 function Printers() {
-  const { printers, setPrinters, loadAll, loading: appLoading, errors: appErrors } = useContext(AppData);
-
-  const [categories, setCategories] = useState([]);
+  const { printers, setPrinters, categories, loadAll, loading: appLoading, errors: appErrors } = useContext(AppData);
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -31,24 +29,16 @@ function Printers() {
   const authFetch = useFetch();
   const toast = useToast();
 
-  /* load categories */
+  /* set default category when AppData categories become available */
   useEffect(() => {
-    authFetch(`${API_BASE_URL}/categories`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setCategories(data);
-          if (data.length > 0) {
-            setNewPrinter((old) => ({
-              ...old,
-              category: data[0],
-              language: data[0] === "Barcode" ? "ZPL" : "PS",
-            }));
-          }
-        }
-      })
-      .catch(err => toast.error("Failed to load categories"));
-  }, [authFetch, toast]);
+    if (categories.length > 0 && !newPrinter.category) {
+      setNewPrinter((old) => ({
+        ...old,
+        category: categories[0],
+        language: categories[0] === "Barcode" ? "ZPL" : "PS",
+      }));
+    }
+  }, [categories]); // eslint-disable-line
 
   useEffect(() => {
     const refreshPrinterStatus = async () => {
