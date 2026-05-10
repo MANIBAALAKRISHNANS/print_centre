@@ -1065,6 +1065,38 @@ If it is in the list, the agent process is running.
 
 ---
 
+**Method 6 — Quick command-line check (fastest)**
+
+Open Command Prompt on the printer PC and run:
+```powershell
+powershell -Command "Get-Content C:\PrintHubAgent\agent.log -Tail 5"
+```
+Read the last line:
+- `[WS] Connected to server` → agent is running and connected ✓
+- `ConnectTimeoutError` → agent is running but cannot reach the backend
+- `[WS] Reconnecting in Xs` → agent is running but disconnected, retrying automatically
+
+---
+
+**Check task status directly:**
+```cmd
+schtasks /query /tn "PrintHubAgent" /fo LIST
+```
+- `Status: Running` → agent process is active
+- `Status: Ready` → installed but not currently running
+
+**Start the agent manually (if stopped):**
+```cmd
+schtasks /run /tn "PrintHubAgent"
+```
+
+**Stop the agent:**
+```cmd
+schtasks /end /tn "PrintHubAgent"
+```
+
+---
+
 **What a healthy log looks like:**
 ```
 [INFO] Starting PrintHub Agent...
@@ -1329,6 +1361,92 @@ http://YOUR_SERVER_IP:5173
 ```
 
 > **Why this happens:** macOS Firewall (if enabled) blocks inbound connections to Python and Node processes. The `./start_backend.sh` and `./start_frontend.sh` scripts handle this automatically — always use them instead of running commands manually.
+
+---
+
+### Other PCs cannot reach the server — "Destination host unreachable"
+
+This is different from ERR_CONNECTION_TIMED_OUT. Run `ping YOUR_SERVER_IP` from a non-server PC:
+
+```
+ping 192.168.1.14
+```
+
+If you see:
+```
+Reply from 192.168.1.12: Destination host unreachable.
+```
+(the reply comes from **your own PC's IP**, not the server) — this means **AP Isolation is enabled on your router**.
+
+---
+
+**What is AP Isolation?**
+
+Many ISP-provided routers (Airtel, BSNL, Jio) enable wireless client isolation by default. It prevents WiFi devices from talking directly to each other — every device can reach the internet but not other devices on the same WiFi network. This causes ERR_CONNECTION_TIMED_OUT for all non-server PCs regardless of what firewall rules are set.
+
+---
+
+**Solution 1 — Ethernet cable (recommended)**
+
+Plug a LAN cable from any yellow/LAN port on the router directly into the **server PC**. Ethernet connections completely bypass AP isolation. All WiFi devices can then reach the server.
+
+After plugging in, check the server's new IP (`ipconfig`) — it may change from the WiFi IP. Update `frontend/.env` and `backend/.env` if it does, then rebuild the frontend.
+
+---
+
+**Solution 2 — Use the server laptop's Mobile Hotspot**
+
+If a cable is not available, create a Windows Mobile Hotspot on the server laptop and connect all non-server PCs to it instead of the main router WiFi.
+
+The server's hotspot IP is always **`192.168.137.1`**. After switching, update these on every affected PC and on the server:
+
+**On each non-server PC — update agent config:**
+```cmd
+notepad C:\PrintHubAgent\agent_config.json
+```
+Change `server_url` to:
+```json
+"server_url": "http://192.168.137.1:8000"
+```
+Then restart the agent:
+```cmd
+schtasks /end /tn "PrintHubAgent"
+schtasks /run /tn "PrintHubAgent"
+```
+
+**On the server — update `frontend/.env`:**
+```
+VITE_API_URL=http://192.168.137.1:8000
+```
+
+**On the server — update `backend/.env`:**
+Add the hotspot origin to `ALLOWED_ORIGINS`:
+```
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.14:5173,http://192.168.137.1:5173
+```
+
+**On the server — rebuild the frontend:**
+```
+rebuild_frontend.bat   (Windows)
+./rebuild_frontend.sh  (Mac)
+```
+
+**Access the dashboard from non-server PCs at:**
+```
+http://192.168.137.1:5173
+```
+
+Confirm the agent is reconnected:
+```powershell
+powershell -Command "Get-Content C:\PrintHubAgent\agent.log -Tail 5"
+```
+You should see `[WS] Connected to server`.
+
+---
+
+**Solution 3 — Disable AP Isolation in router settings**
+
+Log in to the router admin page (`http://192.168.1.1`). Look under **Wireless / WLAN settings** for **AP Isolation**, **Client Isolation**, or **Wireless Isolation** and disable it. Note: many ISP-locked routers (e.g. Airtel Titanium-2122A) do not expose this setting in the UI — use Solution 1 or 2 instead.
 
 ---
 
