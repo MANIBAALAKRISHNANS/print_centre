@@ -12,15 +12,12 @@ function AuditLogs() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
 
-  const todayISO = new Date().toISOString().split("T")[0];
-
-  // Filters — default to today so records appear on first load
   const [filters, setFilters] = useState({
     actor: "",
     action: "",
     patient_id: "",
-    from_date: todayISO,
-    to_date: todayISO
+    from_date: "",
+    to_date: ""
   });
 
   const fetchLogs = useCallback(async () => {
