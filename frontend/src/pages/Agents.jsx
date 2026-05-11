@@ -1,18 +1,21 @@
 import { useState, useEffect, useContext } from "react";
-import { useFetch } from "../context/AuthContext";
+import { useFetch, useAuth } from "../context/AuthContext";
 import { AppData } from "../context/AppData";
 import { useToast } from "../context/ToastContext";
 import { SkeletonTable } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../config";
+import { clearCache } from "../utils/cache";
 
 function Agents() {
-  const { agents, loading, loadAgents } = useContext(AppData);
+  const { agents, setAgents, loading, loadAgents } = useContext(AppData);
+  const { user } = useAuth();
   const [deletingId, setDeletingId] = useState(null);
   const authFetch = useFetch();
   const toast = useToast();
   const navigate = useNavigate();
+  const isAdmin = user?.role === "admin";
 
   // Refresh agents every 15s for live Online/Offline status
   useEffect(() => {
@@ -26,8 +29,10 @@ function Agents() {
       const res = await authFetch(`${API_BASE_URL}/agents/${agentId}`, { method: "DELETE" });
       if (res.ok) {
         setDeletingId(null);
+        // Remove immediately from local state so UI updates without waiting for cache TTL
+        setAgents(prev => prev.filter(a => a.agent_id !== agentId));
+        clearCache("agents");
         toast.success("Agent removed");
-        loadAgents();
       } else {
         const err = await res.json().catch(() => ({}));
         toast.error(err.detail || "Failed to delete agent");
@@ -89,7 +94,7 @@ function Agents() {
                 <th>Location ID</th>
                 <th>Status</th>
                 <th>Last Seen</th>
-                <th>Action</th>
+                {isAdmin && <th>Action</th>}
               </tr>
             </thead>
             <tbody>
@@ -115,34 +120,36 @@ function Agents() {
                     <td style={{ fontSize: "0.85rem", color: "#666" }}>
                       {formatLastSeen(agent.last_seen)}
                     </td>
-                    <td>
-                      {deletingId === agent.agent_id ? (
-                        <div style={{ display: "flex", gap: "4px" }}>
+                    {isAdmin && (
+                      <td>
+                        {deletingId === agent.agent_id ? (
+                          <div style={{ display: "flex", gap: "4px" }}>
+                            <button
+                              className="btn"
+                              style={{ background: "#ef4444", padding: "4px 10px", fontSize: "0.7rem" }}
+                              onClick={() => deleteAgent(agent.agent_id)}
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              className="btn"
+                              style={{ background: "#6b7280", padding: "4px 10px", fontSize: "0.7rem" }}
+                              onClick={() => setDeletingId(null)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
                           <button
-                            className="btn"
-                            style={{ background: "#ef4444", padding: "4px 10px", fontSize: "0.7rem" }}
-                            onClick={() => deleteAgent(agent.agent_id)}
+                            className="btn outline sm"
+                            style={{ padding: "4px 10px", fontSize: "0.7rem", color: "#ef4444", borderColor: "#ef4444" }}
+                            onClick={() => setDeletingId(agent.agent_id)}
                           >
-                            Confirm
+                            Delete
                           </button>
-                          <button
-                            className="btn"
-                            style={{ background: "#6b7280", padding: "4px 10px", fontSize: "0.7rem" }}
-                            onClick={() => setDeletingId(null)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          className="btn outline sm"
-                          style={{ padding: "4px 10px", fontSize: "0.7rem", color: "#ef4444", borderColor: "#ef4444" }}
-                          onClick={() => setDeletingId(agent.agent_id)}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </td>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
