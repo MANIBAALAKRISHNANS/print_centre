@@ -537,22 +537,45 @@ def archive_old_jobs(days_to_keep: int = 30):
 
 def backup_database():
     """Creates a timestamped backup of the production database."""
-    src = settings.database_path
     backup_dir = getattr(settings, "database_backup_path", "./backups/")
     os.makedirs(backup_dir, exist_ok=True)
-    
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    dst = os.path.join(backup_dir, f"printhub_{timestamp}.db")
-    
+
     try:
-        shutil.copy2(src, dst)
-        
-        # Cleanup: Keep only last 7 backups
-        backups = sorted([os.path.join(backup_dir, f) for f in os.listdir(backup_dir) if f.startswith("printhub_")])
-        if len(backups) > 7:
-            for old_backup in backups[:-7]:
-                os.remove(old_backup)
-                
+        if settings.db_type == "postgresql":
+            import subprocess
+            dst = os.path.join(backup_dir, f"printhub_{timestamp}.sql")
+            env = os.environ.copy()
+            env["PGPASSWORD"] = settings.db_password
+            result = subprocess.run(
+                [
+                    "pg_dump",
+                    "-h", settings.db_host,
+                    "-p", str(settings.db_port),
+                    "-U", settings.db_user,
+                    "-d", settings.db_name,
+                    "-f", dst,
+                    "--no-password",
+                ],
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"pg_dump failed: {result.stderr.strip()}")
+        else:
+            dst = os.path.join(backup_dir, f"printhub_{timestamp}.db")
+            shutil.copy2(settings.database_path, dst)
+
+        # Keep only the 7 most recent backups
+        prefix = "printhub_"
+        backups = sorted(
+            [os.path.join(backup_dir, f) for f in os.listdir(backup_dir) if f.startswith(prefix)]
+        )
+        for old in backups[:-7]:
+            os.remove(old)
+
         logger.info(f"[BACKUP] Database backed up to {dst}")
         return dst
     except Exception as e:
