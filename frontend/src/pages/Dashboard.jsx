@@ -14,6 +14,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [health, setHealth] = useState({ warnings: [] });
+  const [now, setNow] = useState(Date.now());
 
   const authFetch = useFetch();
   const { token } = useAuth();
@@ -47,14 +48,18 @@ function Dashboard() {
   useEffect(() => {
     loadStats();
     loadHealth();
-    // Safety-net poll — WebSocket handles real-time; this catches any missed events
-    const interval = setInterval(loadStats, 30000);
-    const healthInterval = setInterval(loadHealth, 30000);
+    loadAgents();
+    const interval       = setInterval(loadStats,   30000);
+    const healthInterval = setInterval(loadHealth,  30000);
+    const agentInterval  = setInterval(loadAgents,  15000);
+    const tickInterval   = setInterval(() => setNow(Date.now()), 5000);
     return () => {
       clearInterval(interval);
       clearInterval(healthInterval);
+      clearInterval(agentInterval);
+      clearInterval(tickInterval);
     };
-  }, [loadStats, loadHealth]);
+  }, [loadStats, loadHealth, loadAgents]);
 
   // Real-time: refresh dashboard instantly when server pushes events
   const handleWsMessage = useCallback((msg) => {
@@ -86,7 +91,7 @@ function Dashboard() {
   const isAgentStale = (last_seen) => {
     if (!last_seen) return true;
     const d = new Date(last_seen.replace(" UTC", "Z").replace(" ", "T"));
-    return Date.now() - d.getTime() > 45000;
+    return now - d.getTime() > 45000;
   };
 
   const StatSkeleton = () => (
