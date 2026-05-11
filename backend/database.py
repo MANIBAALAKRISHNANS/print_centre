@@ -436,6 +436,19 @@ def init_db():
     cur.execute("UPDATE printers SET status = 'Online' WHERE status = 'Live'")
     cur.execute("UPDATE printers SET status = 'Offline' WHERE status IS NULL OR status = 'Maintenance'")
 
+    # PostgreSQL: reset all SERIAL sequences to max(id)+1 so new INSERTs don't
+    # collide with IDs that were copied in from the SQLite migration.
+    if settings.db_type == "postgresql":
+        _serial_tables = [
+            "print_jobs", "print_logs", "mapping", "categories", "printers",
+            "locations", "agents", "activation_codes", "audit_log", "users",
+        ]
+        for _tbl in _serial_tables:
+            _safe_exec(
+                f"SELECT setval(pg_get_serial_sequence('{_tbl}', 'id'), "
+                f"COALESCE((SELECT MAX(id) FROM {_tbl}), 0) + 1, false)"
+            )
+
     conn.commit()
     conn.close()
 
