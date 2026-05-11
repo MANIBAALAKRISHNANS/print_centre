@@ -209,7 +209,10 @@ def init_db():
         pages INTEGER DEFAULT 1,
         locked_at TEXT,
         locked_by TEXT,
-        priority INTEGER DEFAULT 2
+        priority INTEGER DEFAULT 2,
+        completed_at TEXT,
+        error_message TEXT,
+        created_by TEXT
     )
     """)
 
@@ -379,90 +382,49 @@ def init_db():
     """)
 
     # SAFE MIGRATIONS
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN location_id TEXT")
-    except:
-        pass
+    # PostgreSQL supports IF NOT EXISTS on ADD COLUMN (9.6+), avoiding transaction aborts.
+    # SQLite falls back to try/except since it doesn't support that syntax.
+    def _add_col(sql):
+        if settings.db_type == "postgresql":
+            cur.execute(sql.replace("ADD COLUMN ", "ADD COLUMN IF NOT EXISTS ", 1))
+        else:
+            try:
+                cur.execute(sql)
+            except Exception:
+                pass
 
-    try:
-        cur.execute("ALTER TABLE agents ADD COLUMN hostname TEXT")
-    except:
-        pass
+    def _safe_exec(sql):
+        if settings.db_type == "postgresql":
+            cur.execute("SAVEPOINT _safe_sp")
+            try:
+                cur.execute(sql)
+                cur.execute("RELEASE SAVEPOINT _safe_sp")
+            except Exception:
+                cur.execute("ROLLBACK TO SAVEPOINT _safe_sp")
+        else:
+            try:
+                cur.execute(sql)
+            except Exception:
+                pass
 
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN locked_at TEXT")
-    except:
-        pass
+    _add_col("ALTER TABLE print_jobs ADD COLUMN location_id TEXT")
+    _add_col("ALTER TABLE agents ADD COLUMN hostname TEXT")
+    _add_col("ALTER TABLE print_jobs ADD COLUMN locked_at TEXT")
+    _add_col("ALTER TABLE print_jobs ADD COLUMN locked_by TEXT")
+    _add_col("ALTER TABLE print_jobs ADD COLUMN completed_at TEXT")
+    _add_col("ALTER TABLE print_jobs ADD COLUMN error_message TEXT")
+    _add_col("ALTER TABLE print_jobs ADD COLUMN created_by TEXT")
+    _add_col("ALTER TABLE print_jobs ADD COLUMN test_name TEXT")
+    _add_col("ALTER TABLE archived_jobs ADD COLUMN test_name TEXT")
+    _add_col("ALTER TABLE print_jobs ADD COLUMN pages INTEGER DEFAULT 1")
+    _add_col("ALTER TABLE print_jobs ADD COLUMN priority INTEGER DEFAULT 2")
+    _add_col("ALTER TABLE mapping ADD COLUMN external_id TEXT")
+    _add_col("ALTER TABLE printers ADD COLUMN connection_type TEXT DEFAULT 'IP'")
+    _add_col("ALTER TABLE printers ADD COLUMN last_updated TEXT")
+    _add_col("ALTER TABLE printers ADD COLUMN last_update_source TEXT")
+    _add_col("ALTER TABLE users ADD COLUMN force_password_change INTEGER DEFAULT 0")
 
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN locked_by TEXT")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN completed_at TEXT")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN error_message TEXT")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN created_by TEXT")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN test_name TEXT")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE archived_jobs ADD COLUMN test_name TEXT")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN pages INTEGER DEFAULT 1")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE print_jobs ADD COLUMN priority INTEGER DEFAULT 2")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE mapping ADD COLUMN external_id TEXT")
-    except:
-        pass
-
-    try:
-        cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_mapping_external_id ON mapping(external_id)")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE printers ADD COLUMN connection_type TEXT CHECK(connection_type IN ('IP', 'USB')) DEFAULT 'IP'")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE printers ADD COLUMN last_updated TEXT")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE printers ADD COLUMN last_update_source TEXT")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE users ADD COLUMN force_password_change INTEGER DEFAULT 0")
-    except:
-        pass
+    _safe_exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_mapping_external_id ON mapping(external_id)")
 
     # 🔹 DATA MIGRATION: Populating connection_type and normalizing status
     cur.execute("UPDATE printers SET connection_type = 'IP' WHERE ip IS NOT NULL AND ip != '' AND connection_type IS NULL")

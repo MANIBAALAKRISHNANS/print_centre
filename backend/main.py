@@ -1043,6 +1043,15 @@ def get_locations(user: dict = Depends(get_current_user)):
     set_cached_data("locations", res, 30)
     return res
 
+_MAPPING_COL_ALIASES = {
+    "a4primary": "a4Primary", "a4secondary": "a4Secondary",
+    "barprimary": "barPrimary", "barsecondary": "barSecondary",
+}
+
+def _norm_mapping(row: dict) -> dict:
+    """Normalize PostgreSQL lowercase column names to camelCase for frontend."""
+    return {_MAPPING_COL_ALIASES.get(k, k): v for k, v in row.items()}
+
 @app.get("/mapping")
 def get_mapping(user: dict = Depends(get_current_user)):
     cached = get_cached_data("mapping")
@@ -1051,7 +1060,7 @@ def get_mapping(user: dict = Depends(get_current_user)):
     cur = get_cursor(conn)
     placeholder = get_placeholder()
     cur.execute(f"SELECT * FROM mapping")
-    rows = [dict(r) for r in cur.fetchall()]
+    rows = [_norm_mapping(dict(r)) for r in cur.fetchall()]
     conn.close()
     set_cached_data("mapping", rows, 10)
     return rows
@@ -1236,8 +1245,8 @@ def validate_mapping(user: dict = Depends(get_current_user)):
     cur = get_cursor(conn)
     placeholder = get_placeholder()
     cur.execute(f"SELECT * FROM mapping")
-    rows = [dict(r) for r in cur.fetchall()]
-    
+    rows = [_norm_mapping(dict(r)) for r in cur.fetchall()]
+
     issues = []
     # Fetch all printer names for validation
     cur.execute(f"SELECT name, ip FROM printers")
@@ -1253,7 +1262,7 @@ def validate_mapping(user: dict = Depends(get_current_user)):
             ("barSecondary", "Barcode Secondary")
         ]
         for key, label in checks:
-            val = r[key]
+            val = r.get(key)
             if not val or val == "None":
                 if "Primary" in label:
                     issues.append({"location": r["location"], "field": label, "issue": "Not configured"})

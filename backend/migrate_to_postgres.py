@@ -111,7 +111,9 @@ def migrate():
             continue
 
         columns = list(rows[0].keys())
-        col_str = ", ".join(f'"{c}"' for c in columns)
+        # PostgreSQL lowercases unquoted identifiers; use lowercase names to match
+        pg_columns = [c.lower() for c in columns]
+        col_str = ", ".join(f'"{c}"' for c in pg_columns)
         val_str = ", ".join(["%s"] * len(columns))
 
         inserted = 0

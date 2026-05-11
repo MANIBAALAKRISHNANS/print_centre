@@ -72,24 +72,50 @@ Think of PrintHub like a post office inside the hospital:
 
 ## 3. How It Works — Technical
 
-- **Backend:** Python 3.11, FastAPI, SQLite database, APScheduler for background tasks. Exposes a REST API on port 8000 and a WebSocket endpoint `/ws/agent` for real-time agent communication.
+- **Backend:** Python 3.11, FastAPI, PostgreSQL database (psycopg2), APScheduler for background tasks. Exposes a REST API on port 8000 and a WebSocket endpoint `/ws/agent` for real-time agent communication.
 - **Frontend:** React 18 + Vite SPA. Reads `VITE_API_URL` from `frontend/.env` at startup. Served on port 5173. Communicates with the backend over HTTP and WebSocket.
-- **Agent:** Python script. Maintains a persistent WebSocket connection to `ws://SERVER_IP:8000/ws/agent`. Receives `job_available` push events instantly. Falls back to HTTP polling every 30 seconds. Uses `win32print` on Windows or CUPS `lp` on Mac to send jobs to the physical printer.
+- **Agent:** Python script for USB printers. Maintains a persistent WebSocket connection to `ws://SERVER_IP:8000/ws/agent`. Receives `job_available` push events instantly. Falls back to HTTP polling every 30 seconds. Uses `win32print` on Windows or CUPS `lp` on Mac to send jobs to the physical printer.
+- **IP Printers:** Network printers (Zebra, HP, etc.) with a static IP address are sent jobs directly from the backend via raw TCP socket on port 9100 — no agent needed.
 - **Authentication:** JWT (HS256). All API routes are protected. The admin account is seeded automatically at first startup.
 - **Real-time updates:** Both the dashboard and agents use WebSocket — the dashboard shows live agent status and job updates without any page refresh.
 
+### Printer types supported
+
+| Type | How it works | Agent needed? |
+|---|---|---|
+| **IP printer** | Backend sends raw bytes directly to the printer's IP on port 9100 | No |
+| **USB printer** | Agent on the printer PC receives the job and sends it to the USB port | Yes |
+
+Both A4 (document) and Barcode (ZPL label) printing are supported for both printer types.
+
 ### Print job flow (step by step)
 
+**IP Printer path:**
 ```
 1. Staff submits job in the dashboard browser
         ↓  HTTP POST /jobs
-2. Backend saves job to SQLite, status = "pending"
+2. Backend saves job to PostgreSQL, status = "Queued"
+        ↓  Direct TCP socket to printer IP:9100
+3. Backend sends raw PS/PCL/ZPL bytes to printer
+        ↓
+4. Printer prints immediately
+        ↓
+5. Backend marks job "Completed"
+        ↓  WebSocket push to dashboard
+6. Dashboard shows "Completed" in real time
+```
+
+**USB Printer path (via Agent):**
+```
+1. Staff submits job in the dashboard browser
+        ↓  HTTP POST /jobs
+2. Backend saves job to PostgreSQL, status = "Queued"
         ↓  WebSocket push to matching agent
 3. Agent on the correct PC receives the job instantly
         ↓  win32print (Windows) or CUPS lp (Mac)
 4. USB printer prints
         ↓  HTTP PATCH /jobs/{id}  (agent reports result)
-5. Backend marks job "completed"
+5. Backend marks job "Completed"
         ↓  WebSocket push to dashboard
 6. Dashboard shows "Completed" in real time
 ```

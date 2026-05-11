@@ -38,15 +38,19 @@ def fetch_printer(name):
     finally:
         conn.close()
 
+def _mget(row, key):
+    """Case-insensitive dict get — handles SQLite (camelCase) and PostgreSQL (lowercase)."""
+    return row.get(key) or row.get(key.lower()) or row.get(key.upper())
+
 def mapping_candidates(mapping, category):
     if category == "A4":
         return [
-            (mapping.get("a4Primary"), "Primary"),
-            (mapping.get("a4Secondary"), "Failover"),
+            (_mget(mapping, "a4Primary"), "Primary"),
+            (_mget(mapping, "a4Secondary"), "Failover"),
         ]
     return [
-        (mapping.get("barPrimary"), "Primary"),
-        (mapping.get("barSecondary"), "Failover"),
+        (_mget(mapping, "barPrimary"), "Primary"),
+        (_mget(mapping, "barSecondary"), "Failover"),
     ]
 
 def log_print_event(job_id, printer, status, message):
