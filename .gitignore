@@ -27,6 +27,8 @@ frontend/build/
 
 # Logs
 *.log
+logs/
+backend/logs/
 uploads/
 
 # OS
