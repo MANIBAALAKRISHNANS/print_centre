@@ -17,17 +17,18 @@ def restrict_config_permissions():
         if _OS == "Windows":
             username = os.environ.get("USERNAME", "")
             if username:
-                # Remove inherited permissions, grant current user + SYSTEM (service account)
-                subprocess.run(
+                result = subprocess.run(
                     ["icacls", CONFIG_PATH, "/inheritance:r",
                      "/grant:r", f"{username}:(R,W)",
                      "/grant:r", "SYSTEM:(R,W)"],
-                    check=True, capture_output=True
+                    capture_output=True
                 )
+                if result.returncode != 0:
+                    logger.debug("[CONFIG] File permission hardening skipped (run as Administrator to enable)")
         else:
             os.chmod(CONFIG_PATH, 0o600)
     except Exception as e:
-        logger.warning(f"[CONFIG] Could not restrict permissions on config file: {e}")
+        logger.debug(f"[CONFIG] File permission hardening skipped: {e}")
 
 
 def load_config() -> dict:
